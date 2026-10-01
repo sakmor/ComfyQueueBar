@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added a real macOS desktop context capture with a menu bar callout at the top of the README.
+
 - Simplified the menu bar mark to three queue rows and a separate play triangle for small-size readability.
 
 - Added a custom macOS app icon, matching panel branding, and a monochrome menu bar mark.

@@ -93,4 +93,4 @@ No automatic updater, packaging service, signing certificate, or notarization cr
 
 The app bundle contains an `.icns` icon generated from `assets/app-icon.png`, plus the full-color panel icon. The menu bar uses a code-drawn template image so macOS can adapt it to the menu bar appearance. See [asset provenance](../assets/README.md).
 
-Run `bash scripts/capture-screenshots.sh` in a graphical macOS session to regenerate the README images. A separate compile-time build uses the actual panel with fixed sample data and disables network access. Production builds contain neither that capture entry point nor its demonstration data. See [screenshot provenance](images/README.md).
+Run `bash scripts/capture-screenshots.sh` in a graphical macOS session to regenerate the README images. A separate compile-time build uses the actual panel with fixed sample data and disables network access. Use `bash scripts/capture-screenshots.sh --desktop-demo` to show the same panel beneath a native status item for an operating-system context capture. Production builds contain neither that capture entry point nor its demonstration data. See [screenshot provenance](images/README.md).

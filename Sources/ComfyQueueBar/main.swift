@@ -490,6 +490,27 @@ struct DocumentationCapture {
         app.setActivationPolicy(.accessory)
         let dark = CommandLine.arguments.contains("--dark")
         app.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        if CommandLine.arguments.contains("--menu-bar") {
+            let status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+            guard let button = status.button else { fatalError("No status button") }
+            button.image = QueueBrand.menuBarIcon
+            button.imagePosition = .imageLeading
+            button.title = " 2"
+            let panel = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 540), styleMask: [.borderless], backing: .buffered, defer: false)
+            panel.isOpaque = false
+            panel.backgroundColor = .clear
+            panel.hasShadow = true
+            panel.level = .popUpMenu
+            panel.contentView = NSHostingView(rootView: QueuePopover(queue: QueueViewModel()).frame(width: 360, height: 540).clipShape(RoundedRectangle(cornerRadius: 12)))
+            RunLoop.main.run(until: Date(timeIntervalSinceNow: 1))
+            let anchor = button.window!.convertToScreen(button.convert(button.bounds, to: nil))
+            panel.setFrameOrigin(NSPoint(x: anchor.midX - 180, y: anchor.minY - 548))
+            panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            app.activate(ignoringOtherApps: true)
+            panel.orderFrontRegardless()
+            withExtendedLifetime((status, panel)) { app.run() }
+            return
+        }
         let view = NSHostingView(rootView: QueuePopover(queue: QueueViewModel()).frame(width: 360, height: 540))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 540), styleMask: [.borderless], backing: .buffered, defer: false)
         window.contentView = view

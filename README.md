@@ -14,12 +14,23 @@
   <a href="docs/TROUBLESHOOTING.md">Troubleshooting</a>
 </p>
 
+<p align="center"><strong>A macOS menu bar app — click its icon to open your queue.</strong></p>
+
+![ComfyQueueBar on the macOS desktop, with an arrow pointing to its menu bar icon and the queue panel displayed below it](docs/images/desktop-menubar-annotated.png)
+
+*Real macOS desktop capture with the app's SwiftUI panel in a documentation demo. Fixed sample jobs; no live workflow or private desktop content is shown.*
+
+<details>
+<summary>View close-up screenshots in light and dark appearance</summary>
+
 <table>
   <tr>
     <td align="center"><img src="docs/images/queue-light.png" width="340" alt="Light mode: one running job at 70 percent node progress, a Stop button, and a waiting job with a Prioritize button" /><br /><strong>Light appearance</strong></td>
     <td align="center"><img src="docs/images/queue-dark.png" width="340" alt="Dark mode: ComfyUI running and waiting queues with job controls" /><br /><strong>Dark appearance</strong></td>
   </tr>
 </table>
+
+</details>
 
 *Screenshots of the actual SwiftUI interface with fixed demonstration data. Node progress is not whole-workflow progress.*
 
