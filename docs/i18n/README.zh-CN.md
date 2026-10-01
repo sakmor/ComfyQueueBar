@@ -6,6 +6,10 @@
 
 [English](../../README.md) · **简体中文** · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md)
 
+桌面场景截图使用早期界面，最新面板如下：
+
+<img src="../images/queue-light.png" width="360" alt="ComfyQueueBar v1.3.0" />
+
 ## 看看它怎么用
 
 **点击 macOS 菜单栏图标，即可展开队列面板。**

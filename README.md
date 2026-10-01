@@ -23,9 +23,16 @@
 
 <p align="center"><strong>A macOS menu bar app — click its icon to open your queue.</strong></p>
 
-![ComfyQueueBar on the macOS desktop, with an arrow pointing to its menu bar icon and the queue panel displayed below it](docs/images/desktop-menubar-annotated.png)
+<p align="center"><img src="docs/images/queue-light.png" width="360" alt="Current ComfyQueueBar interface: running, waiting, and recently completed clips" /></p>
 
-*Real macOS desktop capture with the app's SwiftUI panel in a documentation demo. Fixed sample jobs; no live workflow or private desktop content is shown.*
+<details>
+<summary>See the app on the macOS desktop</summary>
+
+![ComfyQueueBar menu bar placement on the macOS desktop](docs/images/desktop-menubar-annotated.png)
+
+*Real macOS desktop capture from the earlier interface. Menu bar placement is unchanged; the current panel design is shown above. Fixed sample jobs, with no private desktop contents.*
+
+</details>
 
 <details>
 <summary>View close-up screenshots in light and dark appearance</summary>

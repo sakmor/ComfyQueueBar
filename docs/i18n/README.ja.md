@@ -6,6 +6,10 @@
 
 [English](../../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · **日本語**
 
+デスクトップ画像は以前のデザインです。現在のパネルは次のとおりです。
+
+<img src="../images/queue-light.png" width="360" alt="ComfyQueueBar v1.3.0" />
+
 ## 使い方を画像で見る
 
 **macOS のメニューバーにあるアイコンをクリックすると、キューパネルが開きます。**

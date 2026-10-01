@@ -5,7 +5,7 @@
 - Redesigned the panel with native materials, restrained list rows, compact typography, and settings in a gear popover.
 - Added recently completed jobs with finish times and output filenames from ComfyUI history, refreshed every 15 seconds.
 - Excluded failed/interrupted jobs; capped the list at 20 successful jobs from the newest 50 history records, with a 24-hour filter for dated entries.
-- Updated English interface and desktop screenshots.
+- Updated English interface screenshots; retained the earlier desktop context capture with a version note.
 
 
 ## 1.2.0 — 2026-10-01
