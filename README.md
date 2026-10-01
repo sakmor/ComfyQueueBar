@@ -1,12 +1,33 @@
-# ComfyQueueBar
+<p align="center">
+  <img src="assets/app-icon.png" width="112" alt="ComfyQueueBar app icon: stacked queue cards with a play symbol" />
+</p>
 
-**Your ComfyUI queue, one click away in the macOS menu bar.**
+<h1 align="center">ComfyQueueBar</h1>
 
-A small native SwiftUI app for checking running and waiting ComfyUI jobs without keeping a browser tab in front. See queue counts, move a waiting job to the front, stop a running job, and optionally follow the current node's progress.
+<p align="center"><strong>Your ComfyUI queue, one click away in the macOS menu bar.</strong></p>
+<p align="center">See what's running. Check node progress. Choose what runs next.</p>
 
-Built with Apple frameworks and Swift Package Manager. No third-party Swift packages, Electron, or Python environment are required for the Mac app. ComfyUI continues to run independently on your Mac or a remote machine.
+<p align="center">
+  <a href="#quick-start">Install</a> ·
+  <a href="docs/USAGE.md">Usage guide</a> ·
+  <a href="docs/REMOTE_SETUP.md">Remote setup</a> ·
+  <a href="docs/TROUBLESHOOTING.md">Troubleshooting</a>
+</p>
 
-[Getting started](#quick-start) · [Remote setup](docs/REMOTE_SETUP.md) · [Usage guide](docs/USAGE.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Development](docs/DEVELOPMENT.md)
+<table>
+  <tr>
+    <td align="center"><img src="docs/images/queue-light.png" width="340" alt="Light mode: one running job at 70 percent node progress, a Stop button, and a waiting job with a Prioritize button" /><br /><strong>Light appearance</strong></td>
+    <td align="center"><img src="docs/images/queue-dark.png" width="340" alt="Dark mode: ComfyUI running and waiting queues with job controls" /><br /><strong>Dark appearance</strong></td>
+  </tr>
+</table>
+
+*Screenshots of the actual SwiftUI interface with fixed demonstration data. Node progress is not whole-workflow progress.*
+
+| Check progress | Choose the next job | Stop a running job |
+| --- | --- | --- |
+| See running / waiting counts and the current node's percentage. | **Prioritize** moves a waiting job to the front by resubmitting it. | **Stop** requests interruption while keeping waiting jobs queued. |
+
+A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote server over SSH. No Electron or third-party Swift packages.
 
 ## Features
 

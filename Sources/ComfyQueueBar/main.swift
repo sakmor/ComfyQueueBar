@@ -25,6 +25,16 @@ final class QueueViewModel: ObservableObject {
     var totalJobs: Int { running.count + pending.count }
 
     init() {
+        #if DOCUMENTATION_SCREENSHOT
+        endpoint = "http://127.0.0.1:8188"
+        let graph: [String: Any] = ["12": ["_meta": ["title": "KSampler"], "class_type": "KSampler"]]
+        running = [QueueJob(id: "8f21a7c4-demo-running", title: "Neon city portrait", nodeCount: 24, queueNumber: 1, position: 1, prompt: graph, extraData: [:])]
+        pending = [QueueJob(id: "b390e612-demo-waiting", title: "Product lighting study", nodeCount: 18, queueNumber: 2, position: 1, prompt: [:], extraData: [:])]
+        isConnected = true
+        progressBridgeStatus = .available
+        queueProgress = QueueProgress(promptID: running[0].id, nodeID: "12", value: 21, maxValue: 30, percent: 70, state: "running")
+        lastUpdated = Date(timeIntervalSince1970: 1790814600)
+        #else
         endpoint = UserDefaults.standard.string(forKey: "comfyEndpoint") ?? "http://127.0.0.1:8188"
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.refresh() }
@@ -33,6 +43,7 @@ final class QueueViewModel: ObservableObject {
             Task { @MainActor in await self?.refreshProgress() }
         }
         Task { await refresh() }
+        #endif
     }
 
     func connect(to value: String) async {
@@ -263,6 +274,9 @@ final class QueueViewModel: ObservableObject {
     }
 
     private func requestData(path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> Data {
+        #if DOCUMENTATION_SCREENSHOT
+        throw QueueError.invalidEndpoint // Documentation builds never contact a server.
+        #else
         guard var components = URLComponents(string: endpoint),
               let scheme = components.scheme?.lowercased(),
               ["http", "https"].contains(scheme),
@@ -292,6 +306,7 @@ final class QueueViewModel: ObservableObject {
             throw QueueError.serverStatus(status, detail)
         }
         return data
+        #endif
     }
 
     private func deletePendingJob(id: String) async throws {
@@ -439,6 +454,59 @@ enum QueueError: LocalizedError {
     }
 }
 
+enum QueueBrand {
+    static let menuBarIcon: NSImage = {
+        let image = NSImage(size: NSSize(width: 19, height: 18), flipped: false) { _ in
+            NSColor.black.setStroke()
+            for (x, y) in [(2.0, 7.0), (4.0, 4.0), (6.0, 1.0)] {
+                let card = NSBezierPath(roundedRect: NSRect(x: x, y: y, width: 11, height: 8), xRadius: 2, yRadius: 2)
+                card.lineWidth = 1.4
+                card.stroke()
+            }
+            let play = NSBezierPath()
+            play.move(to: NSPoint(x: 10, y: 3))
+            play.line(to: NSPoint(x: 10, y: 7))
+            play.line(to: NSPoint(x: 13.5, y: 5))
+            play.close()
+            NSColor.black.setFill()
+            play.fill()
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }()
+
+    static var panelIcon: Image {
+        if let url = Bundle.main.url(forResource: "AppIconPreview", withExtension: "png"), let icon = NSImage(contentsOf: url) {
+            return Image(nsImage: icon)
+        }
+        return Image(systemName: "square.stack.3d.up.fill")
+    }
+}
+
+#if DOCUMENTATION_SCREENSHOT
+@main
+struct DocumentationCapture {
+    @MainActor static func main() {
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)
+        let dark = CommandLine.arguments.contains("--dark")
+        app.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        let view = NSHostingView(rootView: QueuePopover(queue: QueueViewModel()).frame(width: 360, height: 540))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 540), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = view
+        window.center()
+        window.orderFrontRegardless()
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 2))
+        view.layoutSubtreeIfNeeded()
+        guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { fatalError("Cannot capture view") }
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        guard let png = bitmap.representation(using: .png, properties: [:]) else { fatalError("Cannot encode PNG") }
+        try! png.write(to: URL(fileURLWithPath: CommandLine.arguments[1]))
+        window.close()
+    }
+}
+#else
 @main
 struct ComfyQueueBarApp: App {
     @StateObject private var queue = QueueViewModel()
@@ -449,7 +517,7 @@ struct ComfyQueueBarApp: App {
                 .frame(width: 360, height: 540)
         } label: {
             HStack(spacing: 5) {
-                Image(systemName: "square.stack.3d.up.fill")
+                Image(nsImage: QueueBrand.menuBarIcon)
                 Text("\(queue.totalJobs)")
                     .monospacedDigit()
             }
@@ -459,6 +527,8 @@ struct ComfyQueueBarApp: App {
         .menuBarExtraStyle(.window)
     }
 }
+
+#endif
 
 @MainActor
 final class QueuePopoverState: ObservableObject {
@@ -514,8 +584,9 @@ struct QueuePopover: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Image(systemName: "square.stack.3d.up.fill")
-                .font(.system(size: 17, weight: .semibold))
+            QueueBrand.panelIcon
+                .resizable()
+                .scaledToFit()
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 34, height: 34)
                 .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
@@ -661,7 +732,7 @@ struct QueuePopover: View {
 
     private var footer: some View {
         HStack {
-            Text(queue.lastUpdated.map { "Updated \($0.formatted(date: .omitted, time: .shortened))" } ?? "Refreshes every 4 seconds")
+            Text(queue.lastUpdated.map { "Updated \($0.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(Locale(identifier: "en_US"))))" } ?? "Refreshes every 4 seconds")
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
             Spacer()

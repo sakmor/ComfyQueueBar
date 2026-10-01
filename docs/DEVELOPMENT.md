@@ -5,10 +5,12 @@
 ```text
 Package.swift                              Swift executable package
 Sources/ComfyQueueBar/main.swift            View model, API client, and SwiftUI UI
-build-app.sh                               Release app bundle builder
+assets/                                    App icon and artwork provenance
+build-app.sh                               Release app bundle and icon builder
 install-comfyui-extension.sh               Non-overwriting extension installer
 comfyui_extension/ComfyQueueBarProgress/    ComfyUI-side Python observer
 scripts/check.sh                          Local verification entry point
+scripts/capture-screenshots.sh             Native documentation captures
 tests/                                    Isolated extension and installer tests
 docs/                                     User and developer guides
 .github/workflows/ci.yml                   Automated build and test checks
@@ -86,3 +88,9 @@ These are moving upstream links, not a promise of compatibility with every futur
 5. Keep `.build/` and `build/` out of Git. If publishing an app archive, label its architecture and signing/notarization status accurately.
 
 No automatic updater, packaging service, signing certificate, or notarization credentials are included.
+
+## Branding and interface captures
+
+The app bundle contains an `.icns` icon generated from `assets/app-icon.png`, plus the full-color panel icon. The menu bar uses a code-drawn template image so macOS can adapt it to the menu bar appearance. See [asset provenance](../assets/README.md).
+
+Run `bash scripts/capture-screenshots.sh` in a graphical macOS session to regenerate the README images. A separate compile-time build uses the actual panel with fixed sample data and disables network access. Production builds contain neither that capture entry point nor its demonstration data. See [screenshot provenance](images/README.md).

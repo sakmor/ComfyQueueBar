@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Added a custom macOS app icon, matching panel branding, and a monochrome menu bar mark.
+- Added native light/dark interface screenshots and a visual-first README.
+- Added a reproducible screenshot capture build with isolated sample data and no server access.
+- Kept the displayed update time in English across system locales.
+
 ## 1.0.0 — 2026-10-01
 
 - Extracted the macOS queue helper into a standalone repository.
