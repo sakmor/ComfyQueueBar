@@ -87,7 +87,7 @@ These are moving upstream links, not a promise of compatibility with every futur
 4. State tested macOS, architecture, and ComfyUI version in release notes; distinguish automated checks from live integration tests.
 5. Keep `.build/` and `build/` out of Git. If publishing an app archive, label its architecture and signing/notarization status accurately.
 
-No automatic updater, packaging service, signing certificate, or notarization credentials are included.
+Automatic updates use Sparkle and the signed appcast described below. No Apple Developer ID certificate or notarization credentials are included.
 
 ## Branding and interface captures
 

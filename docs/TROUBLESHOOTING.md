@@ -8,7 +8,7 @@
 
 **SDK or developer-directory errors**: verify that your selected Xcode or Command Line Tools installation is valid. Run `swift --version` and `swift build -c release` from the repository to obtain the compiler's full error.
 
-The source uses only AppKit, Foundation, and SwiftUI. No Homebrew libraries or additional Swift packages are needed.
+The source uses AppKit, Foundation, SwiftUI, and the pinned Sparkle binary package. Swift Package Manager downloads Sparkle during the first build; network access to GitHub is required. No Homebrew libraries are needed.
 
 ## The app opens but there is no window
 
@@ -59,7 +59,11 @@ On older servers, `/interrupt` may ignore the submitted prompt ID. Use a version
 
 ## Updating the app
 
-Quit the app, then run from your clone:
+v1.2.0 and later automatically check for updates through Sparkle. Use **Check for updates…** in the panel to check now, or enable **Automatically update the app**. If updates cannot install, move the app out of the download archive/disk image into a writable Applications folder and reopen it. macOS may require approval for this non-notarized app. Check that GitHub and raw.githubusercontent.com are reachable. A signature failure must not be bypassed; report it to the maintainer.
+
+v1.1.0 and earlier require a one-time manual download of the newer app. Automatic updates replace the Mac app only; server extensions remain a separate installation.
+
+For a source build, quit the app, then run from your clone:
 
 ```sh
 git pull --ff-only
