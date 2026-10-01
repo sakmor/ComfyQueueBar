@@ -67,3 +67,7 @@ Progress is a single most-recent-node snapshot, not an aggregate of parallel bra
 Keep ComfyUI running, queue work through your existing browser or automation, and use the menu bar to check status. The app cannot submit new arbitrary workflows, launch ComfyUI, manage models, preview generated media, or maintain SSH tunnels.
 
 Use **Quit** in the panel to close ComfyQueueBar. Quitting the app does not interrupt ComfyUI or cancel queued jobs.
+
+## Interface language
+
+The app supports English, Simplified Chinese, Traditional Chinese, and Japanese. It follows the first supported language in macOS preferred languages and falls back to English. You can select an app-specific language in **System Settings → General → Language & Region → Applications** (labels vary by macOS version). Restart ComfyQueueBar after changing the language. Workflow names, node names, and server-provided error details keep their original text. GitHub screenshots use English.

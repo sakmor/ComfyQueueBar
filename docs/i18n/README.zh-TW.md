@@ -12,7 +12,7 @@
 
 ![macOS 桌面上的 ComfyQueueBar 選單列圖示與佇列面板](../images/desktop-menubar-annotated.png)
 
-這是真實 macOS 桌面截圖，面板使用文件示範模式與固定範例工作；不含私人桌面內容或即時工作流程。圖中的英文提示表示「點選選單列圖示」。App 介面目前為英文；本頁提供繁體中文使用說明。
+這是真實 macOS 桌面截圖，面板使用文件示範模式與固定範例工作；不含私人桌面內容或即時工作流程。圖中的英文提示表示「點選選單列圖示」。App 支援英文、簡體中文、繁體中文與日文，依 macOS 偏好語言顯示。GitHub 截圖維持英文，以下按鈕名稱以英文對照說明。更改系統語言或 App 語言後，請重新啟動 App。
 
 <details>
 <summary>查看淺色與深色介面</summary>
@@ -132,6 +132,6 @@ App 沒有自訂 API key、bearer token 或登入介面；請求會捨棄網址�
 
 ## 授權與致謝
 
-採用 [MIT 授權](../../LICENSE)。源自 AniClayFilm repository 中供 [Clay Trouble](https://www.youtube.com/@ClayTrouble) 使用的工具；獨立版本具有英文介面、獨立 App identifier 與進度端點，不包含影片素材、工作流程、模型或憑證。
+採用 [MIT 授權](../../LICENSE)。源自 AniClayFilm repository 中供 [Clay Trouble](https://www.youtube.com/@ClayTrouble) 使用的工具；獨立版本具有多語介面、獨立 App identifier 與進度端點，不包含影片素材、工作流程、模型或憑證。
 
 [ComfyUI](https://github.com/Comfy-Org/ComfyUI) 是獨立專案；ComfyQueueBar 是社群工具，並非官方產品，也未隨附 ComfyUI 原始碼。

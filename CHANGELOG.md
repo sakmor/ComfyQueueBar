@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Localized the macOS interface into Simplified Chinese, Traditional Chinese, and Japanese, including confirmations, recovery messages, accessibility labels, and update times. Documentation screenshots remain English.
+
 - Added Simplified Chinese, Traditional Chinese, and Japanese README guides with language navigation and shared screenshots. The app interface remains English.
 
 - Added a real macOS desktop context capture with a menu bar callout at the top of the README.

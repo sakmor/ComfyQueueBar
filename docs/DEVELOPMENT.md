@@ -94,3 +94,9 @@ No automatic updater, packaging service, signing certificate, or notarization cr
 The app bundle contains an `.icns` icon generated from `assets/app-icon.png`, plus the full-color panel icon. The menu bar uses a code-drawn template image so macOS can adapt it to the menu bar appearance. See [asset provenance](../assets/README.md).
 
 Run `bash scripts/capture-screenshots.sh` in a graphical macOS session to regenerate the README images. A separate compile-time build uses the actual panel with fixed sample data and disables network access. Use `bash scripts/capture-screenshots.sh --desktop-demo` to show the same panel beneath a native status item for an operating-system context capture. Production builds contain neither that capture entry point nor its demonstration data. See [screenshot provenance](images/README.md).
+
+## Localization
+
+`L10n` in `Sources/ComfyQueueBar/main.swift` holds app-owned strings for English, `zh-Hans`, `zh-Hant`, and Japanese. The app bundle declares these languages. Preferred language resolution respects explicit Chinese scripts before regional fallbacks. Dynamic values use `%@` placeholders; workflow and node names remain server-owned text. `bash scripts/check-localization.sh` checks language selection, translation completeness, placeholder parity, formatting, and fallback behavior.
+
+Documentation builds default to English regardless of the system language. For local visual checks only, set `COMFYQUEUEBAR_PREVIEW_LANGUAGE=ja`, `zh-Hant`, or `zh-Hans` when running the documentation capture executable with a temporary output path. Production builds ignore this environment variable.

@@ -56,6 +56,7 @@ A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote 
 - **Stop** a running job with a confirmation dialog, keeping the waiting queue.
 - Optional node name and percentage updates every **1 second**, using the included server extension.
 - Saved ComfyUI address and a manual refresh button.
+- English, Simplified Chinese, Traditional Chinese, and Japanese interface, selected from macOS preferred languages.
 - Native macOS appearance, with no Dock window.
 - Local or remote ComfyUI connections, including SSH port forwarding.
 
@@ -179,6 +180,6 @@ The extension route inherits the server's network exposure; it is **not automati
 
 MIT licensed. See [LICENSE](LICENSE).
 
-Originally extracted from a production helper in the AniClayFilm repository, used for [Clay Trouble](https://www.youtube.com/@ClayTrouble). This standalone edition has an English interface and documentation, its own app identifier, and its own progress endpoint. It does not include film assets, workflows, models, or credentials.
+Originally extracted from a production helper in the AniClayFilm repository, used for [Clay Trouble](https://www.youtube.com/@ClayTrouble). This standalone edition has a multilingual interface and documentation, its own app identifier, and its own progress endpoint. It does not include film assets, workflows, models, or credentials.
 
 [ComfyUI](https://github.com/Comfy-Org/ComfyUI) is a separate project. ComfyQueueBar is an independent community tool and is not an official ComfyUI product. No ComfyUI source code is bundled.

@@ -12,7 +12,7 @@
 
 ![macOS 桌面上的 ComfyQueueBar 菜单栏图标与队列面板](../images/desktop-menubar-annotated.png)
 
-这是真实 macOS 桌面截图，面板使用文档演示模式与固定示例任务；不包含私人桌面内容或实时工作流。图中的英文提示表示“点击菜单栏图标”。App 界面目前为英文；本页提供简体中文使用说明。
+这是真实 macOS 桌面截图，面板使用文档演示模式与固定示例任务；不包含私人桌面内容或实时工作流。图中的英文提示表示“点击菜单栏图标”。App 支持英文、简体中文、繁体中文与日文，根据 macOS 首选语言显示。GitHub 截图保持英文，下方按钮名称用英文对应说明。更改系统语言或 App 语言后，请重新启动 App。
 
 <details>
 <summary>查看浅色与深色界面</summary>
@@ -132,6 +132,6 @@ App 没有自定义 API key、bearer token 或登录界面；请求会丢弃网�
 
 ## 许可与致谢
 
-采用 [MIT 许可](../../LICENSE)。源自 AniClayFilm 仓库中供 [Clay Trouble](https://www.youtube.com/@ClayTrouble) 使用的工具；独立版本具有英文界面、独立 App identifier 与进度端点，不包含影片素材、工作流、模型或凭据。
+采用 [MIT 许可](../../LICENSE)。源自 AniClayFilm 仓库中供 [Clay Trouble](https://www.youtube.com/@ClayTrouble) 使用的工具；独立版本具有多语言界面、独立 App identifier 与进度端点，不包含影片素材、工作流、模型或凭据。
 
 [ComfyUI](https://github.com/Comfy-Org/ComfyUI) 是独立项目；ComfyQueueBar 是社区工具，并非官方产品，也未附带 ComfyUI 源代码。

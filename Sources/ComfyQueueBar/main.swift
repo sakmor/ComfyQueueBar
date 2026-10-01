@@ -2,6 +2,103 @@ import AppKit
 import Foundation
 import SwiftUI
 
+// App-owned text is localized; server-provided workflow/node names remain unchanged.
+enum L10n {
+    static let language: String = {
+        #if DOCUMENTATION_SCREENSHOT
+        // Public documentation screenshots always use English. Preview overrides are test-only.
+        return ProcessInfo.processInfo.environment["COMFYQUEUEBAR_PREVIEW_LANGUAGE"] ?? "en"
+        #else
+        return resolve(Locale.preferredLanguages)
+        #endif
+    }()
+
+    static func resolve(_ preferences: [String]) -> String {
+        for preference in preferences {
+            let tag = preference.replacingOccurrences(of: "_", with: "-").lowercased()
+            if tag == "ja" || tag.hasPrefix("ja-") { return "ja" }
+            if tag == "zh" || tag.hasPrefix("zh-") {
+                if tag.contains("hant") || (!tag.contains("hans") && (tag.contains("-tw") || tag.contains("-hk") || tag.contains("-mo"))) { return "zh-Hant" }
+                return "zh-Hans"
+            }
+            if tag == "en" || tag.hasPrefix("en-") { return "en" }
+        }
+        return "en"
+    }
+
+    static var locale: Locale { Locale(identifier: language) }
+
+    static func text(_ key: String, _ arguments: String...) -> String {
+        let index = ["zh-Hant": 0, "zh-Hans": 1, "ja": 2][language]
+        let format = index.flatMap { translations[key]?[$0] } ?? key
+        return arguments.isEmpty ? format : String(format: format, locale: locale, arguments: arguments)
+    }
+
+    static let translations: [String: [String]] = [
+        "ComfyUI Queue": ["ComfyUI 佇列", "ComfyUI 队列", "ComfyUI キュー"],
+        "Connected": ["已連線", "已连接", "接続済み"],
+        "Disconnected": ["未連線", "未连接", "未接続"],
+        "Refresh now": ["立即更新", "立即刷新", "今すぐ更新"],
+        "ComfyUI address": ["ComfyUI 位址", "ComfyUI 地址", "ComfyUI アドレス"],
+        "Connect": ["連線", "连接", "接続"],
+        "Running": ["執行中", "运行中", "実行中"],
+        "Waiting": ["等待中", "等待中", "待機中"],
+        "Total": ["總計", "总计", "合計"],
+        "Waiting queue": ["等待佇列", "等待队列", "待機キュー"],
+        "No jobs are running": ["目前沒有執行中的工作", "当前没有运行中的任务", "実行中のジョブはありません"],
+        "No waiting jobs": ["沒有等待中的工作", "没有等待中的任务", "待機中のジョブはありません"],
+        "Confirm action": ["確認操作", "确认操作", "操作の確認"],
+        "Prioritize and resubmit": ["優先執行並重新提交", "优先执行并重新提交", "優先して再送信"],
+        "Stop running job": ["停止執行中的工作", "停止运行中的任务", "実行中のジョブを停止"],
+        "Cancel": ["取消", "取消", "キャンセル"],
+        "Moving job to the front…": ["正在移至佇列前端…", "正在移至队列前端…", "キューの先頭に移動中…"],
+        "Stopping job…": ["正在停止工作…", "正在停止任务…", "ジョブを停止中…"],
+        "Unable to read the queue": ["無法讀取佇列", "无法读取队列", "キューを読み込めません"],
+        "Check that ComfyUI is running and the address is correct.": ["請確認 ComfyUI 已啟動且位址正確。", "请确认 ComfyUI 已启动且地址正确。", "ComfyUI が起動していることとアドレスを確認してください。"],
+        "Refreshes every 4 seconds": ["每 4 秒更新", "每 4 秒刷新", "4 秒ごとに更新"],
+        "Quit": ["結束", "退出", "終了"],
+        "Prioritize this job?": ["要優先執行這個工作嗎？", "要优先执行此任务吗？", "このジョブを優先しますか？"],
+        "Stop this job?": ["要停止這個工作嗎？", "要停止此任务吗？", "このジョブを停止しますか？"],
+        "Working": ["處理中", "处理中", "処理中"],
+        "Prioritize": ["優先執行", "优先执行", "優先実行"],
+        "Stopping": ["停止中", "停止中", "停止中"],
+        "Stop": ["停止", "停止", "停止"],
+        "Run next after the current job": ["目前工作結束後優先執行", "当前任务结束后优先执行", "現在のジョブの次に実行"],
+        "Stop this job while keeping waiting jobs": ["停止此工作並保留等待工作", "停止此任务并保留等待任务", "待機ジョブを保持してこのジョブを停止"],
+        "Node is processing": ["節點處理中", "节点处理中", "ノードを処理中"],
+        "Fetching node progress…": ["正在取得節點進度…", "正在获取节点进度…", "ノードの進捗を取得中…"],
+        "No progress reported for this node yet": ["此節點尚未回報進度", "此节点尚未报告进度", "このノードの進捗はまだ報告されていません"],
+        "Install the progress extension and restart ComfyUI": ["請安裝進度擴充並重啟 ComfyUI", "请安装进度扩展并重启 ComfyUI", "進捗拡張機能をインストールして ComfyUI を再起動してください"],
+        "Unable to read live progress": ["無法讀取即時進度", "无法读取实时进度", "現在の進捗を読み込めません"],
+        "ComfyUI workflow": ["ComfyUI 工作流程", "ComfyUI 工作流", "ComfyUI ワークフロー"],
+        "Waiting for node progress": ["等待節點進度", "等待节点进度", "ノードの進捗を待機中"],
+        "Enter a valid http:// or https:// address.": ["請輸入有效的 http:// 或 https:// 位址。", "请输入有效的 http:// 或 https:// 地址。", "有効な http:// または https:// アドレスを入力してください。"],
+        "ComfyUI returned an unrecognized queue response.": ["ComfyUI 回傳了無法辨識的佇列回應。", "ComfyUI 返回了无法识别的队列响应。", "ComfyUI から認識できないキューレスポンスが返されました。"],
+        "This job is no longer waiting. Refresh and try again.": ["此工作已不在等待佇列，請更新後重試。", "此任务已不在等待队列，请刷新后重试。", "このジョブは待機中ではありません。更新して再試行してください。"],
+        "The original job started. Prioritization was canceled; the running job will continue.": ["原工作已開始，已取消優先操作；執行中的工作將繼續。", "原任务已开始，已取消优先操作；运行中的任务将继续。", "元のジョブが開始されました。優先操作を取り消しました。実行中のジョブは継続します。"],
+        "This job is no longer running. No stop request was sent.": ["此工作已不在執行中，未送出停止請求。", "此任务已不在运行中，未发送停止请求。", "このジョブは実行中ではありません。停止要求は送信していません。"],
+        "ComfyUI did not remove the original job. Checking resubmission cleanup.": ["ComfyUI 未移除原工作，正在檢查重新提交項目的清理狀態。", "ComfyUI 未移除原任务，正在检查重新提交项的清理状态。", "ComfyUI が元のジョブを削除していません。再送信項目の削除を確認しています。"],
+        "The job has stopped. The next waiting job can now run.": ["工作已停止，下一個等待工作可以開始執行。", "任务已停止，下一个等待任务可以开始运行。", "ジョブが停止しました。次の待機ジョブを実行できます。"],
+        "Stop requested. ComfyUI has not yet reported that the job ended.": ["已請求停止，ComfyUI 尚未回報工作已結束。", "已请求停止，ComfyUI 尚未报告任务已结束。", "停止を要求しました。ComfyUI はまだジョブの終了を報告していません。"],
+        "The original job started. The resubmitted entry was removed; the running job was not interrupted.": ["原工作已開始，重新提交的項目已移除；執行中的工作未被中斷。", "原任务已开始，重新提交的项已移除；运行中的任务未被中断。", "元のジョブが開始されました。再送信した項目を削除しました。実行中のジョブは中断していません。"],
+        "Prioritization failed. The resubmitted entry was removed; the original job remains queued.": ["優先操作失敗，重新提交的項目已移除，原工作仍在佇列中。", "优先操作失败，重新提交的项已移除，原任务仍在队列中。", "優先操作に失敗しました。再送信した項目を削除しました。元のジョブはキューに残っています。"],
+        "The original job left the waiting queue. The resubmitted entry was removed.": ["原工作已離開等待佇列，重新提交的項目已移除。", "原任务已离开等待队列，重新提交的项已移除。", "元のジョブは待機キューから離れました。再送信した項目を削除しました。"],
+        "Updated %@": ["更新於 %@", "更新于 %@", "更新 %@"],
+        "ComfyUI queue: %@ jobs": ["ComfyUI 佇列：%@ 個工作", "ComfyUI 队列：%@ 个任务", "ComfyUI キュー：%@ 件"],
+        "%@ nodes": ["%@ 個節點", "%@ 个节点", "%@ ノード"],
+        "Node %@": ["節點 %@", "节点 %@", "ノード %@"],
+        "ComfyUI returned HTTP %@.": ["ComfyUI 回傳 HTTP %@。", "ComfyUI 返回 HTTP %@。", "ComfyUI から HTTP %@ が返されました。"],
+        "Moved to the front of the waiting queue. New job ID: %@": ["已移至等待佇列前端。新工作 ID：%@", "已移至等待队列前端。新任务 ID：%@", "待機キューの先頭に移動しました。新しいジョブ ID：%@"],
+        "Could not confirm the result. Refresh and check original ID %@ and new ID %@.": ["無法確認結果。請更新並檢查原 ID %@ 與新 ID %@。", "无法确认结果。请刷新并检查原 ID %@ 与新 ID %@。", "結果を確認できません。更新して元の ID %@ と新しい ID %@ を確認してください。"],
+        "Could not confirm duplicate cleanup. Refresh now and check original ID %@ and new ID %@.": ["無法確認重複項目已清理。請更新並檢查原 ID %@ 與新 ID %@。", "无法确认重复项已清理。请刷新并检查原 ID %@ 与新 ID %@。", "重複項目の削除を確認できません。更新して元の ID %@ と新しい ID %@ を確認してください。"],
+        "Could not confirm prioritization or cleanup. Refresh now and check original ID %@ and new ID %@.": ["無法確認優先操作或清理結果。請更新並檢查原 ID %@ 與新 ID %@。", "无法确认优先操作或清理结果。请刷新并检查原 ID %@ 与新 ID %@。", "優先操作または削除の結果を確認できません。更新して元の ID %@ と新しい ID %@ を確認してください。"],
+        "The original job status is unknown, but the resubmitted job started. Refresh and check IDs %@ and %@.": ["原工作狀態未知，但重新提交的工作已開始。請更新並檢查 ID %@ 與 %@。", "原任务状态未知，但重新提交的任务已开始。请刷新并检查 ID %@ 与 %@。", "元のジョブの状態は不明ですが、再送信したジョブが開始されました。更新して ID %@ と %@ を確認してください。"],
+        "The original job left the waiting queue. Refresh to check the result.": ["原工作已離開等待佇列，請更新以確認結果。", "原任务已离开等待队列，请刷新以确认结果。", "元のジョブは待機キューから離れました。更新して結果を確認してください。"],
+        "Move \"%@\" to the front of the waiting queue. The running job continues. This resubmits the job and changes its prompt ID.": ["將「%@」移至等待佇列前端。執行中的工作會繼續。此操作會重新提交工作並變更 prompt ID。", "将“%@”移至等待队列前端。运行中的任务会继续。此操作会重新提交任务并更改 prompt ID。", "「%@」を待機キューの先頭に移します。実行中のジョブは継続します。ジョブが再送信され、prompt ID が変わります。"],
+        "Stop generation for \"%@\". Waiting jobs remain queued and the next job can run.": ["停止「%@」的生成。等待工作會保留在佇列中，下一個工作可以開始執行。", "停止“%@”的生成。等待任务会保留在队列中，下一个任务可以开始运行。", "「%@」の生成を停止します。待機ジョブはキューに残り、次のジョブを実行できます。"],
+    ]
+}
+
 @MainActor
 final class QueueViewModel: ObservableObject {
     @Published var endpoint: String
@@ -137,7 +234,7 @@ final class QueueViewModel: ObservableObject {
             if oldNowRunning { throw QueueError.jobAlreadyRunning }
             if oldStillPending { throw QueueError.originalStillPending }
 
-            actionMessage = "Moved to the front of the waiting queue. New job ID: \(String(newID.prefix(8)))"
+            actionMessage = L10n.text("Moved to the front of the waiting queue. New job ID: %@", String(String(newID.prefix(8))))
         } catch {
             if let originalID, let replacementID {
                 let recovery = await recoverSubmission(
@@ -188,9 +285,9 @@ final class QueueViewModel: ObservableObject {
             }
 
             if stopped {
-                actionMessage = "The job has stopped. The next waiting job can now run."
+                actionMessage = L10n.text("The job has stopped. The next waiting job can now run.")
             } else {
-                actionMessage = "Stop requested. ComfyUI has not yet reported that the job ended."
+                actionMessage = L10n.text("Stop requested. ComfyUI has not yet reported that the job ended.")
                 actionIsError = true
             }
         } catch {
@@ -210,7 +307,7 @@ final class QueueViewModel: ObservableObject {
     ) async -> (message: String, isError: Bool) {
         let replacementShortID = String(replacementID.prefix(8))
         guard let snapshot = try? await fetchQueue() else {
-            return ("Could not confirm the result. Refresh and check original ID \(originalShortID) and new ID \(replacementShortID)。\n\(reason)", true)
+            return (L10n.text("Could not confirm the result. Refresh and check original ID %@ and new ID %@.", originalShortID, replacementShortID) + "\n" + reason, true)
         }
 
         let originalPending = Self.parseJobs(snapshot["queue_pending"]).contains { $0.id == originalID }
@@ -223,10 +320,10 @@ final class QueueViewModel: ObservableObject {
                 try? await deletePendingJob(id: replacementID)
                 if let afterCleanup = try? await fetchQueue(),
                    !Self.parseJobs(afterCleanup["queue_pending"]).contains(where: { $0.id == replacementID }) {
-                    return ("The original job started. The resubmitted entry was removed; the running job was not interrupted.", false)
+                    return (L10n.text("The original job started. The resubmitted entry was removed; the running job was not interrupted."), false)
                 }
             }
-            return ("Could not confirm duplicate cleanup. Refresh now and check original ID \(originalShortID) and new ID \(replacementShortID)。", true)
+            return (L10n.text("Could not confirm duplicate cleanup. Refresh now and check original ID %@ and new ID %@.", String(originalShortID), String(replacementShortID)), true)
         }
 
         if originalPending {
@@ -236,7 +333,7 @@ final class QueueViewModel: ObservableObject {
                     let originalStillPending = Self.parseJobs(afterRetry["queue_pending"]).contains { $0.id == originalID }
                     let originalNowRunning = Self.parseJobs(afterRetry["queue_running"]).contains { $0.id == originalID }
                     if !originalStillPending && !originalNowRunning {
-                        return ("Moved to the front of the waiting queue. New job ID: \(replacementShortID)", false)
+                        return (L10n.text("Moved to the front of the waiting queue. New job ID: %@", String(replacementShortID)), false)
                     }
                 }
             }
@@ -245,24 +342,24 @@ final class QueueViewModel: ObservableObject {
                 try? await deletePendingJob(id: replacementID)
                 if let afterCleanup = try? await fetchQueue(),
                    !Self.parseJobs(afterCleanup["queue_pending"]).contains(where: { $0.id == replacementID }) {
-                    return ("Prioritization failed. The resubmitted entry was removed; the original job remains queued.", true)
+                    return (L10n.text("Prioritization failed. The resubmitted entry was removed; the original job remains queued."), true)
                 }
             }
-            return ("Could not confirm prioritization or cleanup. Refresh now and check original ID \(originalShortID) and new ID \(replacementShortID)。", true)
+            return (L10n.text("Could not confirm prioritization or cleanup. Refresh now and check original ID %@ and new ID %@.", String(originalShortID), String(replacementShortID)), true)
         }
 
         if replacementPending {
             try? await deletePendingJob(id: replacementID)
             if let afterCleanup = try? await fetchQueue(),
                !Self.parseJobs(afterCleanup["queue_pending"]).contains(where: { $0.id == replacementID }) {
-                return ("The original job left the waiting queue. The resubmitted entry was removed.", false)
+                return (L10n.text("The original job left the waiting queue. The resubmitted entry was removed."), false)
             }
         }
 
         if replacementRunning {
-            return ("The original job status is unknown, but the resubmitted job started. Refresh and check IDs \(originalShortID) and \(replacementShortID)。", true)
+            return (L10n.text("The original job status is unknown, but the resubmitted job started. Refresh and check IDs %@ and %@.", String(originalShortID), String(replacementShortID)), true)
         }
-        return ("The original job left the waiting queue. Refresh to check the result.\n\(reason)", true)
+        return (L10n.text("The original job left the waiting queue. Refresh to check the result.") + "\n" + reason, true)
     }
 
     private func fetchQueue() async throws -> [String: Any] {
@@ -373,7 +470,7 @@ final class QueueViewModel: ObservableObject {
                 if let value = displayValue(inputs[key]), !value.isEmpty { return value }
             }
         }
-        return "ComfyUI workflow"
+        return L10n.text("ComfyUI workflow")
     }
 
     private static func displayValue(_ value: Any?) -> String? {
@@ -413,14 +510,14 @@ struct QueueProgress: Decodable {
     }
 
     func nodeTitle(for job: QueueJob) -> String {
-        guard let nodeID else { return "Waiting for node progress" }
+        guard let nodeID else { return L10n.text("Waiting for node progress") }
         if let node = job.prompt[nodeID] as? [String: Any],
            let meta = node["_meta"] as? [String: Any],
            let title = meta["title"] as? String,
            !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return title
         }
-        return "Node \(nodeID)"
+        return L10n.text("Node %@", String(nodeID))
     }
 }
 
@@ -442,14 +539,14 @@ enum QueueError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidEndpoint: return "Enter a valid http:// or https:// address."
+        case .invalidEndpoint: return L10n.text("Enter a valid http:// or https:// address.")
         case .serverStatus(let status, let detail):
-            return "ComfyUI returned HTTP \(status)。" + (detail.map { " \($0)" } ?? "")
-        case .invalidResponse: return "ComfyUI returned an unrecognized queue response."
-        case .jobNoLongerPending: return "This job is no longer waiting. Refresh and try again."
-        case .jobAlreadyRunning: return "The original job started. Prioritization was canceled; the running job will continue."
-        case .jobNoLongerRunning: return "This job is no longer running. No stop request was sent."
-        case .originalStillPending: return "ComfyUI did not remove the original job. Checking resubmission cleanup."
+            return L10n.text("ComfyUI returned HTTP %@.", String(status)) + (detail.map { " \($0)" } ?? "")
+        case .invalidResponse: return L10n.text("ComfyUI returned an unrecognized queue response.")
+        case .jobNoLongerPending: return L10n.text("This job is no longer waiting. Refresh and try again.")
+        case .jobAlreadyRunning: return L10n.text("The original job started. Prioritization was canceled; the running job will continue.")
+        case .jobNoLongerRunning: return L10n.text("This job is no longer running. No stop request was sent.")
+        case .originalStillPending: return L10n.text("ComfyUI did not remove the original job. Checking resubmission cleanup.")
         }
     }
 }
@@ -537,11 +634,11 @@ struct ComfyQueueBarApp: App {
         } label: {
             HStack(spacing: 5) {
                 Image(nsImage: QueueBrand.menuBarIcon)
-                Text("\(queue.totalJobs)")
+                Text(L10n.text("%@", String(queue.totalJobs)))
                     .monospacedDigit()
             }
             .foregroundStyle(queue.isConnected ? Color.accentColor : Color.secondary)
-            .accessibilityLabel("ComfyUI queue: \(queue.totalJobs) jobs")
+            .accessibilityLabel(L10n.text("ComfyUI queue: %@ jobs", String(queue.totalJobs)))
         }
         .menuBarExtraStyle(.window)
     }
@@ -577,25 +674,25 @@ struct QueuePopover: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear { panel.urlInput = queue.endpoint }
-        .confirmationDialog(panel.confirmation?.title ?? "Confirm action", isPresented: Binding(
+        .confirmationDialog(panel.confirmation?.title ?? L10n.text("Confirm action"), isPresented: Binding(
             get: { panel.confirmation.map { _ in true } ?? false },
             set: { if !$0 { panel.confirmation = nil } }
         ), titleVisibility: .visible) {
             if let confirmation = panel.confirmation {
                 switch confirmation {
                 case .prioritize(let job):
-                    Button("Prioritize and resubmit") {
+                    Button(L10n.text("Prioritize and resubmit")) {
                         panel.confirmation = nil
                         Task { await queue.moveToFront(job) }
                     }
                 case .stop(let job):
-                    Button("Stop running job", role: .destructive) {
+                    Button(L10n.text("Stop running job"), role: .destructive) {
                         panel.confirmation = nil
                         Task { await queue.stopRunning(job) }
                     }
                 }
             }
-            Button("Cancel", role: .cancel) { panel.confirmation = nil }
+            Button(L10n.text("Cancel"), role: .cancel) { panel.confirmation = nil }
         } message: {
             Text(panel.confirmation?.message ?? "")
         }
@@ -610,13 +707,13 @@ struct QueuePopover: View {
                 .frame(width: 34, height: 34)
                 .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
             VStack(alignment: .leading, spacing: 2) {
-                Text("ComfyUI Queue")
+                Text(L10n.text("ComfyUI Queue"))
                     .font(.system(size: 15, weight: .semibold))
                 HStack(spacing: 5) {
                     Circle()
                         .fill(queue.isConnected ? Color.green : Color.orange)
                         .frame(width: 6, height: 6)
-                    Text(queue.isConnected ? "Connected" : "Disconnected")
+                    Text(queue.isConnected ? L10n.text("Connected") : L10n.text("Disconnected"))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
@@ -632,7 +729,7 @@ struct QueuePopover: View {
             }
             .buttonStyle(.plain)
             .disabled(queue.isLoading || queue.movingJobID != nil || queue.stoppingJobID != nil)
-            .help("Refresh now")
+            .help(L10n.text("Refresh now"))
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
@@ -641,7 +738,7 @@ struct QueuePopover: View {
 
     private var connectionSettings: some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text("ComfyUI address")
+            Text(L10n.text("ComfyUI address"))
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
             HStack(spacing: 8) {
@@ -649,7 +746,7 @@ struct QueuePopover: View {
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 12, design: .monospaced))
                     .onSubmit { Task { await queue.connect(to: panel.urlInput) } }
-                Button("Connect") {
+                Button(L10n.text("Connect")) {
                     Task { await queue.connect(to: panel.urlInput) }
                 }
                 .buttonStyle(.borderedProminent)
@@ -660,19 +757,19 @@ struct QueuePopover: View {
 
     private var summary: some View {
         HStack(spacing: 9) {
-            SummaryTile(title: "Running", count: queue.running.count, tint: .cyan)
-            SummaryTile(title: "Waiting", count: queue.pending.count, tint: .orange)
-            SummaryTile(title: "Total", count: queue.totalJobs, tint: .purple)
+            SummaryTile(title: L10n.text("Running"), count: queue.running.count, tint: .cyan)
+            SummaryTile(title: L10n.text("Waiting"), count: queue.pending.count, tint: .orange)
+            SummaryTile(title: L10n.text("Total"), count: queue.totalJobs, tint: .purple)
         }
     }
 
     private var runningSection: some View {
         VStack(alignment: .leading, spacing: 9) {
-            sectionHeading("Running", count: queue.running.count, symbol: "waveform.path")
+            sectionHeading(L10n.text("Running"), count: queue.running.count, symbol: "waveform.path")
             if !queue.isConnected {
                 connectionError
             } else if queue.running.isEmpty {
-                emptyState("No jobs are running", symbol: "checkmark.circle")
+                emptyState(L10n.text("No jobs are running"), symbol: "checkmark.circle")
             } else {
                 ForEach(queue.running) { job in
                     JobCard(
@@ -693,9 +790,9 @@ struct QueuePopover: View {
 
     private var pendingSection: some View {
         VStack(alignment: .leading, spacing: 9) {
-            sectionHeading("Waiting queue", count: queue.pending.count, symbol: "list.number")
+            sectionHeading(L10n.text("Waiting queue"), count: queue.pending.count, symbol: "list.number")
             if queue.isConnected && queue.pending.isEmpty {
-                emptyState("No waiting jobs", symbol: "tray")
+                emptyState(L10n.text("No waiting jobs"), symbol: "tray")
             } else if queue.isConnected {
                 ForEach(queue.pending) { job in
                     JobCard(
@@ -727,7 +824,7 @@ struct QueuePopover: View {
         } else if queue.movingJobID != nil || queue.stoppingJobID != nil {
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small)
-                Text(queue.movingJobID != nil ? "Moving job to the front…" : "Stopping job…")
+                Text(queue.movingJobID != nil ? L10n.text("Moving job to the front…") : L10n.text("Stopping job…"))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
@@ -737,9 +834,9 @@ struct QueuePopover: View {
 
     private var connectionError: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Unable to read the queue")
+            Text(L10n.text("Unable to read the queue"))
                 .font(.system(size: 12, weight: .semibold))
-            Text(queue.errorMessage ?? "Check that ComfyUI is running and the address is correct.")
+            Text(queue.errorMessage ?? L10n.text("Check that ComfyUI is running and the address is correct."))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -751,11 +848,11 @@ struct QueuePopover: View {
 
     private var footer: some View {
         HStack {
-            Text(queue.lastUpdated.map { "Updated \($0.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(Locale(identifier: "en_US"))))" } ?? "Refreshes every 4 seconds")
+            Text(queue.lastUpdated.map { L10n.text("Updated %@", String($0.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(L10n.locale)))) } ?? L10n.text("Refreshes every 4 seconds"))
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
             Spacer()
-            Button("Quit") { NSApplication.shared.terminate(nil) }
+            Button(L10n.text("Quit")) { NSApplication.shared.terminate(nil) }
                 .buttonStyle(.plain)
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
@@ -770,7 +867,7 @@ struct QueuePopover: View {
             Image(systemName: symbol).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
             Text(title).font(.system(size: 12, weight: .semibold))
             Spacer()
-            Text("\(count)")
+            Text(L10n.text("%@", String(count)))
                 .font(.system(size: 10, weight: .semibold, design: .rounded))
                 .foregroundStyle(.secondary)
         }
@@ -796,7 +893,7 @@ struct SummaryTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             Text(title).font(.system(size: 10)).foregroundStyle(.secondary)
-            Text("\(count)").font(.system(size: 21, weight: .semibold, design: .rounded)).monospacedDigit()
+            Text(L10n.text("%@", String(count))).font(.system(size: 21, weight: .semibold, design: .rounded)).monospacedDigit()
                 .foregroundStyle(tint)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -809,7 +906,7 @@ enum JobState {
     case running
     case pending
 
-    var label: String { self == .running ? "Running" : "Waiting" }
+    var label: String { self == .running ? L10n.text("Running") : L10n.text("Waiting") }
     var color: Color { self == .running ? .cyan : .orange }
     var symbol: String { self == .running ? "bolt.fill" : "clock" }
 }
@@ -820,17 +917,17 @@ enum QueueConfirmation {
 
     var title: String {
         switch self {
-        case .prioritize: return "Prioritize this job?"
-        case .stop: return "Stop this job?"
+        case .prioritize: return L10n.text("Prioritize this job?")
+        case .stop: return L10n.text("Stop this job?")
         }
     }
 
     var message: String {
         switch self {
         case .prioritize(let job):
-            return "Move \"\(job.title)\" to the front of the waiting queue. The running job continues. This resubmits the job and changes its prompt ID."
+            return L10n.text("Move \"%@\" to the front of the waiting queue. The running job continues. This resubmits the job and changes its prompt ID.", String(job.title))
         case .stop(let job):
-            return "Stop generation for \"\(job.title)\". Waiting jobs remain queued and the next job can run."
+            return L10n.text("Stop generation for \"%@\". Waiting jobs remain queued and the next job can run.", String(job.title))
         }
     }
 }
@@ -870,7 +967,7 @@ struct JobCard: View {
                 HStack(spacing: 8) {
                     Text("ID \(job.shortID)")
                     Text("·")
-                    Text("\(job.nodeCount) nodes")
+                    Text(L10n.text("%@ nodes", String(job.nodeCount)))
                 }
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(.secondary)
@@ -888,23 +985,23 @@ struct JobCard: View {
                     .background(state.color.opacity(0.1), in: Capsule())
                 if case .pending = state {
                     Button(action: { onPrioritize?() }) {
-                        Label(isMoving ? "Working" : "Prioritize", systemImage: "arrow.up.to.line")
+                        Label(isMoving ? L10n.text("Working") : L10n.text("Prioritize"), systemImage: "arrow.up.to.line")
                             .font(.system(size: 10, weight: .medium))
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.mini)
                     .disabled(!isActionEnabled || isMoving)
-                    .help("Run next after the current job")
+                    .help(L10n.text("Run next after the current job"))
                 } else {
                     Button(action: { onStop?() }) {
-                        Label(isStopping ? "Stopping" : "Stop", systemImage: "stop.fill")
+                        Label(isStopping ? L10n.text("Stopping") : L10n.text("Stop"), systemImage: "stop.fill")
                             .font(.system(size: 10, weight: .medium))
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.mini)
                     .tint(.red)
                     .disabled(!isActionEnabled || isStopping)
-                    .help("Stop this job while keeping waiting jobs")
+                    .help(L10n.text("Stop this job while keeping waiting jobs"))
                 }
             }
         }
@@ -931,7 +1028,7 @@ struct JobCard: View {
                             .monospacedDigit()
                     } else {
                         ProgressView().controlSize(.mini)
-                        Text("Node is processing")
+                        Text(L10n.text("Node is processing"))
                             .font(.system(size: 10))
                     }
                 }
@@ -954,10 +1051,10 @@ struct JobCard: View {
 
     private var progressStatusText: String {
         switch progressBridgeStatus {
-        case .checking: return "Fetching node progress…"
-        case .available: return "No progress reported for this node yet"
-        case .missing: return "Install the progress extension and restart ComfyUI"
-        case .error: return "Unable to read live progress"
+        case .checking: return L10n.text("Fetching node progress…")
+        case .available: return L10n.text("No progress reported for this node yet")
+        case .missing: return L10n.text("Install the progress extension and restart ComfyUI")
+        case .error: return L10n.text("Unable to read live progress")
         }
     }
 }
