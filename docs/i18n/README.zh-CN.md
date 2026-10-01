@@ -42,6 +42,14 @@
 
 App 仅支持 macOS；远程 ComfyUI 可在 macOS、Linux 或 Windows 运行。构建生成当前 Mac 架构的程序，不是 universal binary。旧版或第三方 ComfyUI 的兼容性可能不同。
 
+## 下载 Mac App
+
+[ComfyQueueBar — Apple Silicon ZIP](https://github.com/sakmor/ComfyQueueBar/releases/latest/download/ComfyQueueBar-macOS-arm64.zip)
+
+需要 macOS 13 或更新版本与 Apple Silicon（M1 或更新芯片）。下载 ZIP 后解压，将 `ComfyQueueBar.app` 移至“应用程序”并打开，无需安装 Swift 或 Xcode。Intel Mac 请使用下方源码构建步骤。
+
+此版本使用 ad-hoc 签名，尚未经过 Apple 公证。如 macOS 阻止打开，先尝试打开，再到“系统设置 → 隐私与安全性”选择“仍要打开”并确认；仅对本仓库 Release 下载的文件操作。
+
 ## 快速开始
 
 ### 1. 准备编译工具

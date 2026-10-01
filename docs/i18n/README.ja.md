@@ -42,6 +42,14 @@
 
 アプリは macOS 専用です。リモートの ComfyUI は macOS、Linux、Windows で実行できます。ビルドで生成されるバイナリはビルドした Mac のアーキテクチャ用で、ユニバーサルバイナリではありません。古い ComfyUI や派生版では互換性が異なる場合があります。
 
+## Mac アプリをダウンロード
+
+[ComfyQueueBar — Apple Silicon ZIP](https://github.com/sakmor/ComfyQueueBar/releases/latest/download/ComfyQueueBar-macOS-arm64.zip)
+
+macOS 13 以降と Apple Silicon（M1 以降）が必要です。ZIP を展開し、`ComfyQueueBar.app` を「アプリケーション」に移動して開いてください。Swift や Xcode は不要です。Intel Mac では以下の手順でソースからビルドしてください。
+
+この版は ad-hoc 署名で、Apple の公証は受けていません。macOS が起動を拒否した場合は、一度起動を試してから「システム設定 → プライバシーとセキュリティ → このまま開く」で確認してください。このリポジトリの Release から取得したファイルにのみ適用してください。
+
 ## クイックスタート
 
 ### 1. ビルドツールを準備する

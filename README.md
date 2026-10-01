@@ -72,7 +72,15 @@ A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote 
 
 The Mac app is macOS-only. A remote ComfyUI server may run on macOS, Linux, or Windows. The build script produces a binary for the Mac architecture on which it runs; it does not produce a universal binary. Older ComfyUI versions and third-party distributions can differ: see [compatibility](docs/DEVELOPMENT.md#comfyui-compatibility).
 
-## Quick start
+## Download the Mac app
+
+[**Download ComfyQueueBar for Apple Silicon (M1 or later)**](https://github.com/sakmor/ComfyQueueBar/releases/latest/download/ComfyQueueBar-macOS-arm64.zip)
+
+Requires macOS 13 or later. Unzip the download, move `ComfyQueueBar.app` to Applications, then open it and click its menu bar icon. No Swift or Xcode installation is needed. Intel Mac users can build from source below.
+
+The download is ad-hoc signed and **not notarized**. If macOS blocks it, try opening the app, then use **System Settings → Privacy & Security → Open Anyway** and confirm. Only do this for the download from this repository's release. See [all releases and checksums](https://github.com/sakmor/ComfyQueueBar/releases).
+
+## Build from source
 
 ### 1. Check your build tools
 
