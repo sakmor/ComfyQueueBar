@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 — 2026-10-01
+
+- Added Sparkle automatic update checks, downloads, installation, and a manual check button.
+- Added multilingual update controls and required signed update feeds and archives.
+- Added a Keychain-backed release packaging script and bundled Sparkle license.
+
+
 ## 1.1.0 — 2026-10-01
 
 - Published a prebuilt Apple Silicon macOS app ZIP and SHA-256 checksum.

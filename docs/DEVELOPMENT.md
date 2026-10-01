@@ -36,7 +36,7 @@ GitHub Actions runs the same checks on macOS for pushes and pull requests. Its b
 
 `QueueViewModel` runs on the main actor. Two timers schedule asynchronous HTTP refreshes. The app polls `/queue` every four seconds; when connected with a running job, it polls the progress bridge every second. A missing progress route is retried during the ordinary queue refresh. Separate guards prevent overlapping queue and progress refreshes. Action guards serialize queue mutations inside this app, but cannot serialize other clients.
 
-`URLSession` sends JSON requests with an eight-second timeout. The endpoint must have an HTTP or HTTPS scheme and a host. API paths are appended to its base path; query and fragment components are discarded. Non-2xx responses produce an HTTP error with a short response-body excerpt. The app stores only the endpoint preference in user defaults.
+`URLSession` sends JSON requests with an eight-second timeout. The endpoint must have an HTTP or HTTPS scheme and a host. API paths are appended to its base path; query and fragment components are discarded. Non-2xx responses produce an HTTP error with a short response-body excerpt. The app stores the endpoint and Sparkle update preferences in user defaults.
 
 Queue parsing expects ComfyUI's array entries: queue number, prompt ID, prompt graph, and extra data, with additional server fields ignored. Titles use workflow metadata, then node metadata, then output prefixes. The app shows a single current progress snapshot only when its prompt ID matches the first running job.
 
@@ -100,3 +100,14 @@ Run `bash scripts/capture-screenshots.sh` in a graphical macOS session to regene
 `L10n` in `Sources/ComfyQueueBar/main.swift` holds app-owned strings for English, `zh-Hans`, `zh-Hant`, and Japanese. The app bundle declares these languages. Preferred language resolution respects explicit Chinese scripts before regional fallbacks. Dynamic values use `%@` placeholders; workflow and node names remain server-owned text. `bash scripts/check-localization.sh` checks language selection, translation completeness, placeholder parity, formatting, and fallback behavior.
 
 Documentation builds default to English regardless of the system language. For local visual checks only, set `COMFYQUEUEBAR_PREVIEW_LANGUAGE=ja`, `zh-Hant`, or `zh-Hans` when running the documentation capture executable with a temporary output path. Production builds ignore this environment variable.
+
+## Publishing signed updates
+
+Sparkle 2.10.0 is the app’s update dependency, pinned in `Package.resolved`. It is bundled with its license and helper services; the build preserves symlinks and adds the framework runtime search path. Screenshots compile without Sparkle and make no update requests.
+
+1. Increase both bundle versions in `build-app.sh`, update the changelog, and run `bash scripts/check.sh`.
+2. Run `bash scripts/package-release.sh` on the Apple Silicon signing Mac. It reads the existing Ed25519 key from macOS Keychain (account `io.github.sakmor.comfyqueuebar`) and signs both the ZIP and `appcast.xml`. Do not generate a replacement key.
+3. Commit source changes and tag the exact build commit. Upload ZIP and SHA256SUMS.txt from `build/releases/VERSION` to the matching GitHub Release.
+4. Publish the signed `appcast.xml` to main only after release assets exist. Never edit the generated signed feed; regenerate it.
+
+A CI build needs no signing private key and does not publish updates. The appcast uses absolute version-specific release URLs. Private key backup/transfer should use Sparkle’s documented Keychain workflow, outside Git.

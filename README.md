@@ -45,7 +45,7 @@
 | --- | --- | --- |
 | See running / waiting counts and the current node's percentage. | **Prioritize** moves a waiting job to the front by resubmitting it. | **Stop** requests interruption while keeping waiting jobs queued. |
 
-A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote server over SSH. No Electron or third-party Swift packages.
+A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote server over SSH. No Electron. Automatic updates use the open-source Sparkle framework.
 
 ## Features
 
@@ -79,6 +79,12 @@ The Mac app is macOS-only. A remote ComfyUI server may run on macOS, Linux, or W
 Requires macOS 13 or later. Unzip the download, move `ComfyQueueBar.app` to Applications, then open it and click its menu bar icon. No Swift or Xcode installation is needed. Intel Mac users can build from source below.
 
 The download is ad-hoc signed and **not notarized**. If macOS blocks it, try opening the app, then use **System Settings → Privacy & Security → Open Anyway** and confirm. Only do this for the download from this repository's release. See [all releases and checksums](https://github.com/sakmor/ComfyQueueBar/releases).
+
+## Automatic updates
+
+Starting with v1.2.0, the app uses [Sparkle](https://sparkle-project.org/) to check for updates automatically (normally every 24 hours), download signed updates, and install them when appropriate. Keep the app in a writable Applications folder. Enable or disable **Automatically update the app**, or use **Check for updates…** in the panel. First-time macOS security approval may still be required for this non-notarized app.
+
+Users of v1.1.0 or earlier must download the new app once manually. Update checks/downloads use GitHub; both the feed and update archives are Ed25519-signed. Existing English screenshots remain unchanged and omit the new update controls.
 
 ## Build from source
 
@@ -169,7 +175,7 @@ Prioritization preserves the prompt graph and the `extra_data` available through
 
 ## Privacy and connectivity
 
-The app sends requests only to the configured ComfyUI address. It contains no analytics, telemetry, cloud account, or update checker. The endpoint is stored in macOS user defaults. ComfyUI may include workflow metadata in queue responses.
+Queue requests go to the configured ComfyUI address. Update checks also contact GitHub for the signed update feed and release downloads. The app contains no analytics, telemetry, or cloud account; Sparkle system profiling is disabled. The endpoint and update preferences are stored in macOS user defaults. ComfyUI may include workflow metadata in queue responses.
 
 The progress extension adds a read-only JSON route on the ComfyUI server and observes progress through ComfyUI's internal progress registry. It does not open a WebSocket or modify queue contents. It wraps an internal reset function to re-register the observer for each prompt.
 

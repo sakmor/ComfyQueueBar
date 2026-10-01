@@ -7,7 +7,8 @@ let package = Package(
     products: [
         .executable(name: "ComfyQueueBar", targets: ["ComfyQueueBar"]),
     ],
+    dependencies: [.package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0")],
     targets: [
-        .executableTarget(name: "ComfyQueueBar"),
+        .executableTarget(name: "ComfyQueueBar", dependencies: [.product(name: "Sparkle", package: "Sparkle")]),
     ]
 )

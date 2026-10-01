@@ -1,6 +1,30 @@
 import AppKit
 import Foundation
 import SwiftUI
+#if !DOCUMENTATION_SCREENSHOT
+import Sparkle
+#endif
+
+#if !DOCUMENTATION_SCREENSHOT
+@MainActor
+final class AppUpdater: ObservableObject {
+    static let shared = AppUpdater()
+    let controller: SPUStandardUpdaterController
+    @Published var automaticallyUpdates: Bool {
+        didSet {
+            controller.updater.automaticallyChecksForUpdates = automaticallyUpdates
+            controller.updater.automaticallyDownloadsUpdates = automaticallyUpdates
+        }
+    }
+
+    private init() {
+        controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+        automaticallyUpdates = controller.updater.automaticallyChecksForUpdates && controller.updater.automaticallyDownloadsUpdates
+    }
+
+    func check() { controller.checkForUpdates(nil) }
+}
+#endif
 
 // App-owned text is localized; server-provided workflow/node names remain unchanged.
 enum L10n {
@@ -35,6 +59,8 @@ enum L10n {
     }
 
     static let translations: [String: [String]] = [
+        "Automatically update the app": ["自動更新 App", "自动更新 App", "アプリを自動更新"],
+        "Check for updates…": ["檢查更新…", "检查更新…", "アップデートを確認…"],
         "ComfyUI Queue": ["ComfyUI 佇列", "ComfyUI 队列", "ComfyUI キュー"],
         "Connected": ["已連線", "已连接", "接続済み"],
         "Disconnected": ["未連線", "未连接", "未接続"],
@@ -626,6 +652,7 @@ struct DocumentationCapture {
 @main
 struct ComfyQueueBarApp: App {
     @StateObject private var queue = QueueViewModel()
+    private let updater = AppUpdater.shared
 
     var body: some Scene {
         MenuBarExtra {
@@ -655,6 +682,9 @@ final class QueuePopoverState: ObservableObject {
 struct QueuePopover: View {
     @ObservedObject var queue: QueueViewModel
     @StateObject private var panel = QueuePopoverState()
+    #if !DOCUMENTATION_SCREENSHOT
+    @ObservedObject private var updater = AppUpdater.shared
+    #endif
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -662,6 +692,9 @@ struct QueuePopover: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     connectionSettings
+                    #if !DOCUMENTATION_SCREENSHOT
+                    updateSettings
+                    #endif
                     summary
                     actionFeedback
                     runningSection
@@ -735,6 +768,18 @@ struct QueuePopover: View {
         .padding(.vertical, 14)
         .overlay(alignment: .bottom) { Divider() }
     }
+
+    #if !DOCUMENTATION_SCREENSHOT
+    private var updateSettings: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle(L10n.text("Automatically update the app"), isOn: $updater.automaticallyUpdates)
+            .toggleStyle(.checkbox)
+            Button(L10n.text("Check for updates…")) { AppUpdater.shared.check() }
+                .controlSize(.small)
+        }
+        .font(.system(size: 11))
+    }
+    #endif
 
     private var connectionSettings: some View {
         VStack(alignment: .leading, spacing: 7) {

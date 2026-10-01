@@ -24,7 +24,7 @@
 
 ## 功能與需求
 
-- 原生 SwiftUI 工具，沒有 Dock 視窗，不使用 Electron 或第三方 Swift 套件。
+- 原生 SwiftUI 工具，沒有 Dock 視窗，不使用 Electron；自動更新使用開源 Sparkle 框架。
 - 選單列顯示執行中與等待中工作的總數；兩份清單每 **4 秒**更新。
 - 顯示工作流程名稱、簡短 prompt ID、節點數與等待順序。
 - **Prioritize（優先執行）**：確認後將等待中的工作移至佇列前端。
@@ -49,6 +49,10 @@ App 僅支援 macOS；遠端 ComfyUI 可在 macOS、Linux 或 Windows 執行。�
 需要 macOS 13 或更新版本與 Apple Silicon（M1 或更新晶片）。下載 ZIP 後解壓縮，將 `ComfyQueueBar.app` 移至「應用程式」並開啟，不需安裝 Swift 或 Xcode。Intel Mac 請使用下方原始碼建置步驟。
 
 此版本使用 ad-hoc 簽章，尚未經 Apple 公證。如 macOS 阻擋開啟，先嘗試開啟，再到「系統設定 → 隱私權與安全性」選擇「強制打開」並確認；僅對本倉庫 Release 下載的檔案操作。
+
+## 自動更新
+
+v1.2.0 起會自動檢查（通常每 24 小時）、下載並在適當時機安裝已簽章的更新。面板提供「自動更新 App」開關與「檢查更新」按鈕。請將 App 放在可寫入的應用程式資料夾；v1.1.0 或更舊版本需先手動下載新版一次。GitHub 截圖維持英文，未展示新增的更新控制項。
 
 ## 快速開始
 
@@ -124,7 +128,7 @@ open "$HOME/Applications/ComfyQueueBar.app"
 
 ## 隱私與遠端連線
 
-App 僅向設定的 ComfyUI 位址發送請求；沒有分析、遙測、雲端帳號或更新檢查。位址儲存在 macOS user defaults，佇列回應可能包含工作流程 metadata。
+佇列請求傳送至設定的 ComfyUI 位址；更新檢查與下載另外使用 GitHub。沒有分析、遙測或雲端帳號，Sparkle 系統資訊回報已關閉。位址與更新偏好儲存在 macOS user defaults，佇列回應可能包含工作流程 metadata。
 
 擴充新增唯讀 JSON 路由，透過 ComfyUI 內部進度 registry 觀察進度，並包裝 reset 函式以逐工作重新註冊；不開 WebSocket、不修改佇列。路由沿用伺服器的網路曝露範圍，**不會自動限制為 localhost**。建議使用可信任網路或 SSH port forwarding。
 
