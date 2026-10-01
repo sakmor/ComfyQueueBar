@@ -5,7 +5,7 @@
 <h1 align="center">ComfyQueueBar</h1>
 
 <p align="center"><strong>Your ComfyUI queue, one click away in the macOS menu bar.</strong></p>
-<p align="center">See what's running. Check node progress. Choose what runs next.</p>
+<p align="center">Follow your queue. Preview finished clips. Get notified when work is done.</p>
 
 <p align="center">
   <strong>English</strong> ·
@@ -58,7 +58,12 @@ A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote 
 
 - Menu bar icon with the total number of running and waiting jobs.
 - Separate running and waiting lists, refreshed every **4 seconds**.
-- Recently completed jobs with finish times and output filenames; history refreshes every **15 seconds**.
+- Completed history with **last hour / last 24 hours / today / loaded history** filters and search; refreshed every **15 seconds**, bounded to the newest **200 server records**.
+- Image and video thumbnails, native previews, and downloads to a location you choose.
+- Optional macOS notifications for each completion or the finished queue, plus failures and disconnections.
+- Named server bookmarks and quick switching from the server name in the header.
+- Observed running time and estimated remaining time from at least three similar successful jobs.
+- Failed and interrupted jobs with server-reported error details.
 - Workflow names, shortened prompt IDs, node counts, and waiting positions.
 - **Prioritize** a waiting job with a confirmation dialog.
 - **Stop** a running job with a confirmation dialog, keeping the waiting queue.
@@ -67,6 +72,23 @@ A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote 
 - English, Simplified Chinese, Traditional Chinese, and Japanese interface, selected from macOS preferred languages.
 - Native macOS appearance, with no Dock window.
 - Local or remote ComfyUI connections, including SSH port forwarding.
+
+## Preview, notifications, and servers
+
+Click **Preview & download…** on a completed job to open its output. Images use a native preview; MP4, MOV, and M4V use macOS playback controls when their codec is supported. Choose an output if the job produced several files, then use **Download…** to save it. Other formats remain downloadable.
+
+Open the **gear** to save a named server address and choose completion notifications: **Off**, **Every job**, or **Whole batch**. Enable failure/disconnection alerts separately. Notifications start disabled and require macOS permission. Switch saved servers by clicking the server name in the header; one server is monitored at a time.
+
+<details>
+<summary>See server and notification settings</summary>
+
+<img src="docs/images/settings.png" width="360" alt="Native settings with a saved Local Mac server and optional completion and failure notifications" />
+
+*English documentation fixture. Automatic update controls are omitted from this capture build.*
+
+</details>
+
+Running time starts when the app first observes a job. Estimates need three comparable successful history records and can be inaccurate when cache use or server load changes. [Read the detailed guide](docs/USAGE.md#running-time-and-estimates).
 
 ## Requirements
 
@@ -183,7 +205,7 @@ Prioritization preserves the prompt graph and the `extra_data` available through
 
 ## Privacy and connectivity
 
-Queue and history requests go to the configured ComfyUI address. Update checks also contact GitHub for the signed update feed and release downloads. The app contains no analytics, telemetry, or cloud account; Sparkle system profiling is disabled. The endpoint and update preferences are stored in macOS user defaults. ComfyUI may include workflow metadata in queue responses.
+Queue and history requests go to the configured ComfyUI address. Update checks also contact GitHub for the signed update feed and release downloads. The app contains no analytics, telemetry, or cloud account; Sparkle system profiling is disabled. The endpoint, named server bookmarks, notification preferences, and update preferences are stored in macOS user defaults. History stays on the server; previews and downloads request its `/view` endpoint. ComfyUI may include workflow metadata in queue responses.
 
 The progress extension adds a read-only JSON route on the ComfyUI server and observes progress through ComfyUI's internal progress registry. It does not open a WebSocket or modify queue contents. It wraps an internal reset function to re-register the observer for each prompt.
 

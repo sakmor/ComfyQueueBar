@@ -1,6 +1,6 @@
 # Interface screenshots
 
-`queue-light.png` and `queue-dark.png` are native captures of the same `QueuePopover` SwiftUI view shipped in the app, at its actual 360 × 540 point dimensions (720 × 1080 pixels on the capture machine's Retina display).
+`queue-light.png` and `queue-dark.png` are native captures of the same `QueuePopover` SwiftUI view shipped in the app, at its actual 360 × 600 point dimensions (720 × 1200 pixels on the capture machine's Retina display).
 
 The captures use compile-time-only demonstration fixtures: one running job, one waiting job, one completed clip, and 70% progress for a KSampler node. These are illustrative data, not a record of a live generation. No external workflow, user endpoint, or private queue data is included.
 
@@ -30,4 +30,6 @@ Quit an existing production instance first to avoid duplicate icons. Capture the
 
 The system wallpaper, macOS interface elements, and third-party menu bar marks remain the property of their respective owners and appear only as incidental operating-system context. The screenshot is not a redistribution of those assets as standalone brand artwork. The repository's MIT license covers its own code, icon, and added annotations.
 
-The v1.3.0 light/dark captures show the restrained native list design and recent completion history. Connection and automatic update controls now live in the gear popover.
+The v1.4.0 light/dark captures show the restrained native list design and recent completion history. Connection and automatic update controls now live in the gear popover.
+
+`settings.png` captures the native server and notification settings at 360 × 480 points. The documentation build excludes Sparkle update controls. Public screenshots remain English; localized layouts are checked separately without publishing their captures. Media thumbnails are placeholders in these fixtures because network access is disabled.

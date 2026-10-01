@@ -95,3 +95,11 @@ If macOS reports that the domain does not exist, there are no settings stored un
 ## Reporting a problem
 
 Include macOS version, processor architecture, Swift version (for build problems), ComfyUI version or commit, whether the extension is installed, exact UI error, and reproduction steps. Include sanitized relevant server logs. Remove prompt contents, private addresses, credentials, and workflow metadata before sharing. A compatible live server is useful for reproducing API behavior; mock tests do not prove compatibility with every ComfyUI release.
+
+## Notifications, media, and timing
+
+- **No notification:** Enable a mode in the gear, allow ComfyQueueBar in macOS notification settings, check Focus mode, and keep the app running. The first history snapshot is deliberately silent. Cleared/missing history cannot produce notifications.
+- **No thumbnail or preview:** Confirm the output still exists on the server and its `/view` route is reachable through the same endpoint. A video extension does not guarantee a supported codec; download it and use a suitable player. Large images may exceed preview limits.
+- **No estimate:** At least three successful matching graph/settings records need valid start and finish timestamps in the loaded 200 records. Changed settings or absent timestamps can prevent a match. Observed time starts when the app first sees the job.
+- **Missing older jobs:** Loaded history contains at most the newest 200 server records. Select Loaded history to include unknown timestamps; clear the search field and inspect ComfyUI for older records.
+- **Cannot switch servers:** Wait for the active prioritize/stop action to finish. Switching while a mutation is in flight is disabled.

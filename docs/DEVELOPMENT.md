@@ -4,7 +4,8 @@
 
 ```text
 Package.swift                              Swift executable package
-Sources/ComfyQueueBar/main.swift            View model, API client, and SwiftUI UI
+Sources/ComfyQueueBar/main.swift            View model, API client, localization, panel
+Sources/ComfyQueueBar/Features.swift        History models, notifications, native media UI
 assets/                                    App icon and artwork provenance
 build-app.sh                               Release app bundle and icon builder
 install-comfyui-extension.sh               Non-overwriting extension installer
@@ -26,7 +27,7 @@ bash build-app.sh
 bash scripts/check.sh
 ```
 
-The check script builds the app, validates its signature and bundle metadata, checks Bash syntax, and runs Python standard-library unit tests. Tests stub ComfyUI and aiohttp imports, so they need no GPU, models, running ComfyUI server, or pip packages. They cover progress calculation, reset and registration, route response, and installer refusal to overwrite an existing installation.
+The check script builds the app, validates its signature and bundle metadata, checks Bash syntax, checks all four localizations and pure Swift history/feature models, and runs Python standard-library unit tests. Tests stub ComfyUI and aiohttp imports, so they need no GPU, models, running ComfyUI server, or pip packages. They cover progress calculation, reset and registration, route response, and installer refusal to overwrite an existing installation.
 
 These checks do not run an actual generation, prove compatibility with every server version, or exercise all UI and network race conditions. For integration testing, use a disposable ComfyUI instance with inexpensive workflows. Do not test stop or prioritize against valuable production jobs.
 
@@ -36,7 +37,7 @@ GitHub Actions runs the same checks on macOS for pushes and pull requests. Its b
 
 `QueueViewModel` runs on the main actor. Two timers schedule asynchronous HTTP refreshes. The app polls `/queue` every four seconds; when connected with a running job, it polls the progress bridge every second. A missing progress route is retried during the ordinary queue refresh. Separate guards prevent overlapping queue and progress refreshes. Action guards serialize queue mutations inside this app, but cannot serialize other clients.
 
-`URLSession` sends JSON requests with an eight-second timeout. The endpoint must have an HTTP or HTTPS scheme and a host. API paths are appended to its base path; query and fragment components are discarded. Non-2xx responses produce an HTTP error with a short response-body excerpt. The app stores the endpoint and Sparkle update preferences in user defaults.
+`URLSession` sends JSON requests with an eight-second timeout. The endpoint must have an HTTP or HTTPS scheme and a host. API paths are appended to its base path; query and fragment components are discarded. Non-2xx responses produce an HTTP error with a short response-body excerpt. The app stores the endpoint, Codable server bookmarks, notification settings, and Sparkle update preferences in user defaults. Endpoint generations prevent late responses from contaminating a new server view.
 
 Queue parsing expects ComfyUI's array entries: queue number, prompt ID, prompt graph, and extra data, with additional server fields ignored. Titles use workflow metadata, then node metadata, then output prefixes. The app shows a single current progress snapshot only when its prompt ID matches the first running job.
 
@@ -47,6 +48,8 @@ The extension uses a lock around its most recent snapshot. It wraps `execution.r
 | Method | Path | Purpose / body |
 | --- | --- | --- |
 | GET | `/queue` | Read `queue_running` and `queue_pending` |
+| GET | `/history?max_items=200` | Bounded success/error history |
+| GET | `/view?filename=…&subfolder=…&type=…` | Output media / native preview / download |
 | POST | `/prompt` | Resubmit with `prompt`, `extra_data`, and `front: true` |
 | POST | `/queue` | Delete a pending entry with `{"delete": ["prompt-id"]}` |
 | POST | `/interrupt` | Request interruption with `{"prompt_id": "prompt-id"}` |
@@ -112,6 +115,12 @@ Sparkle 2.10.0 is the app’s update dependency, pinned in `Package.resolved`. I
 
 A CI build needs no signing private key and does not publish updates. The appcast uses absolute version-specific release URLs. Private key backup/transfer should use Sparkle’s documented Keychain workflow, outside Git.
 
-## Completion history
+## History and feature models
 
-The app calls ComfyUI’s [history route](https://github.com/Comfy-Org/ComfyUI/blob/master/server.py) with a bounded `max_items=50` query. `CompletionHistory` accepts only `completed: true` and `status_str: success`, rejecting error/interruption events. Completion time comes from the `execution_success` message’s millisecond timestamp ([upstream execution implementation](https://github.com/Comfy-Org/ComfyUI/blob/master/execution.py)). Output dictionaries are scanned for filenames, excluding temporary previews and deduplicating paths. `bash scripts/check-history.sh` checks status filtering, timestamps, the 24-hour boundary, filenames, ordering, and the 20-entry limit.
+`CompletionHistory` accepts only `completed: true` and `status_str: success`, rejecting error/interruption events. Finish time comes from an `execution_success` millisecond timestamp; start time uses `execution_start`. Production fetches 200 records and applies the selected time range client-side. Unknown timestamps appear only in Loaded history. Output references retain filename, subfolder, and type; temporary previews are excluded.
+
+`HistoryDetails` parses errors/interruptions, builds query-encoded output URLs preserving a server base path, and computes graph fingerprints and median duration estimates. `NotificationTracker` suppresses the initial history baseline, deduplicates prompt IDs, and accumulates completion/failure counts for a drained queue. It also handles jobs that start and finish between queue polls. Seen IDs are bounded to avoid unbounded memory.
+
+`bash scripts/check-history.sh` tests success/error filtering, millisecond timestamps, ordering, legacy parser limits, media metadata and URL encoding, time-range handling, profile Codable persistence, matching estimates with a three-sample minimum, and notification baseline/deduplication/batch behavior. Media uses AppKit and AVKit; notifications use UserNotifications. No extra runtime dependency is required.
+
+A native localhost media smoke test during v1.4.0 validation exercised PNG decoding, AVPlayer readiness for a short H.264 MP4, video thumbnail extraction, byte-exact HTTP download, and missing-file error handling. This is a controlled fixture test, not a guarantee for every remote codec/server; native save-dialog interaction and actual macOS notification delivery require manual testing.

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.0 — 2026-10-01
+
+- Added opt-in native completion/batch, failure, and disconnection notifications with first-connection suppression and deduplication.
+- Added image/video thumbnails, native media previews, output selection, and save-dialog downloads.
+- Added searchable history with last-hour, last-day, today, and loaded-history filters over the newest 200 server records.
+- Added named server bookmarks and quick switching from the panel header.
+- Added observed runtime and median remaining-time estimates requiring three matching successful history records.
+- Added failed/interrupted jobs and selectable server error details.
+- Localized all new controls in English, Simplified Chinese, Traditional Chinese, and Japanese; refreshed English screenshots and usage guides.
+
 ## 1.3.0 — 2026-10-01
 
 - Redesigned the panel with native materials, restrained list rows, compact typography, and settings in a gear popover.

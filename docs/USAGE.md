@@ -2,11 +2,11 @@
 
 ## Reading the panel
 
-Click the stack icon in the menu bar. Its number is the sum of running and waiting entries. The panel shows connection status, the server address, three count tiles, running jobs, waiting jobs, and the last successful queue refresh time.
+Click the stack icon in the menu bar. Its number is the sum of running and waiting entries. The panel shows connection status, the named server, running jobs, waiting jobs, completion history, and the last successful queue refresh time.
 
 Use the refresh icon to update immediately. Queue requests run every four seconds while the app is running, including when the panel is closed. Progress requests run every second when a job is running and the server is connected. The app uses an eight-second network timeout and prevents overlapping requests of the same type.
 
-The address is saved for the next launch. Only one server is monitored at a time. Switching addresses does not start or stop either ComfyUI server. No job history is retained by the app.
+The address is saved for the next launch. Only one server is monitored at a time. Switching addresses does not start or stop either ComfyUI server. History is held in memory while running; it is not saved to disk. Named server bookmarks are saved locally.
 
 ### Job labels
 
@@ -17,7 +17,7 @@ The app chooses a title in this order:
 3. A node input named `filename_prefix` or `file_prefix`.
 4. `ComfyUI workflow`.
 
-There may be multiple node titles or prefixes; their dictionary iteration order is not a stable workflow naming contract. Set a workflow name in submitted metadata when consistent labels matter. Names come from the server and may be in any language; the app's own interface is English.
+There may be multiple node titles or prefixes; their dictionary iteration order is not a stable workflow naming contract. Set a workflow name in submitted metadata when consistent labels matter. Names come from the server and may be in any language; the app's own interface follows your preferred language.
 
 `ID` shows the first eight characters of the prompt ID. `nodes` counts entries in the submitted prompt graph; it is not a count of completed nodes. Waiting numbers reflect the order returned by ComfyUI.
 
@@ -64,7 +64,7 @@ Progress is a single most-recent-node snapshot, not an aggregate of parallel bra
 
 ## Everyday workflow
 
-Keep ComfyUI running, queue work through your existing browser or automation, and use the menu bar to check status. The app cannot submit new arbitrary workflows, launch ComfyUI, manage models, preview generated media, or maintain SSH tunnels.
+Keep ComfyUI running, queue work through your existing browser or automation, and use the menu bar to check status. The app cannot submit new arbitrary workflows, launch ComfyUI, manage models, or maintain SSH tunnels.
 
 Use **Quit** in the panel to close ComfyQueueBar. Quitting the app does not interrupt ComfyUI or cancel queued jobs.
 
@@ -74,8 +74,46 @@ The app supports English, Simplified Chinese, Traditional Chinese, and Japanese.
 
 ## Recently completed
 
-The panel displays successful completed jobs, their finish time, and reported output filenames. It scans the newest 50 records from `/history?max_items=50` every 15 seconds and displays up to 20 successes, newest first. Manual refresh also refreshes history. Dated entries older than 24 hours are omitted. If a server does not report the completion timestamp, a successful record may still appear with “Completion time unavailable”; it cannot be assigned to the 24-hour window. Failed and interrupted jobs are excluded.
+The app reads `/history?max_items=200` every 15 seconds; manual refresh also refreshes history. **Recently completed** contains successful jobs, finish times, and output filenames. Choose **Last hour**, **Last 24 hours**, **Today** (your Mac's calendar), or **Loaded history**. Search matches workflow titles and output paths. Loaded history means only the newest 200 records returned by the server, not its entire archive. Records without timestamps appear only in Loaded history.
 
-History belongs to ComfyUI, not the Mac app. Clearing history or restarting a server without persistent history removes those records. Only filenames reported by output nodes can be listed; this does not verify that a file still exists. Temporary previews are omitted. History failures leave the last successful snapshot visible with a warning and do not disconnect a working queue. Changing the endpoint clears the old history view.
+History belongs to ComfyUI. Clearing history or restarting a server without persistent history removes the records. Temporary previews are omitted. If a history request fails, the last successful snapshot remains visible with a warning. Switching servers clears the old view, and late responses from the previous connection are ignored.
 
-Use the gear button in the footer for connection and update settings.
+### Previewing and downloading outputs
+
+Click a thumbnail or **Preview & download…**. Select an output in the picker when several files were reported. Images are decoded natively; MP4, MOV, and M4V use AVKit with native playback controls and no autoplay. The container extension alone does not guarantee that macOS supports the codec. Other file types can be downloaded without an inline preview.
+
+**Download…** opens a macOS save dialog. Choose a location and confirm any replacement. The app downloads the original bytes from the configured server's `/view` route. It does not convert or compress outputs. Failed transfers report an error and preserve an existing destination. Image preview decoding is capped at 32 MB; thumbnails at 8 MB. The app does not verify that a reported file still exists until you request it. Remote preview/download traffic follows your configured endpoint, including SSH forwarding.
+
+## Failures and interruptions
+
+Expand **Failures & interruptions** below history. Each entry shows its workflow title, timestamp when supplied, shortened ID, and server-reported reason. The same time range applies, and search matches titles or reasons. Interrupted jobs are labeled separately and do not produce failure notifications. Reasons are selectable and limited to 2,000 characters; inspect ComfyUI's logs for complete tracebacks. Viewing errors does not retry or change a job.
+
+## Saved servers
+
+1. Open the gear and enter a ComfyUI address.
+2. Enter a **Server name**, then click **Save address**.
+3. Click the saved name to connect, or click the current server name in the panel header to switch quickly.
+
+Only one server is monitored at a time. Switching does not launch or stop a server and is disabled during queue actions. Saving the same address updates its name. The minus button removes the bookmark while leaving the current connection active. Addresses must use HTTP or HTTPS; bookmarks do not accept embedded usernames/passwords. The app does not manage SSH tunnels or credentials.
+
+## Notifications
+
+Open the gear and choose **Completion notifications**:
+
+| Mode | Behavior |
+| --- | --- |
+| Off | No completion notifications (default) |
+| Every job | One notification for each newly discovered successful job |
+| Whole batch | A summary of new successes/failures when the monitored queue is empty |
+
+**Notify failures and disconnections** is a separate switch, also off by default. Enabling either option requests macOS notification permission. Manage permission, banners, and sounds under System Settings → Notifications → ComfyQueueBar. Focus modes can suppress presentation. Notification contents may include workflow and server names; failure alerts also include server error text.
+
+The first history snapshot after connecting establishes a baseline and produces no old-job alerts. New prompt IDs are deduplicated during the connection. Notifications rely on polling and bounded server history; jobs removed from history before discovery cannot be reported. A connection-loss alert is sent only after a previously working queue connection fails, avoiding repeated alerts during an outage. The app must be running; these are local macOS notifications, not remote push messages.
+
+## Running time and estimates
+
+**Observed** time starts when this app first sees the running prompt. Connecting midway through a job yields a lower bound, not its actual total runtime. It resets after reconnecting to another endpoint or restarting the app.
+
+Estimated remaining time uses the median duration of up to ten recent successful jobs with the same graph/settings fingerprint and valid start/finish timestamps. At least three matches are required. The fingerprint retains graph topology and execution settings, while ignoring seed, prompt text, labels, and output prefixes. This is a practical approximation: cache hits, different prompt complexity, server load, and hardware changes can affect timing. An estimate that has elapsed is explicitly labeled; node percentage remains separate from whole-workflow timing.
+
+Use the gear button in the footer for connection, bookmark, notification, and update settings.

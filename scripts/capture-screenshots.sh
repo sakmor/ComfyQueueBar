@@ -7,7 +7,7 @@ capture_app="build/DocumentationCapture.app"
 mkdir -p "$capture_app/Contents/MacOS" "$capture_app/Contents/Resources" docs/images
 cp assets/app-icon.png "$capture_app/Contents/Resources/AppIconPreview.png"
 swiftc -parse-as-library -O -D DOCUMENTATION_SCREENSHOT \
-  Sources/ComfyQueueBar/main.swift -o "$capture_app/Contents/MacOS/DocumentationCapture"
+  Sources/ComfyQueueBar/*.swift -o "$capture_app/Contents/MacOS/DocumentationCapture"
 if [[ "${1:-}" == "--desktop-demo" ]]; then
   cat > "$capture_app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -25,4 +25,5 @@ PLIST
 fi
 TZ=UTC "$capture_app/Contents/MacOS/DocumentationCapture" docs/images/queue-light.png
 TZ=UTC "$capture_app/Contents/MacOS/DocumentationCapture" docs/images/queue-dark.png --dark
+TZ=UTC "$capture_app/Contents/MacOS/DocumentationCapture" docs/images/settings.png --settings
 printf 'Saved light and dark interface captures to docs/images/\n'
