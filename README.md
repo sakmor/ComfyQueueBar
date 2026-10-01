@@ -8,6 +8,13 @@
 <p align="center">See what's running. Check node progress. Choose what runs next.</p>
 
 <p align="center">
+  <strong>English</strong> ·
+  <a href="docs/i18n/README.zh-CN.md">简体中文</a> ·
+  <a href="docs/i18n/README.zh-TW.md">繁體中文</a> ·
+  <a href="docs/i18n/README.ja.md">日本語</a>
+</p>
+
+<p align="center">
   <a href="#quick-start">Install</a> ·
   <a href="docs/USAGE.md">Usage guide</a> ·
   <a href="docs/REMOTE_SETUP.md">Remote setup</a> ·

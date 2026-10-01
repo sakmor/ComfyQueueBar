@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added Simplified Chinese, Traditional Chinese, and Japanese README guides with language navigation and shared screenshots. The app interface remains English.
+
 - Added a real macOS desktop context capture with a menu bar callout at the top of the README.
 
 - Simplified the menu bar mark to three queue rows and a separate play triangle for small-size readability.
