@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Simplified the menu bar mark to three queue rows and a separate play triangle for small-size readability.
+
 - Added a custom macOS app icon, matching panel branding, and a monochrome menu bar mark.
 - Added native light/dark interface screenshots and a visual-first README.
 - Added a reproducible screenshot capture build with isolated sample data and no server access.

@@ -457,18 +457,16 @@ enum QueueError: LocalizedError {
 enum QueueBrand {
     static let menuBarIcon: NSImage = {
         let image = NSImage(size: NSSize(width: 19, height: 18), flipped: false) { _ in
-            NSColor.black.setStroke()
-            for (x, y) in [(2.0, 7.0), (4.0, 4.0), (6.0, 1.0)] {
-                let card = NSBezierPath(roundedRect: NSRect(x: x, y: y, width: 11, height: 8), xRadius: 2, yRadius: 2)
-                card.lineWidth = 1.4
-                card.stroke()
+            NSColor.black.setFill()
+            // Three queue rows with a separate play marker, readable at menu-bar size.
+            for y in [3.0, 8.0, 13.0] {
+                NSBezierPath(roundedRect: NSRect(x: 1, y: y, width: 10, height: 2), xRadius: 1, yRadius: 1).fill()
             }
             let play = NSBezierPath()
-            play.move(to: NSPoint(x: 10, y: 3))
-            play.line(to: NSPoint(x: 10, y: 7))
-            play.line(to: NSPoint(x: 13.5, y: 5))
+            play.move(to: NSPoint(x: 13, y: 5))
+            play.line(to: NSPoint(x: 13, y: 13))
+            play.line(to: NSPoint(x: 18, y: 9))
             play.close()
-            NSColor.black.setFill()
             play.fill()
             return true
         }

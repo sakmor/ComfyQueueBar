@@ -2,7 +2,7 @@
 
 `app-icon.png` is the original transparent raster artwork for ComfyQueueBar, created with OpenAI's built-in image generation tool on 2026-10-01 for this project. It is included under the repository's MIT license. No external brand image or ComfyUI logo was used as an input.
 
-The build script derives the macOS `.icns` sizes from this file using `sips` and `iconutil`; the full-color icon is also shown in the panel header. A separate code-drawn template mark represents the same stacked-card / play motif in the menu bar, where monochrome contrast matters.
+The build script derives the macOS `.icns` sizes from this file using `sips` and `iconutil`; the full-color icon is also shown in the panel header. A separate code-drawn template mark uses three queue rows and a separate play marker in the menu bar, where monochrome contrast matters.
 
 ## Generation prompt
 
