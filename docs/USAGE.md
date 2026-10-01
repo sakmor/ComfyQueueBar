@@ -71,3 +71,11 @@ Use **Quit** in the panel to close ComfyQueueBar. Quitting the app does not inte
 ## Interface language
 
 The app supports English, Simplified Chinese, Traditional Chinese, and Japanese. It follows the first supported language in macOS preferred languages and falls back to English. You can select an app-specific language in **System Settings → General → Language & Region → Applications** (labels vary by macOS version). Restart ComfyQueueBar after changing the language. Workflow names, node names, and server-provided error details keep their original text. GitHub screenshots use English.
+
+## Recently completed
+
+The panel displays successful completed jobs, their finish time, and reported output filenames. It scans the newest 50 records from `/history?max_items=50` every 15 seconds and displays up to 20 successes, newest first. Manual refresh also refreshes history. Dated entries older than 24 hours are omitted. If a server does not report the completion timestamp, a successful record may still appear with “Completion time unavailable”; it cannot be assigned to the 24-hour window. Failed and interrupted jobs are excluded.
+
+History belongs to ComfyUI, not the Mac app. Clearing history or restarting a server without persistent history removes those records. Only filenames reported by output nodes can be listed; this does not verify that a file still exists. Temporary previews are omitted. History failures leave the last successful snapshot visible with a warning and do not disconnect a working queue. Changing the endpoint clears the old history view.
+
+Use the gear button in the footer for connection and update settings.

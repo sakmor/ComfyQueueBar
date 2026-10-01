@@ -32,7 +32,7 @@
 
 <table>
   <tr>
-    <td align="center"><img src="docs/images/queue-light.png" width="340" alt="Light mode: one running job at 70 percent node progress, a Stop button, and a waiting job with a Prioritize button" /><br /><strong>Light appearance</strong></td>
+    <td align="center"><img src="docs/images/queue-light.png" width="340" alt="Light mode: one running job at 70 percent node progress, a stop icon, a waiting job with a prioritize icon, and a completed clip" /><br /><strong>Light appearance</strong></td>
     <td align="center"><img src="docs/images/queue-dark.png" width="340" alt="Dark mode: ComfyUI running and waiting queues with job controls" /><br /><strong>Dark appearance</strong></td>
   </tr>
 </table>
@@ -51,6 +51,7 @@ A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote 
 
 - Menu bar icon with the total number of running and waiting jobs.
 - Separate running and waiting lists, refreshed every **4 seconds**.
+- Recently completed jobs with finish times and output filenames; history refreshes every **15 seconds**.
 - Workflow names, shortened prompt IDs, node counts, and waiting positions.
 - **Prioritize** a waiting job with a confirmation dialog.
 - **Stop** a running job with a confirmation dialog, keeping the waiting queue.
@@ -84,7 +85,7 @@ The download is ad-hoc signed and **not notarized**. If macOS blocks it, try ope
 
 Starting with v1.2.0, the app uses [Sparkle](https://sparkle-project.org/) to check for updates automatically (normally every 24 hours), download signed updates, and install them when appropriate. Keep the app in a writable Applications folder. Enable or disable **Automatically update the app**, or use **Check for updates…** in the panel. First-time macOS security approval may still be required for this non-notarized app.
 
-Users of v1.1.0 or earlier must download the new app once manually. Update checks/downloads use GitHub; both the feed and update archives are Ed25519-signed. Existing English screenshots remain unchanged and omit the new update controls.
+Users of v1.1.0 or earlier must download the new app once manually. Update checks/downloads use GitHub; both the feed and update archives are Ed25519-signed. Update controls are available through the gear button.
 
 ## Build from source
 
@@ -117,7 +118,7 @@ The build script compiles a release binary, creates an app bundle, and signs it 
 
 1. Start your existing ComfyUI installation.
 2. Click the stacked icon in the macOS menu bar.
-3. Enter your **ComfyUI address**, normally `http://127.0.0.1:8188`.
+3. Open the **gear** button and enter your **ComfyUI address**, normally `http://127.0.0.1:8188`.
 4. Click **Connect**.
 5. Queue a workflow in ComfyUI. It should appear within the next refresh interval.
 
@@ -175,7 +176,7 @@ Prioritization preserves the prompt graph and the `extra_data` available through
 
 ## Privacy and connectivity
 
-Queue requests go to the configured ComfyUI address. Update checks also contact GitHub for the signed update feed and release downloads. The app contains no analytics, telemetry, or cloud account; Sparkle system profiling is disabled. The endpoint and update preferences are stored in macOS user defaults. ComfyUI may include workflow metadata in queue responses.
+Queue and history requests go to the configured ComfyUI address. Update checks also contact GitHub for the signed update feed and release downloads. The app contains no analytics, telemetry, or cloud account; Sparkle system profiling is disabled. The endpoint and update preferences are stored in macOS user defaults. ComfyUI may include workflow metadata in queue responses.
 
 The progress extension adds a read-only JSON route on the ComfyUI server and observes progress through ComfyUI's internal progress registry. It does not open a WebSocket or modify queue contents. It wraps an internal reset function to re-register the observer for each prompt.
 

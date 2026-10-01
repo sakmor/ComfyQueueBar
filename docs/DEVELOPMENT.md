@@ -111,3 +111,7 @@ Sparkle 2.10.0 is the app’s update dependency, pinned in `Package.resolved`. I
 4. Publish the signed `appcast.xml` to main only after release assets exist. Never edit the generated signed feed; regenerate it.
 
 A CI build needs no signing private key and does not publish updates. The appcast uses absolute version-specific release URLs. Private key backup/transfer should use Sparkle’s documented Keychain workflow, outside Git.
+
+## Completion history
+
+The app calls ComfyUI’s [history route](https://github.com/Comfy-Org/ComfyUI/blob/master/server.py) with a bounded `max_items=50` query. `CompletionHistory` accepts only `completed: true` and `status_str: success`, rejecting error/interruption events. Completion time comes from the `execution_success` message’s millisecond timestamp ([upstream execution implementation](https://github.com/Comfy-Org/ComfyUI/blob/master/execution.py)). Output dictionaries are scanned for filenames, excluding temporary previews and deduplicating paths. `bash scripts/check-history.sh` checks status filtering, timestamps, the 24-hour boundary, filenames, ordering, and the 20-entry limit.

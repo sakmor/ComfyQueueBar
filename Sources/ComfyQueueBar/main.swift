@@ -59,6 +59,13 @@ enum L10n {
     }
 
     static let translations: [String: [String]] = [
+        "Recently completed": ["最近完成", "最近完成", "最近完了したジョブ"],
+        "Last 24 hours · up to 20 jobs": ["最近 24 小時 · 最多 20 筆", "最近 24 小时 · 最多 20 条", "過去24時間・最大20件"],
+        "No recently completed jobs": ["最近沒有完成的工作", "最近没有完成的任务", "最近完了したジョブはありません"],
+        "History unavailable. Showing the last successful refresh.": ["無法讀取歷史紀錄，目前顯示上次成功更新的資料。", "无法读取历史记录，当前显示上次成功刷新的数据。", "履歴を読み込めません。最後に取得した内容を表示しています。"],
+        "No output files reported": ["未回報輸出檔案", "未报告输出文件", "出力ファイルの報告はありません"],
+        "Completion time unavailable": ["未提供完成時間（近期歷史）", "未提供完成时间（近期历史）", "完了時刻不明（直近の履歴）"],
+        "Settings": ["設定", "设置", "設定"],
         "Automatically update the app": ["自動更新 App", "自动更新 App", "アプリを自動更新"],
         "Check for updates…": ["檢查更新…", "检查更新…", "アップデートを確認…"],
         "ComfyUI Queue": ["ComfyUI 佇列", "ComfyUI 队列", "ComfyUI キュー"],
@@ -140,6 +147,9 @@ final class QueueViewModel: ObservableObject {
     @Published private(set) var actionMessage: String?
     @Published private(set) var actionIsError = false
     @Published private(set) var lastUpdated: Date?
+    @Published private(set) var completed: [CompletedJob] = []
+    @Published private(set) var historyUnavailable = false
+    private var lastHistoryPoll: Date?
 
     private var refreshTimer: Timer?
     private var progressTimer: Timer?
@@ -157,6 +167,7 @@ final class QueueViewModel: ObservableObject {
         progressBridgeStatus = .available
         queueProgress = QueueProgress(promptID: running[0].id, nodeID: "12", value: 21, maxValue: 30, percent: 70, state: "running")
         lastUpdated = Date(timeIntervalSince1970: 1790814600)
+        completed = [CompletedJob(id: "demo-completed", title: "Sunrise establishing shot", finishedAt: Date(timeIntervalSince1970: 1790814180), filenames: ["sunrise_shot_00012.mp4"], queueNumber: 0)]
         #else
         endpoint = UserDefaults.standard.string(forKey: "comfyEndpoint") ?? "http://127.0.0.1:8188"
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
@@ -171,12 +182,17 @@ final class QueueViewModel: ObservableObject {
 
     func connect(to value: String) async {
         let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if endpoint != cleaned {
+            completed = []
+            lastHistoryPoll = nil
+            historyUnavailable = false
+        }
         endpoint = cleaned
         UserDefaults.standard.set(cleaned, forKey: "comfyEndpoint")
-        await refresh()
+        await refresh(forceHistory: true)
     }
 
-    func refresh() async {
+    func refresh(forceHistory: Bool = false) async {
         guard !isLoading, movingJobID == nil, stoppingJobID == nil else { return }
         isLoading = true
         defer { isLoading = false }
@@ -188,8 +204,27 @@ final class QueueViewModel: ObservableObject {
             errorMessage = nil
             lastUpdated = Date()
             await refreshProgress(forceBridgeCheck: true)
+            await refreshHistory(force: forceHistory)
         } catch {
             setDisconnected(error.localizedDescription)
+        }
+    }
+
+    private func refreshHistory(force: Bool) async {
+        guard force || lastHistoryPoll.map({ Date().timeIntervalSince($0) >= 15 }) ?? true else { return }
+        lastHistoryPoll = Date()
+        let source = endpoint
+        do {
+            let data = try await requestData(path: "history", queryItems: [URLQueryItem(name: "max_items", value: "50")])
+            guard let history = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw QueueError.invalidResponse }
+            guard source == endpoint else { return }
+            completed = CompletionHistory.parse(history, now: Date(), title: Self.jobTitle)
+            historyUnavailable = false
+        } catch {
+            guard source == endpoint else { return }
+            completed.removeAll { $0.finishedAt.map { Date().timeIntervalSince($0) > 86400 } ?? false }
+            // History errors never disconnect a working queue or imply that jobs completed.
+            historyUnavailable = true
         }
     }
 
@@ -396,7 +431,7 @@ final class QueueViewModel: ObservableObject {
         return object
     }
 
-    private func requestData(path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> Data {
+    private func requestData(path: String, method: String = "GET", body: [String: Any]? = nil, queryItems: [URLQueryItem] = []) async throws -> Data {
         #if DOCUMENTATION_SCREENSHOT
         throw QueueError.invalidEndpoint // Documentation builds never contact a server.
         #else
@@ -409,7 +444,7 @@ final class QueueViewModel: ObservableObject {
 
         let basePath = components.path.split(separator: "/").joined(separator: "/")
         components.path = "/" + [basePath, path].filter { !$0.isEmpty }.joined(separator: "/")
-        components.query = nil
+        components.queryItems = queryItems.isEmpty ? nil : queryItems
         components.fragment = nil
         guard let url = components.url else { throw QueueError.invalidEndpoint }
 
@@ -446,6 +481,7 @@ final class QueueViewModel: ObservableObject {
 
     private func setDisconnected(_ message: String) {
         isConnected = false
+        historyUnavailable = true
         running = []
         pending = []
         queueProgress = nil
@@ -503,6 +539,60 @@ final class QueueViewModel: ObservableObject {
         if let text = value as? String { return text }
         if let object = value as? [String: Any], let text = object["value"] as? String { return text }
         return nil
+    }
+}
+
+struct CompletedJob: Identifiable {
+    let id: String
+    let title: String
+    let finishedAt: Date?
+    let filenames: [String]
+    let queueNumber: Double
+}
+
+// Only explicit successful, completed history records qualify. Never infer success from /queue.
+enum CompletionHistory {
+    static func parse(_ history: [String: Any], now: Date, title: ([String: Any], [String: Any]) -> String) -> [CompletedJob] {
+        let cutoff = now.addingTimeInterval(-24 * 60 * 60)
+        let jobs: [CompletedJob] = history.compactMap { id, value in
+            guard let entry = value as? [String: Any],
+                  let status = entry["status"] as? [String: Any],
+                  status["completed"] as? Bool == true,
+                  status["status_str"] as? String == "success" else { return nil }
+            let messages = status["messages"] as? [[Any]] ?? []
+            guard !messages.contains(where: { ["execution_error", "execution_interrupted"].contains($0.first as? String ?? "") }) else { return nil }
+            let milliseconds = messages.compactMap { message -> Double? in
+                guard message.first as? String == "execution_success", message.count > 1,
+                      let details = message[1] as? [String: Any], let timestamp = details["timestamp"] as? NSNumber else { return nil }
+                let value = timestamp.doubleValue
+                return value.isFinite && value > 0 ? value : nil
+            }.max()
+            let date = milliseconds.map { Date(timeIntervalSince1970: $0 / 1000) }
+            if let date, date < cutoff { return nil }
+            let prompt = entry["prompt"] as? [Any] ?? []
+            let graph = prompt.count > 2 ? prompt[2] as? [String: Any] ?? [:] : [:]
+            let extra = prompt.count > 3 ? prompt[3] as? [String: Any] ?? [:] : [:]
+            var files = Set<String>()
+            collectFiles(entry["outputs"] as Any, into: &files)
+            return CompletedJob(id: id, title: title(graph, extra), finishedAt: date, filenames: files.sorted(), queueNumber: (prompt.first as? NSNumber)?.doubleValue ?? 0)
+        }
+        return Array(jobs.sorted {
+            if $0.finishedAt != $1.finishedAt { return ($0.finishedAt ?? .distantPast) > ($1.finishedAt ?? .distantPast) }
+            if $0.queueNumber != $1.queueNumber { return $0.queueNumber > $1.queueNumber }
+            return $0.id < $1.id
+        }.prefix(20))
+    }
+
+    private static func collectFiles(_ value: Any, into files: inout Set<String>) {
+        if let object = value as? [String: Any] {
+            if let filename = object["filename"] as? String, !filename.isEmpty, object["type"] as? String != "temp" {
+                let subfolder = object["subfolder"] as? String ?? ""
+                files.insert(subfolder.isEmpty ? filename : subfolder + "/" + filename)
+            }
+            for nested in object.values { collectFiles(nested, into: &files) }
+        } else if let array = value as? [Any] {
+            for nested in array { collectFiles(nested, into: &files) }
+        }
     }
 }
 
@@ -677,6 +767,7 @@ struct ComfyQueueBarApp: App {
 final class QueuePopoverState: ObservableObject {
     @Published var urlInput = ""
     @Published var confirmation: QueueConfirmation?
+    @Published var showsSettings = false
 }
 
 struct QueuePopover: View {
@@ -690,22 +781,19 @@ struct QueuePopover: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    connectionSettings
-                    #if !DOCUMENTATION_SCREENSHOT
-                    updateSettings
-                    #endif
-                    summary
+                VStack(alignment: .leading, spacing: 20) {
+                    if !queue.isConnected { connectionSettings }
                     actionFeedback
                     runningSection
                     pendingSection
+                    completedSection
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 16)
             }
             footer
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(.regularMaterial)
         .onAppear { panel.urlInput = queue.endpoint }
         .confirmationDialog(panel.confirmation?.title ?? L10n.text("Confirm action"), isPresented: Binding(
             get: { panel.confirmation.map { _ in true } ?? false },
@@ -736,33 +824,36 @@ struct QueuePopover: View {
             QueueBrand.panelIcon
                 .resizable()
                 .scaledToFit()
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 34, height: 34)
-                .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(L10n.text("ComfyUI Queue"))
-                    .font(.system(size: 15, weight: .semibold))
+                .frame(width: 26, height: 26)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("ComfyQueueBar")
+                    .font(.system(size: 13, weight: .semibold))
                 HStack(spacing: 5) {
                     Circle()
                         .fill(queue.isConnected ? Color.green : Color.orange)
-                        .frame(width: 6, height: 6)
-                    Text(queue.isConnected ? L10n.text("Connected") : L10n.text("Disconnected"))
+                        .frame(width: 5, height: 5)
+                    Text(queue.isConnected ? (URLComponents(string: queue.endpoint)?.host ?? queue.endpoint) : L10n.text("Disconnected"))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
+                .accessibilityLabel(queue.isConnected ? L10n.text("Connected") : L10n.text("Disconnected"))
             }
             Spacer()
             Button {
-                Task { await queue.refresh() }
+                Task { await queue.refresh(forceHistory: true) }
             } label: {
-                Image(systemName: queue.isLoading ? "arrow.clockwise" : "arrow.clockwise")
-                    .font(.system(size: 13, weight: .medium))
-                    .frame(width: 30, height: 30)
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 26, height: 26)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(queue.isLoading || queue.movingJobID != nil || queue.stoppingJobID != nil)
             .help(L10n.text("Refresh now"))
+            .accessibilityLabel(L10n.text("Refresh now"))
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
@@ -800,14 +891,6 @@ struct QueuePopover: View {
         }
     }
 
-    private var summary: some View {
-        HStack(spacing: 9) {
-            SummaryTile(title: L10n.text("Running"), count: queue.running.count, tint: .cyan)
-            SummaryTile(title: L10n.text("Waiting"), count: queue.pending.count, tint: .orange)
-            SummaryTile(title: L10n.text("Total"), count: queue.totalJobs, tint: .purple)
-        }
-    }
-
     private var runningSection: some View {
         VStack(alignment: .leading, spacing: 9) {
             sectionHeading(L10n.text("Running"), count: queue.running.count, symbol: "waveform.path")
@@ -816,6 +899,7 @@ struct QueuePopover: View {
             } else if queue.running.isEmpty {
                 emptyState(L10n.text("No jobs are running"), symbol: "checkmark.circle")
             } else {
+                VStack(spacing: 0) {
                 ForEach(queue.running) { job in
                     JobCard(
                         job: job,
@@ -828,7 +912,11 @@ struct QueuePopover: View {
                         onPrioritize: nil,
                         onStop: { panel.confirmation = .stop(job) }
                     )
+                    if job.id != queue.running.last?.id { Divider().padding(.leading, 14) }
                 }
+                }
+                .background(Color(nsColor: .controlBackgroundColor).opacity(0.65), in: RoundedRectangle(cornerRadius: 10))
+                .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5) }
             }
         }
     }
@@ -839,6 +927,7 @@ struct QueuePopover: View {
             if queue.isConnected && queue.pending.isEmpty {
                 emptyState(L10n.text("No waiting jobs"), symbol: "tray")
             } else if queue.isConnected {
+                VStack(spacing: 0) {
                 ForEach(queue.pending) { job in
                     JobCard(
                         job: job,
@@ -851,7 +940,61 @@ struct QueuePopover: View {
                         onPrioritize: { panel.confirmation = .prioritize(job) },
                         onStop: nil
                     )
+                    if job.id != queue.pending.last?.id { Divider().padding(.leading, 14) }
                 }
+                }
+                .background(Color(nsColor: .controlBackgroundColor).opacity(0.65), in: RoundedRectangle(cornerRadius: 10))
+                .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5) }
+            }
+        }
+    }
+
+    private var completedSection: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            sectionHeading(L10n.text("Recently completed"), count: queue.completed.count, symbol: "checkmark")
+            Text(L10n.text("Last 24 hours · up to 20 jobs"))
+                .font(.system(size: 10))
+                .foregroundStyle(.tertiary)
+            if queue.historyUnavailable {
+                Text(L10n.text("History unavailable. Showing the last successful refresh."))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if queue.completed.isEmpty {
+                if !queue.historyUnavailable {
+                    emptyState(L10n.text("No recently completed jobs"), symbol: "checkmark.circle")
+                }
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(queue.completed) { job in
+                        VStack(alignment: .leading, spacing: 5) {
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(job.title)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .lineLimit(2)
+                                Spacer(minLength: 4)
+                                if let date = job.finishedAt {
+                                    Text(date.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(L10n.locale)))
+                                        .font(.system(size: 10)).foregroundStyle(.secondary)
+                                }
+                            }
+                            Text(job.filenames.isEmpty ? L10n.text("No output files reported") : job.filenames.joined(separator: "\n"))
+                                .font(.system(size: 10)).foregroundStyle(.secondary)
+                                .lineLimit(3)
+                                .help(job.filenames.joined(separator: "\n"))
+                            if job.finishedAt == nil {
+                                Text(L10n.text("Completion time unavailable"))
+                                    .font(.system(size: 10)).foregroundStyle(.tertiary)
+                            }
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        if job.id != queue.completed.last?.id { Divider().padding(.leading, 14) }
+                    }
+                }
+                .background(Color(nsColor: .controlBackgroundColor).opacity(0.65), in: RoundedRectangle(cornerRadius: 10))
+                .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5) }
             }
         }
     }
@@ -892,28 +1035,47 @@ struct QueuePopover: View {
     }
 
     private var footer: some View {
-        HStack {
-            Text(queue.lastUpdated.map { L10n.text("Updated %@", String($0.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(L10n.locale)))) } ?? L10n.text("Refreshes every 4 seconds"))
+        HStack(spacing: 12) {
+            Button { panel.showsSettings.toggle() } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 12))
+                    .frame(width: 20, height: 20)
+            }
+            .buttonStyle(.plain)
+            .help(L10n.text("Settings"))
+            .accessibilityLabel(L10n.text("Settings"))
+            .popover(isPresented: $panel.showsSettings, arrowEdge: .bottom) {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(L10n.text("Settings")).font(.headline)
+                    connectionSettings
+                    #if !DOCUMENTATION_SCREENSHOT
+                    Divider()
+                    updateSettings
+                    #endif
+                }
+                .padding(20)
+                .frame(width: 340)
+            }
+            Text(queue.lastUpdated.map { L10n.text("Updated %@", $0.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(L10n.locale))) } ?? L10n.text("Refreshes every 4 seconds"))
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
             Spacer()
             Button(L10n.text("Quit")) { NSApplication.shared.terminate(nil) }
                 .buttonStyle(.plain)
                 .font(.system(size: 11))
-                .foregroundStyle(.secondary)
         }
+        .foregroundStyle(.secondary)
         .padding(.horizontal, 18)
-        .padding(.vertical, 11)
+        .padding(.vertical, 9)
         .overlay(alignment: .top) { Divider() }
     }
 
     private func sectionHeading(_ title: String, count: Int, symbol: String) -> some View {
         HStack(spacing: 7) {
-            Image(systemName: symbol).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
-            Text(title).font(.system(size: 12, weight: .semibold))
+            Text(title).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
             Spacer()
             Text(L10n.text("%@", String(count)))
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         }
     }
@@ -927,23 +1089,6 @@ struct QueuePopover: View {
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 10))
-    }
-}
-
-struct SummaryTile: View {
-    let title: String
-    let count: Int
-    let tint: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(title).font(.system(size: 10)).foregroundStyle(.secondary)
-            Text(L10n.text("%@", String(count))).font(.system(size: 21, weight: .semibold, design: .rounded)).monospacedDigit()
-                .foregroundStyle(tint)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(11)
-        .background(tint.opacity(0.075), in: RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -989,70 +1134,60 @@ struct JobCard: View {
     let onStop: (() -> Void)?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            if case .pending = state {
-                Text(String(format: "%02d", job.position))
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(state.color)
-                    .frame(width: 28, height: 28)
-                    .background(state.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
-            } else {
-                Image(systemName: state.symbol)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(state.color)
-                    .frame(width: 28, height: 28)
-                    .background(state.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
-            }
-            VStack(alignment: .leading, spacing: 5) {
-                Text(job.title)
-                    .font(.system(size: 12, weight: .medium))
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .help(job.title)
-                HStack(spacing: 8) {
-                    Text("ID \(job.shortID)")
-                    Text("·")
-                    Text(L10n.text("%@ nodes", String(job.nodeCount)))
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                if case .pending = state {
+                    Text(String(job.position))
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 14)
+                        .padding(.top, 2)
                 }
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundStyle(.secondary)
-                if case .running = state {
-                    progressDetails
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(job.title)
+                        .font(.system(size: 13, weight: .medium))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .help(job.title)
+                    HStack(spacing: 5) {
+                        Text(L10n.text("%@ nodes", String(job.nodeCount)))
+                        Text("·")
+                        Text(job.shortID).font(.system(size: 10, design: .monospaced))
+                    }
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
                 }
-            }
-            Spacer(minLength: 0)
-            VStack(alignment: .trailing, spacing: 7) {
-                Text(state.label)
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(state.color)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 4)
-                    .background(state.color.opacity(0.1), in: Capsule())
+                Spacer(minLength: 4)
                 if case .pending = state {
                     Button(action: { onPrioritize?() }) {
-                        Label(isMoving ? L10n.text("Working") : L10n.text("Prioritize"), systemImage: "arrow.up.to.line")
-                            .font(.system(size: 10, weight: .medium))
+                        Image(systemName: "arrow.up.to.line")
+                            .font(.system(size: 11, weight: .medium))
+                            .frame(width: 22, height: 22)
+                            .contentShape(Rectangle())
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.mini)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
                     .disabled(!isActionEnabled || isMoving)
                     .help(L10n.text("Run next after the current job"))
+                    .accessibilityLabel(isMoving ? L10n.text("Working") : L10n.text("Prioritize"))
                 } else {
                     Button(action: { onStop?() }) {
-                        Label(isStopping ? L10n.text("Stopping") : L10n.text("Stop"), systemImage: "stop.fill")
-                            .font(.system(size: 10, weight: .medium))
+                        Image(systemName: "stop.circle")
+                            .font(.system(size: 18, weight: .regular))
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle())
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.mini)
-                    .tint(.red)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
                     .disabled(!isActionEnabled || isStopping)
                     .help(L10n.text("Stop this job while keeping waiting jobs"))
+                    .accessibilityLabel(isStopping ? L10n.text("Stopping") : L10n.text("Stop"))
                 }
             }
+            if case .running = state { progressDetails }
         }
-        .padding(10)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 10))
     }
 
     @ViewBuilder
@@ -1067,9 +1202,9 @@ struct JobCard: View {
                     if let percent = progress.percent {
                         ProgressView(value: min(max(percent / 100, 0), 1))
                             .controlSize(.mini)
-                            .frame(width: 94)
+                            .frame(maxWidth: .infinity)
                         Text("\(Int(percent.rounded()))%")
-                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .font(.system(size: 11))
                             .monospacedDigit()
                     } else {
                         ProgressView().controlSize(.mini)

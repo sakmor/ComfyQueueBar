@@ -2,7 +2,7 @@
 
 `queue-light.png` and `queue-dark.png` are native captures of the same `QueuePopover` SwiftUI view shipped in the app, at its actual 360 × 540 point dimensions (720 × 1080 pixels on the capture machine's Retina display).
 
-The captures use compile-time-only demonstration fixtures: one running job, one waiting job, and 70% progress for a KSampler node. These are illustrative data, not a record of a live generation. No external workflow, user endpoint, or private queue data is included.
+The captures use compile-time-only demonstration fixtures: one running job, one waiting job, one completed clip, and 70% progress for a KSampler node. These are illustrative data, not a record of a live generation. No external workflow, user endpoint, or private queue data is included.
 
 Recreate on a Mac with a logged-in graphical session:
 
@@ -29,3 +29,5 @@ bash scripts/capture-screenshots.sh --desktop-demo
 Quit an existing production instance first to avoid duplicate icons. Capture the display containing the panel using macOS screenshot controls, or `screencapture -D DISPLAY_NUMBER -x OUTPUT.png`. Display numbering depends on your setup. Review the image and crop out all private content before publishing. Use **Quit** in the demo panel to close it, then reopen the production app.
 
 The system wallpaper, macOS interface elements, and third-party menu bar marks remain the property of their respective owners and appear only as incidental operating-system context. The screenshot is not a redistribution of those assets as standalone brand artwork. The repository's MIT license covers its own code, icon, and added annotations.
+
+The v1.3.0 light/dark captures show the restrained native list design and recent completion history. Connection and automatic update controls now live in the gear popover.

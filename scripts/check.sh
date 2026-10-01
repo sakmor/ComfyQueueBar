@@ -2,8 +2,9 @@
 set -euo pipefail
 project_dir="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$project_dir"
-bash -n build-app.sh install-comfyui-extension.sh scripts/check.sh scripts/capture-screenshots.sh scripts/package-release.sh
+bash -n build-app.sh install-comfyui-extension.sh scripts/check.sh scripts/capture-screenshots.sh scripts/package-release.sh scripts/check-history.sh scripts/check-localization.sh
 bash scripts/check-localization.sh
+bash scripts/check-history.sh
 python3 -m unittest discover -s tests -v
 bash build-app.sh
 plutil -lint build/ComfyQueueBar.app/Contents/Info.plist
