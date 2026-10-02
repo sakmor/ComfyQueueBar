@@ -1,23 +1,20 @@
-<?xml version="1.0" standalone="yes"?>
-<!-- sparkle-sign-warning:
+<?xml version="1.0" standalone="yes"?><!-- sparkle-sign-warning:
 IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
--->
-<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+--><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
         <title>ComfyQueueBar</title>
         <item>
-            <title>1.4.1</title>
-            <pubDate>Fri, 02 Oct 2026 08:31:33 +0800</pubDate>
+            <title>1.5.0</title>
+            <pubDate>Fri, 02 Oct 2026 22:51:04 +0800</pubDate>
             <link>https://github.com/sakmor/ComfyQueueBar</link>
-            <sparkle:version>1.4.1</sparkle:version>
-            <sparkle:shortVersionString>1.4.1</sparkle:shortVersionString>
+            <sparkle:version>1.5.0</sparkle:version>
+            <sparkle:shortVersionString>1.5.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/sakmor/ComfyQueueBar/releases/download/v1.4.1/ComfyQueueBar-macOS-arm64.zip" length="4701806" type="application/octet-stream" sparkle:edSignature="cOFqAcFjhapf1E9Gqcoyt/VQhKngHyxDO/qff6egz6xunnpXPItUXn/QoGufPW6l/8pzT29tgyJAna+UjZHhCg=="/>
+            <enclosure url="https://github.com/sakmor/ComfyQueueBar/releases/download/v1.5.0/ComfyQueueBar-macOS-arm64.zip" length="4813087" type="application/octet-stream" sparkle:edSignature="6CLnheljcgIC+n2wtcmssBtkzpdqvBFzVg4qPb59yMvH8wXIfmfC9Dc0j2vTFNHjc6Tg581qPPeVFchxToYtAQ=="></enclosure>
         </item>
     </channel>
-</rss>
-<!-- sparkle-signatures:
-edSignature: YKmcMx5e7mfB4oMSN0XMDjLHatFHFHSUu7sJAbBpzTcikeA6EZ7hPIh/yxIRjzuXOtSap5vGHR3undJkQBi9Cw==
-length: 1200
+</rss><!-- sparkle-signatures:
+edSignature: Xdz4RMnt3QeTjgDz6i8HidTM96e/A6uPB91/q8mdOoU0Ye12AO4g0Va/rFqGeEloSfSWtfrUZdqNIAr+YrLmAA==
+length: 1208
 -->
