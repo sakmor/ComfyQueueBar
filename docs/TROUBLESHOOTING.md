@@ -103,3 +103,11 @@ Include macOS version, processor architecture, Swift version (for build problems
 - **No estimate:** At least three successful matching graph/settings records need valid start and finish timestamps in the loaded 200 records. Changed settings or absent timestamps can prevent a match. Observed time starts when the app first sees the job.
 - **Missing older jobs:** Loaded history contains at most the newest 200 server records. Select Loaded history to include unknown timestamps; clear the search field and inspect ComfyUI for older records.
 - **Cannot switch servers:** Wait for the active prioritize/stop action to finish. Switching while a mutation is in flight is disabled.
+
+## Menu bar icon disappears / camera notch
+
+First reopen ComfyQueueBar from Applications or Spotlight. Starting with v1.4.1, reopening a running app restores its status item and opens a normal queue window; quitting/restarting is not required. Closing that window keeps monitoring running.
+
+macOS controls menu-bar item placement and may hide items when the menu bar is crowded, including on displays with a camera notch. The app uses a bounded 52-point item and shows 99+ for larger queues, with the full count in its tooltip. It retains its native status item and restores visibility after wake/display changes, but cannot guarantee space in a crowded menu bar. Command-drag the icon toward the right when visible, or reduce other menu-bar items. The app does not change system menu-bar preferences or disable third-party menu-bar managers.
+
+If reopening launches a new process rather than opening the fallback window, the previous app may have exited. Include app/macOS version, whether the process was still running, display changes, sleep/wake, and any ComfyQueueBar crash report when filing an issue.

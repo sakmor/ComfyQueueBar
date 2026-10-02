@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.1 — 2026-10-02
+
+- Replaced SwiftUI menu-bar scene ownership with a retained native NSStatusItem and transient SwiftUI popover.
+- Bounded the menu-bar width and capped its visible count at 99+; the tooltip retains the exact total.
+- Restore the item on wake and display reconfiguration. Reopening the running app restores its item and opens a normal queue window, usable when menu-bar space is exhausted.
+- Explicitly link AVKit, fixing a native video-view superclass loading failure reproduced in the preview-window test.
+- Output previews now open in a retained standalone window instead of a nested menu-bar popover; closing it stops playback and pending preview loads.
+- Closing the fallback window keeps queue monitoring running. Status item placement remains controlled by macOS; notch/crowding cannot be forcibly bypassed.
+
 ## 1.4.0 — 2026-10-01
 
 - Added opt-in native completion/batch, failure, and disconnection notifications with first-connection suppression and deduplication.

@@ -13,3 +13,6 @@ test -s build/ComfyQueueBar.app/Contents/Resources/AppIconPreview.png
 test -s build/ComfyQueueBar.app/Contents/Frameworks/Sparkle.framework/Sparkle
 test -s build/ComfyQueueBar.app/Contents/Resources/Sparkle-LICENSE.txt
 codesign --verify --deep --strict build/ComfyQueueBar.app
+
+# The SwiftUI VideoPlayer overlay alone does not load its AppKit superclass.
+otool -L build/ComfyQueueBar.app/Contents/MacOS/ComfyQueueBar | rg -q "/AVKit.framework/"

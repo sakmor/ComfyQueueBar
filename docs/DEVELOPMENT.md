@@ -6,6 +6,7 @@
 Package.swift                              Swift executable package
 Sources/ComfyQueueBar/main.swift            View model, API client, localization, panel
 Sources/ComfyQueueBar/Features.swift        History models, notifications, native media UI
+Sources/ComfyQueueBar/StatusBarController.swift Native status-item lifecycle and reopen window
 assets/                                    App icon and artwork provenance
 build-app.sh                               Release app bundle and icon builder
 install-comfyui-extension.sh               Non-overwriting extension installer
@@ -124,3 +125,9 @@ A CI build needs no signing private key and does not publish updates. The appcas
 `bash scripts/check-history.sh` tests success/error filtering, millisecond timestamps, ordering, legacy parser limits, media metadata and URL encoding, time-range handling, profile Codable persistence, matching estimates with a three-sample minimum, and notification baseline/deduplication/batch behavior. Media uses AppKit and AVKit; notifications use UserNotifications. No extra runtime dependency is required.
 
 A native localhost media smoke test during v1.4.0 validation exercised PNG decoding, AVPlayer readiness for a short H.264 MP4, video thumbnail extraction, byte-exact HTTP download, and missing-file error handling. This is a controlled fixture test, not a guarantee for every remote codec/server; native save-dialog interaction and actual macOS notification delivery require manual testing.
+
+## Status-item lifecycle
+
+The application delegate retains an NSStatusItem with a fixed 52-point width. Queue changes update its label asynchronously; the count caps at 99+ while the tooltip keeps the full value. Wake and display reconfiguration restore its visibility. An application-reopen event restores the item and shows the same queue model in an ordinary closable window. Closing that window orders it out without terminating the accessory app. macOS owns item placement, so this does not promise to defeat notch occlusion or menu-bar crowding. The documentation capture uses a separate demo wrapper; production uses the retained native item with a SwiftUI popover.
+
+The v1.4.1 graphical regression check exercised opening/replacing/closing the standalone preview window, in addition to the localhost PNG/H.264 media smoke. It reproduced a missing AVKit AppKit superclass before explicit framework linkage; the build checks now verify that the shipping executable directly links AVKit. Reopening the installed application is checked separately to ensure the same process opens its fallback queue window.

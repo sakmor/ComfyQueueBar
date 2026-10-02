@@ -80,7 +80,7 @@ History belongs to ComfyUI. Clearing history or restarting a server without pers
 
 ### Previewing and downloading outputs
 
-Click a thumbnail or **Preview & download…**. Select an output in the picker when several files were reported. Images are decoded natively; MP4, MOV, and M4V use AVKit with native playback controls and no autoplay. The container extension alone does not guarantee that macOS supports the codec. Other file types can be downloaded without an inline preview.
+Click a thumbnail or **Preview & download…** to open a standalone preview window. Select an output in the picker when several files were reported. Images are decoded natively; MP4, MOV, and M4V use AVKit with native playback controls and no autoplay. The container extension alone does not guarantee that macOS supports the codec. Other file types can be downloaded without an inline preview.
 
 **Download…** opens a macOS save dialog. Choose a location and confirm any replacement. The app downloads the original bytes from the configured server's `/view` route. It does not convert or compress outputs. Failed transfers report an error and preserve an existing destination. Image preview decoding is capped at 32 MB; thumbnails at 8 MB. The app does not verify that a reported file still exists until you request it. Remote preview/download traffic follows your configured endpoint, including SSH forwarding.
 

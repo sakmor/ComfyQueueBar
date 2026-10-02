@@ -18,7 +18,7 @@ Exact pixel dimensions depend on the Mac display scale. Source images are includ
 
 `desktop-menubar.png` is a cropped native macOS desktop capture taken with `screencapture` on 2026-10-01. `desktop-menubar-annotated.png` adds only a highlight, arrow, and English callout. The desktop wallpaper and menu bar were captured from macOS; they were not generated. Personal windows, filenames, widgets, and screen-sharing details were excluded from the published crop.
 
-The documentation demo displays the real `QueuePopover` view beneath a native `NSStatusItem` with the same template icon and job count used by the production app. Its window wrapper is for documentation capture; the production app uses SwiftUI `MenuBarExtra`. The demonstration job data is fixed, and no server requests are made.
+The documentation demo displays the real `QueuePopover` view beneath a native `NSStatusItem` with the same template icon and job count used by the production app. Its window wrapper is for documentation capture; the production app uses a retained native `NSStatusItem` with a SwiftUI popover. The demonstration job data is fixed, and no server requests are made.
 
 To prepare a similar desktop capture:
 

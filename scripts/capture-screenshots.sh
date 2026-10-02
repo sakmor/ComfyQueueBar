@@ -7,7 +7,7 @@ capture_app="build/DocumentationCapture.app"
 mkdir -p "$capture_app/Contents/MacOS" "$capture_app/Contents/Resources" docs/images
 cp assets/app-icon.png "$capture_app/Contents/Resources/AppIconPreview.png"
 swiftc -parse-as-library -O -D DOCUMENTATION_SCREENSHOT \
-  Sources/ComfyQueueBar/*.swift -o "$capture_app/Contents/MacOS/DocumentationCapture"
+  Sources/ComfyQueueBar/*.swift -framework AVKit -o "$capture_app/Contents/MacOS/DocumentationCapture"
 if [[ "${1:-}" == "--desktop-demo" ]]; then
   cat > "$capture_app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>

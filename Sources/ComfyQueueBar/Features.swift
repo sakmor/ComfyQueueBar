@@ -245,11 +245,12 @@ final class FeatureViewState: ObservableObject {
     @Published var image: NSImage?
 }
 
+@MainActor
 struct MediaPreview: View {
     let job: CompletedJob
     let endpoint: String
     @StateObject private var state = FeatureViewState()
-    @StateObject private var model = MediaPreviewModel()
+    @ObservedObject var model: MediaPreviewModel
     private var output: MediaOutput? { job.outputs.indices.contains(state.selected) ? job.outputs[state.selected] : nil }
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -284,6 +285,34 @@ struct MediaPreview: View {
     }
 }
 
+/// A separate retained window avoids nested popover dismissal in a menu-bar app.
+@MainActor
+final class MediaPreviewWindow: NSObject, NSWindowDelegate {
+    static let shared = MediaPreviewWindow()
+    private var window: NSWindow?
+    private var model: MediaPreviewModel?
+    func open(job: CompletedJob, endpoint: String) {
+        window?.close()
+        let model = MediaPreviewModel()
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 460), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+        window.title = job.title
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        window.contentViewController = NSHostingController(rootView: MediaPreview(job: job, endpoint: endpoint, model: model).frame(width: 440, height: 460))
+        self.model = model
+        self.window = window
+        window.center()
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+    func windowWillClose(_ notification: Notification) {
+        model?.stop()
+        window?.contentViewController = nil
+        model = nil
+        window = nil
+    }
+}
+
 struct CompletionRow: View {
     let job: CompletedJob
     let endpoint: String
@@ -291,7 +320,7 @@ struct CompletionRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             if let file = job.outputs.first(where: { $0.isImage || $0.isVideo }) {
-                Button { state.preview = true } label: {
+                Button { MediaPreviewWindow.shared.open(job: job, endpoint: endpoint) } label: {
                     Thumbnail(output: file, endpoint: endpoint)
                 }.buttonStyle(.plain).help(L10n.text("Preview"))
             }
@@ -308,12 +337,11 @@ struct CompletionRow: View {
                     .font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(2).help(job.filenames.joined(separator: "\n"))
                 if job.finishedAt == nil { Text(L10n.text("Completion time unavailable")).font(.system(size: 10)).foregroundStyle(.tertiary) }
                 if !job.outputs.isEmpty {
-                    Button(L10n.text("Preview & download…")) { state.preview = true }.buttonStyle(.link).font(.system(size: 10))
+                    Button(L10n.text("Preview & download…")) { MediaPreviewWindow.shared.open(job: job, endpoint: endpoint) }.buttonStyle(.link).font(.system(size: 10))
                 }
             }
         }
         .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-        .popover(isPresented: $state.preview) { MediaPreview(job: job, endpoint: endpoint) }
     }
 }
 

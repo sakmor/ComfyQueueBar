@@ -130,6 +130,11 @@ enum L10n {
         "Unable to read the queue": ["無法讀取佇列", "无法读取队列", "キューを読み込めません"],
         "Check that ComfyUI is running and the address is correct.": ["請確認 ComfyUI 已啟動且位址正確。", "请确认 ComfyUI 已启动且地址正确。", "ComfyUI が起動していることとアドレスを確認してください。"],
         "Refreshes every 4 seconds": ["每 4 秒更新", "每 4 秒刷新", "4 秒ごとに更新"],
+        "Edit": ["編輯", "编辑", "編集"],
+        "Cut": ["剪下", "剪切", "カット"],
+        "Copy": ["複製", "复制", "コピー"],
+        "Paste": ["貼上", "粘贴", "ペースト"],
+        "Select All": ["全選", "全选", "すべてを選択"],
         "Quit": ["結束", "退出", "終了"],
         "Prioritize this job?": ["要優先執行這個工作嗎？", "要优先执行此任务吗？", "このジョブを優先しますか？"],
         "Stop this job?": ["要停止這個工作嗎？", "要停止此任务吗？", "このジョブを停止しますか？"],
@@ -893,24 +898,13 @@ struct DocumentationCapture {
 }
 #else
 @main
-struct ComfyQueueBarApp: App {
-    @StateObject private var queue = QueueViewModel()
-    private let updater = AppUpdater.shared
-
-    var body: some Scene {
-        MenuBarExtra {
-            QueuePopover(queue: queue)
-                .frame(width: 360, height: 600)
-        } label: {
-            HStack(spacing: 5) {
-                Image(nsImage: QueueBrand.menuBarIcon)
-                Text(L10n.text("%@", String(queue.totalJobs)))
-                    .monospacedDigit()
-            }
-            .foregroundStyle(queue.isConnected ? Color.accentColor : Color.secondary)
-            .accessibilityLabel(L10n.text("ComfyUI queue: %@ jobs", String(queue.totalJobs)))
-        }
-        .menuBarExtraStyle(.window)
+struct ComfyQueueBarApp {
+    @MainActor static func main() {
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)
+        let delegate = StatusBarController()
+        app.delegate = delegate
+        withExtendedLifetime(delegate) { app.run() }
     }
 }
 
