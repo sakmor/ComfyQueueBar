@@ -94,6 +94,14 @@ enum L10n {
         "Remove server": ["移除伺服器", "移除服务器", "サーバーを削除"],
         "Server name": ["伺服器名稱", "服务器名称", "サーバー名"],
         "Save address": ["儲存位址", "保存地址", "アドレスを保存"],
+        "Set up Claude and Codex": ["一鍵設定 Claude／Codex", "一键配置 Claude／Codex", "Claude／Codex を設定"],
+        "Adds MCP settings and backs up existing files. Reopen agent chats afterward.": ["自動加入 MCP 設定並備份原檔。完成後請重新開啟 Agent 對話。", "自动加入 MCP 配置并备份原文件。完成后请重新打开 Agent 对话。", "MCP 設定を追加し、既存ファイルをバックアップします。完了後にチャットを開き直してください。"],
+        "Configured %@. Reopen your agent chats.": ["已設定 %@。請重新開啟 Agent 對話。", "已配置 %@。请重新打开 Agent 对话。", "%@ を設定しました。チャットを開き直してください。"],
+        "Copy MCP configuration": ["複製 MCP 設定", "复制 MCP 配置", "MCP 設定をコピー"],
+        "Setup guide": ["設定指南", "配置指南", "設定ガイド"],
+        "Shares queue IDs, output references, and errors with local agents. Desktop push requires host support.": ["與本機 Agent 分享佇列 ID、輸出參照和錯誤。桌面推送需要 Agent 支援。", "与本机 Agent 分享队列 ID、输出引用和错误。桌面推送需要 Agent 支持。", "キュー ID、出力参照、エラーをローカルエージェントと共有します。デスクトップ通知にはホストの対応が必要です。"],
+        "AI agent integration": ["AI Agent 整合", "AI Agent 集成", "AI エージェント連携"],
+        "Let agents delegate monitoring to this app using the local MCP bridge.": ["透過本機 MCP 橋接，讓 Agent 將監控交給此 App。", "通过本机 MCP 桥接，让 Agent 将监控交给此 App。", "ローカル MCP ブリッジで監視をこのアプリに委任できます。"],
         "Completion notifications": ["完成通知", "完成通知", "完了通知"],
         "Off": ["關閉", "关闭", "オフ"],
         "Every job": ["每個工作", "每个任务", "ジョブごと"],
@@ -205,6 +213,17 @@ final class QueueViewModel: ObservableObject {
     @Published var notifyProblems = false {
         didSet { UserDefaults.standard.set(notifyProblems, forKey: "notifyProblems") }
     }
+    @Published var agentIntegrationEnabled = false {
+        didSet {
+            UserDefaults.standard.set(agentIntegrationEnabled, forKey: "agentIntegrationEnabled")
+            configureAgentBridge()
+        }
+    }
+    @Published private(set) var agentBridgeError: String?
+    @Published private(set) var agentSetupMessage: String?
+    @Published private(set) var isSettingUpAgents = false
+    private var agentBridge: AgentBridge?
+    private var agentTimer: Timer?
     private var notificationTracker = NotificationTracker()
     private var connectionGeneration = UUID()
     private var lastHistoryPoll: Date?
@@ -245,8 +264,68 @@ final class QueueViewModel: ObservableObject {
         progressTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.refreshProgress() }
         }
+        agentIntegrationEnabled = UserDefaults.standard.bool(forKey: "agentIntegrationEnabled")
+        configureAgentBridge()
+        agentTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.tickAgentBridge() }
+        }
         Task { await refresh() }
         #endif
+    }
+
+    func setupAgents() async {
+        guard !isSettingUpAgents, let script = Bundle.main.url(forResource: "server", withExtension: "py", subdirectory: "AgentBridge") else { return }
+        isSettingUpAgents = true
+        defer { isSettingUpAgents = false }
+        agentSetupMessage = nil
+        let outcome = await Task.detached { () -> Result<AgentSetup.Report, Error> in
+            do {
+                guard let python = AgentSetup.python() else { throw AgentSetup.SetupError.missingPython }
+                let customHome = ProcessInfo.processInfo.environment["CODEX_HOME"].map { URL(fileURLWithPath: $0) }
+                return .success(try AgentSetup.configure(script: script, python: python, codex: AgentSetup.codex(), codexHome: customHome))
+            } catch { return .failure(error) }
+        }.value
+        switch outcome {
+        case .success(let report):
+            if !report.configured.isEmpty { agentIntegrationEnabled = true }
+            agentSetupMessage = (report.configured.isEmpty ? "" : L10n.text("Configured %@. Reopen your agent chats.", report.configured.joined(separator: ", "))) +
+                (report.failed.isEmpty ? "" : "\n" + report.failed.joined(separator: "\n"))
+        case .failure(let error): agentSetupMessage = error.localizedDescription
+        }
+    }
+
+    private func configureAgentBridge() {
+        #if !DOCUMENTATION_SCREENSHOT
+        if agentIntegrationEnabled {
+            do { agentBridge = try AgentBridge(); agentBridgeError = nil; tickAgentBridge() }
+            catch { agentBridgeError = error.localizedDescription }
+        } else { agentBridge?.stop(); agentBridge = nil; agentBridgeError = nil }
+        #endif
+    }
+
+    private func tickAgentBridge() {
+        guard let bridge = agentBridge else { return }
+        do {
+            try bridge.tick(endpoint: endpoint, connected: isConnected, historyAvailable: !historyUnavailable,
+                lastUpdated: lastUpdated, running: running.map(\.id), pending: pending.map(\.id))
+            agentBridgeError = nil
+        } catch { agentBridgeError = error.localizedDescription }
+    }
+
+    private func ingestAgentHistory(_ history: [String: Any], endpoint source: String) {
+        guard let bridge = agentBridge else { return }
+        var results: [String: AgentJobResult] = [:]
+        for job in CompletionHistory.parse(history, now: Date(), maxAge: nil, limit: history.count, title: Self.jobTitle) {
+            results[job.id] = AgentJobResult(status: "completed", outputs: job.outputs.map {
+                ["filename": $0.filename, "subfolder": $0.subfolder, "type": $0.type,
+                 "url": $0.url(endpoint: source)?.absoluteString ?? ""]
+            })
+        }
+        for job in HistoryDetails.failures(history, title: Self.jobTitle) {
+            results[job.id] = AgentJobResult(status: job.interrupted ? "interrupted" : "failed", error: job.reason)
+        }
+        do { try bridge.ingest(endpoint: source, results: results) }
+        catch { agentBridgeError = error.localizedDescription }
     }
 
     var serverName: String { profiles.first { $0.endpoint == endpoint }?.name ?? (URLComponents(string: endpoint)?.host ?? endpoint) }
@@ -357,6 +436,22 @@ final class QueueViewModel: ObservableObject {
             failures = HistoryDetails.failures(history, title: Self.jobTitle)
             processHistoryNotifications(ids: Set(history.keys))
             historyUnavailable = false
+            ingestAgentHistory(history, endpoint: source)
+            // Individual history queries recover subscribed jobs outside the UI's 200-entry window.
+            let ids = agentBridge?.historyCandidates(endpoint: source, queued: Set((running + pending).map(\.id))) ?? []
+            await withTaskGroup(of: Data?.self) { group in
+                for id in ids where history[id] == nil {
+                    group.addTask { [weak self] in
+                        guard let self else { return nil }
+                        return try? await self.requestData(path: "history/" + id)
+                    }
+                }
+                for await data in group {
+                    guard source == endpoint, generation == connectionGeneration, let data,
+                          let entry = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { continue }
+                    ingestAgentHistory(entry, endpoint: source)
+                }
+            }
         } catch {
             guard source == endpoint, generation == connectionGeneration else { return }
             // History errors never disconnect a working queue or imply that jobs completed.
@@ -1263,6 +1358,40 @@ struct QueuePopover: View {
         .background(Color.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 10))
     }
 
+    private var agentSettings: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle(L10n.text("AI agent integration"), isOn: $queue.agentIntegrationEnabled)
+            Text(L10n.text("Let agents delegate monitoring to this app using the local MCP bridge."))
+                .font(.caption).foregroundStyle(.secondary)
+            Text(L10n.text("Shares queue IDs, output references, and errors with local agents. Desktop push requires host support."))
+                .font(.caption).foregroundStyle(.secondary)
+            if let script = Bundle.main.url(forResource: "server", withExtension: "py", subdirectory: "AgentBridge") {
+                Button(L10n.text("Set up Claude and Codex")) { Task { await queue.setupAgents() } }
+                    .disabled(queue.isSettingUpAgents)
+                Text(L10n.text("Adds MCP settings and backs up existing files. Reopen agent chats afterward."))
+                    .font(.caption).foregroundStyle(.secondary)
+                if queue.isSettingUpAgents { ProgressView().controlSize(.small) }
+                HStack {
+                    Button(L10n.text("Copy MCP configuration")) {
+                        let python = ["/opt/homebrew/bin/python3", "/usr/local/bin/python3", "/usr/bin/python3"]
+                            .first { FileManager.default.isExecutableFile(atPath: $0) } ?? "/absolute/path/to/python3"
+                        let configuration = ["mcpServers": ["comfyqueuebar": ["command": python, "args": [script.path]] as [String: Any]]]
+                        if let data = try? JSONSerialization.data(withJSONObject: configuration, options: [.prettyPrinted, .sortedKeys]),
+                           let text = String(data: data, encoding: .utf8) {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(text, forType: .string)
+                        }
+                    }
+                    if let guide = Bundle.main.url(forResource: "README", withExtension: "md", subdirectory: "AgentBridge") {
+                        Button(L10n.text("Setup guide")) { NSWorkspace.shared.open(guide) }
+                    }
+                }
+            }
+            if let message = queue.agentSetupMessage { Text(message).font(.caption).textSelection(.enabled) }
+            if let error = queue.agentBridgeError { Text(error).font(.caption).foregroundStyle(.red) }
+        }
+    }
+
     var settingsContent: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(L10n.text("Settings")).font(.headline)
@@ -1271,6 +1400,8 @@ struct QueuePopover: View {
             serverSettings
             Divider()
             notificationSettings
+            Divider()
+            agentSettings
             #if !DOCUMENTATION_SCREENSHOT
             Divider()
             updateSettings

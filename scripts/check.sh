@@ -12,6 +12,8 @@ test -s build/ComfyQueueBar.app/Contents/Resources/AppIcon.icns
 test -s build/ComfyQueueBar.app/Contents/Resources/AppIconPreview.png
 test -s build/ComfyQueueBar.app/Contents/Frameworks/Sparkle.framework/Sparkle
 test -s build/ComfyQueueBar.app/Contents/Resources/Sparkle-LICENSE.txt
+test -s build/ComfyQueueBar.app/Contents/Resources/AgentBridge/server.py
+test -s build/ComfyQueueBar.app/Contents/Resources/AgentBridge/README.md
 codesign --verify --deep --strict build/ComfyQueueBar.app
 
 # The SwiftUI VideoPlayer overlay alone does not load its AppKit superclass.

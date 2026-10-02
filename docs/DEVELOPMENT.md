@@ -6,6 +6,9 @@
 Package.swift                              Swift executable package
 Sources/ComfyQueueBar/main.swift            View model, API client, localization, panel
 Sources/ComfyQueueBar/Features.swift        History models, notifications, native media UI
+Sources/ComfyQueueBar/AgentBridge.swift     Durable same-user subscription IPC
+Sources/ComfyQueueBar/AgentSetup.swift      User-triggered MCP registration and backups
+agent_bridge/server.py                    Local stdio MCP / optional Claude channel adapter
 Sources/ComfyQueueBar/StatusBarController.swift Native status-item lifecycle and reopen window
 assets/                                    App icon and artwork provenance
 build-app.sh                               Release app bundle and icon builder
@@ -131,3 +134,15 @@ A native localhost media smoke test during v1.4.0 validation exercised PNG decod
 The application delegate retains an NSStatusItem with a fixed 52-point width. Queue changes update its label asynchronously; the count caps at 99+ while the tooltip keeps the full value. Wake and display reconfiguration restore its visibility. An application-reopen event restores the item and shows the same queue model in an ordinary closable window. Closing that window orders it out without terminating the accessory app. macOS owns item placement, so this does not promise to defeat notch occlusion or menu-bar crowding. The documentation capture uses a separate demo wrapper; production uses the retained native item with a SwiftUI popover.
 
 The v1.4.1 graphical regression check exercised opening/replacing/closing the standalone preview window, in addition to the localhost PNG/H.264 media smoke. It reproduced a missing AVKit AppKit superclass before explicit framework linkage; the build checks now verify that the shipping executable directly links AVKit. Reopening the installed application is checked separately to ensure the same process opens its fallback queue window.
+
+## Agent bridge
+
+The opt-in integration uses a single-writer subscription store and atomic same-user file IPC, not a TCP listener. A one-second main-actor timer processes commands and publishes a heartbeat independently of queue HTTP requests. Durable state writes occur only when subscription state changes. History ingestion records explicit terminal results and deduplicated events. Individual history lookups (up to eight concurrently per history cycle) recover unresolved subscribed IDs outside the UI history window. Endpoint-generation checks discard responses after server changes. Missing history never implies success.
+
+The Python standard-library MCP adapter runs as each host's stdio subprocess. Tool requests run in a bounded thread pool so waits do not block cancellation or ping. Standard mode reports no idle wakeup; optional Claude channel mode requires a nonce-based inbound probe before events are forwarded. Explicit event acknowledgment persists in the app store. Only subscriptions created/resumed by that process are forwarded. See [Agent integration](AGENT_INTEGRATION.md) for configuration and actual host limitations.
+
+`tests/test_agent_bridge.py` compiles `tests/check-agent-bridge.swift` with the production bridge, then tests real file IPC and stdio messages. The fixture uses temporary directories and never submits production jobs or invokes agents.
+
+`AgentSetup` runs only from the setup button, off the main actor. It probes Python version, copies the adapter to a stable path, merges the Claude Desktop JSON configuration with a backup, and invokes `codex mcp add` to edit Codex TOML. The native CLI is used instead of a hand-written TOML parser. Each client's result is reported independently; commands have a ten-second timeout. Setup runs no model inference.
+
+The current development verification record and pre-merge checklist are in [AI agent test progress](AGENT_TEST_PROGRESS.md). The feature remains on `codex/dev` until host/render validation and desktop delivery behavior are resolved.

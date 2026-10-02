@@ -25,6 +25,9 @@ for size in 16 32 128 256 512; do
 done
 iconutil -c icns "$iconset_dir" -o "$APP_DIR/Contents/Resources/AppIcon.icns"
 cp "$SCRIPT_DIR/assets/app-icon.png" "$APP_DIR/Contents/Resources/AppIconPreview.png"
+mkdir -p "$APP_DIR/Contents/Resources/AgentBridge"
+cp "$SCRIPT_DIR/agent_bridge/server.py" "$APP_DIR/Contents/Resources/AgentBridge/server.py"
+cp "$SCRIPT_DIR/docs/AGENT_INTEGRATION.md" "$APP_DIR/Contents/Resources/AgentBridge/README.md"
 
 cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>

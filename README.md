@@ -72,6 +72,12 @@ A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote 
 
 *The original illustrated lamp is a demonstration output, not a real ComfyUI generation. The preview uses the shipping SwiftUI view.*
 
+## AI agent monitoring
+
+Enable **Settings → AI agent integration** to let Claude Code or Codex delegate ComfyUI monitoring to this app through a local MCP adapter. Agents receive instructions to subscribe to exact jobs instead of repeatedly querying progress. Subscriptions, results, and acknowledged completion/failure events survive app restarts. The packaged app includes **Set up Claude and Codex** to register MCP with backups and preserve other settings; reopen agent chats afterward. A manual configuration copy button is also available; Python 3.9+ is required, with no pip dependencies.
+
+Standard MCP cannot wake an idle desktop conversation. It provides a bounded programmatic wait; experimental Claude Channels support verifies inbound delivery before claiming push capability. Claude Desktop Code-tab channel activation and Codex Desktop push are not established. See [setup, delivery modes, and limitations](docs/AGENT_INTEGRATION.md).
+
 ## Preview, notifications, and servers
 
 Click **Preview & download…** on a completed job to open its output. Images use a native preview; MP4, MOV, and M4V use macOS playback controls when their codec is supported. Choose an output if the job produced several files, then use **Download…** to save it. Other formats remain downloadable.
@@ -204,7 +210,7 @@ Prioritization preserves the prompt graph and the `extra_data` available through
 
 ## Privacy and connectivity
 
-Queue and history requests go to the configured ComfyUI address. Update checks also contact GitHub for the signed update feed and release downloads. The app contains no analytics, telemetry, or cloud account; Sparkle system profiling is disabled. The endpoint, named server bookmarks, notification preferences, and update preferences are stored in macOS user defaults. History stays on the server; previews and downloads request its `/view` endpoint. ComfyUI may include workflow metadata in queue responses.
+Queue and history requests go to the configured ComfyUI address. Update checks also contact GitHub for the signed update feed and release downloads. The app contains no analytics, telemetry, or cloud account; Sparkle system profiling is disabled. The endpoint, named server bookmarks, notification preferences, and update preferences are stored in macOS user defaults. History stays on the server unless you enable AI agent integration, which saves subscribed result references and errors locally; previews and downloads request its `/view` endpoint. ComfyUI may include workflow metadata in queue responses.
 
 The progress extension adds a read-only JSON route on the ComfyUI server and observes progress through ComfyUI's internal progress registry. It does not open a WebSocket or modify queue contents. It wraps an internal reset function to re-register the observer for each prompt.
 
