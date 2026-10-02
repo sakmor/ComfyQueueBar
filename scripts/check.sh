@@ -15,6 +15,7 @@ test -s build/ComfyQueueBar.app/Contents/Frameworks/Sparkle.framework/Sparkle
 test -s build/ComfyQueueBar.app/Contents/Resources/Sparkle-LICENSE.txt
 test -s build/ComfyQueueBar.app/Contents/Resources/AgentBridge/server.py
 test -s build/ComfyQueueBar.app/Contents/Resources/AgentBridge/README.md
+cmp .agents/skills/comfyqueuebar/SKILL.md build/ComfyQueueBar.app/Contents/Resources/AgentBridge/skills/comfyqueuebar/SKILL.md
 # The synced workspace may reattach Finder metadata after the signed bundle is
 # copied back. Verify a clean copy of the exact built bundle instead.
 verify_dir="$(mktemp -d "${TMPDIR:-/tmp}/ComfyQueueBar-verify.XXXXXX")"

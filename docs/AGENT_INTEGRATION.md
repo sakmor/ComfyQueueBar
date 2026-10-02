@@ -37,6 +37,26 @@ args = ["/absolute/path/to/ComfyQueueBar/agent_bridge/server.py"]
 
 The MCP server is exposed to agents only after you register it. Merely reading this repository or opening the menu-bar app does not inject instructions into another desktop app. The packaged app also offers a manual configuration copy button and this guide. The one-click setup button changes only the ComfyQueueBar MCP registration and preserves unrelated settings. Clicking it again updates the existing entry without duplicating it. Re-run setup after updating the app to refresh the stable adapter copy.
 
+## Use the ComfyQueueBar skill
+
+The skill is bundled in the app and maintained at [`.agents/skills/comfyqueuebar/SKILL.md`](../.agents/skills/comfyqueuebar/SKILL.md). MCP supplies the tools; the skill tells the agent how to use them. Install both with **Set up Claude and Codex**, then reopen the agent session. After upgrading the app, click setup again to refresh the installed adapter and skill; replaced skill files are backed up.
+
+Send one of these messages in Codex (replace the placeholders with real IDs):
+
+```text
+$comfyqueuebar Check the ComfyQueueBar connection.
+$comfyqueuebar Verify my existing ComfyUI job with prompt ID <prompt_id>.
+$comfyqueuebar Continue checking subscription <subscription_id> and wait once for its result.
+```
+
+In Claude Code, use `/comfyqueuebar` instead of `$comfyqueuebar` with the same request. A prompt ID identifies a ComfyUI job; a subscription ID identifies the saved ComfyQueueBar monitoring record. Keep the subscription ID returned by the agent for later checks, including after restarting your agent session.
+
+A connection check reads app availability, ComfyUI connection/history availability, and queue counts. Job verification tracks the exact existing job, uses already-returned results where possible, and otherwise waits once for up to 45 seconds (the host may require a shorter timeout). It reports the explicit job status and acknowledges received events. Completed, failed, and interrupted results end a verification subscription created by this workflow; a subscription resumed from another workflow is preserved unless cancellation is requested. A timeout or disconnection does not mean the job failed or finished. The app keeps a nonterminal subscription available for a later check.
+
+This skill does not submit workflows, install models, start the app, configure MCP, or change the ComfyUI queue. Create your job in ComfyUI or through your separately authorized submission workflow first, then supply its exact prompt ID. Standard MCP does not automatically wake an idle chat; enable the app's completion/failure notifications and resume the chat when notified. Ask explicitly if you want output references included.
+
+If the skill is missing, re-run setup and reopen the session. If the skill is visible but `comfyqueuebar` tools are missing, inspect the MCP server list (`/mcp` in Claude Code) and the app's setup result. Skill installation can succeed even when MCP registration fails. For a manual skill install, copy the repository's `.agents/skills/comfyqueuebar` directory into `~/.agents/skills/` for Codex or `~/.claude/skills/` for Claude Code; register MCP separately using the configuration above. Back up an existing skill before replacing it.
+
 ## Agent workflow
 
 Tell the agent:

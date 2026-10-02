@@ -1,12 +1,14 @@
 # Changelog
 
-## Unreleased
+## 1.5.0 — 2026-10-02
 
 - Add opt-in AI agent integration with a local stdio MCP adapter that recommends delegating monitoring to the app instead of repeated model queries.
 - Persist exact-job subscriptions, output references, failure and batch events, and acknowledgments; recover subscribed jobs outside the UI history window.
 - Add cancellable programmatic waits and experimental Claude channel delivery with an inbound verification probe. Standard desktop MCP clearly reports its lack of idle wakeup support.
 - Add one-click Claude/Codex MCP registration with original-file backups, a stable adapter location, and independent success/failure feedback.
 - Bundle adapter/setup instructions and add settings controls to copy MCP configuration. Add Swift/Python IPC and protocol regression tests.
+- Install the shared Claude Code/Codex skill with backups; support connection checks, exact-job verification, and saved-subscription recovery.
+- Add copy-ready skill usage examples and upgrade instructions to the English and translated README guides.
 
 ## 1.4.1 — 2026-10-02
 

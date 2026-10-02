@@ -78,6 +78,15 @@ Enable **Settings → AI agent integration** to let Claude Code or Codex delegat
 
 Standard MCP cannot wake an idle desktop conversation. It provides a bounded programmatic wait; experimental Claude Channels support verifies inbound delivery before claiming push capability. Claude Desktop Code-tab channel activation and Codex Desktop push are not established. See [setup, delivery modes, and limitations](docs/AGENT_INTEGRATION.md).
 
+### Use the included skill
+
+1. Install the latest app and connect it to ComfyUI.
+2. Open **Settings → AI agent integration → Set up Claude and Codex**, then reopen your agent session. Re-run setup after an app upgrade to update the installed skill and adapter.
+3. In Codex, send `$comfyqueuebar Check the connection.` In Claude Code, send `/comfyqueuebar Check the connection.`
+4. To check an existing job, send `$comfyqueuebar Verify prompt ID <prompt_id>.` Keep the returned subscription ID; later send `$comfyqueuebar Continue checking subscription <subscription_id>.` Use the `/comfyqueuebar` prefix in Claude Code.
+
+Replace the placeholders with real IDs. The skill checks existing jobs and waits once for up to 45 seconds; it does not submit workflows or change your queue. A timeout keeps monitoring available for a later check. Standard MCP does not wake an idle chat automatically. See the [full skill tutorial and troubleshooting](docs/AGENT_INTEGRATION.md#use-the-comfyqueuebar-skill) and [skill source](.agents/skills/comfyqueuebar/SKILL.md).
+
 ## Preview, notifications, and servers
 
 Click **Preview & download…** on a completed job to open its output. Images use a native preview; MP4, MOV, and M4V use macOS playback controls when their codec is supported. Choose an output if the job produced several files, then use **Download…** to save it. Other formats remain downloadable.

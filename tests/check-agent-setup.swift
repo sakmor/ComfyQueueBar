@@ -28,7 +28,7 @@ struct AgentSetupCheck {
         try originalCodex.write(to: config)
         let report = try AgentSetup.configure(home: root, script: script, python: python, codex: URL(fileURLWithPath: "/usr/bin/false"))
         require(report.configured == ["Claude"], "partial results identify successes")
-        require(report.failed.count == 1 && report.failed[0].hasPrefix("Codex:"), "partial failure reported")
+        require(report.failed.count == 1 && report.failed[0].hasPrefix("Codex MCP:"), "partial failure reported")
         let codexAfter = try Data(contentsOf: config)
         require(codexAfter == originalCodex, "failed CLI leaves original config")
         let parsed = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as! [String: Any]
@@ -53,6 +53,27 @@ struct AgentSetupCheck {
             let after = try Data(contentsOf: file)
             require(after == Data(invalid.utf8), "invalid config not overwritten")
         }
-        print("Agent setup checks passed: preservation, backups, stable paths, partial failure, invalid files")
+        let skill = root.appendingPathComponent("bundled-SKILL.md")
+        let skillData = Data("---\nname: comfyqueuebar\ndescription: Fixture\n---\nCheck existing jobs.\n".utf8)
+        try skillData.write(to: skill)
+        let skillReport = try AgentSetup.configure(home: root, script: script, python: nil, codex: nil, skill: skill)
+        require(skillReport.skillsInstalled == ["Claude Code", "Codex"], "skills install independently of MCP prerequisites")
+        for client in [".claude", ".agents"] {
+            let target = root.appendingPathComponent("\(client)/skills/comfyqueuebar/SKILL.md")
+            let installed = try Data(contentsOf: target)
+            require(installed == skillData, "skill installed byte-exactly")
+            try AgentSetup.installSkill(skill, to: target)
+            let folder = target.deletingLastPathComponent()
+            let unchanged = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
+            require(unchanged.count == 1, "identical skill does not create a backup")
+            let previous = Data("previous custom skill".utf8)
+            try previous.write(to: target)
+            try AgentSetup.installSkill(skill, to: target)
+            let backups = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil).filter { $0.lastPathComponent.contains("comfyqueuebar-backup") }
+            require(backups.count == 1, "changed skill backed up")
+            let saved = try Data(contentsOf: backups[0])
+            require(saved == previous, "custom skill backup byte-exact")
+        }
+        print("Agent setup checks passed: preservation, backups, stable paths, partial failure, invalid files, independent skill installation")
     }
 }

@@ -69,6 +69,15 @@ App 仅支持 macOS；远程 ComfyUI 可在 macOS、Linux 或 Windows 运行。�
 
 从 v1.2.0 起会自动检查（通常每 24 小时）、下载并在适当时机安装已签名的更新。面板提供“自动更新 App”开关与“检查更新”按钮。请将 App 放在可写入的应用程序文件夹；v1.1.0 或更旧版本需先手动下载新版一次。GitHub 截图保持英文，未展示新增的更新控件。
 
+## 用 Skill 让 AI 查询任务
+
+1. 安装最新版 App 并连接 ComfyUI。
+2. 打开 **设置 → AI Agent 集成 → 一键配置 Claude／Codex**，然后重新打开代理会话。升级 App 后再次执行设置，以更新已安装的 skill 和 MCP adapter；被替换的 skill 会备份。
+3. 在 Codex 输入 `$comfyqueuebar 检查连接`；Claude Code 使用 `/comfyqueuebar 检查连接`。
+4. 查询已有任务：`$comfyqueuebar 确认 prompt ID <prompt_id> 的结果`。保存返回的订阅 ID，之后输入 `$comfyqueuebar 继续查询订阅 <subscription_id>`。Claude Code 改用 `/comfyqueuebar` 前缀。
+
+将占位文字替换为真实 ID。Skill 不会提交任务或更改队列，通常只等待一次、最长 45 秒；超时不代表任务失败或完成，仍可用订阅 ID 继续查询。标准 MCP 不会自动唤醒空闲会话，可启用 App 完成／失败通知后返回会话。详见[完整教程与故障排除（英文）](../AGENT_INTEGRATION.md#use-the-comfyqueuebar-skill)。
+
 ## 快速开始
 
 ### 1. 准备编译工具
