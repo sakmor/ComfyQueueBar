@@ -2,14 +2,16 @@ import Foundation
 
 /// Runs only when the user presses the setup button. Never launches model inference.
 enum AgentSetup {
-    struct Report { var configured: [String] = []; var failed: [String] = [] }
+    struct Report { var configured: [String] = []; var skillsInstalled: [String] = []; var failed: [String] = [] }
     enum SetupError: LocalizedError {
-        case invalidConfiguration, missingPython, missingAdapter, commandFailed, commandTimedOut
+        case invalidConfiguration, missingPython, missingAdapter, invalidSkillSource, invalidSkillTarget, commandFailed, commandTimedOut
         var errorDescription: String? {
             switch self {
             case .invalidConfiguration: return "Existing configuration is invalid; it was left unchanged."
             case .missingPython: return "Python 3.9 or newer was not found."
             case .missingAdapter: return "The bundled MCP adapter was not found."
+            case .invalidSkillSource: return "The bundled ComfyQueueBar skill was not found or is not a regular file."
+            case .invalidSkillTarget: return "The existing ComfyQueueBar skill path is not a regular file; it was left unchanged."
             case .commandFailed: return "The configuration command failed. The original backup was retained."
             case .commandTimedOut: return "The configuration command timed out. Check the saved configuration before retrying."
             }
@@ -73,20 +75,39 @@ enum AgentSetup {
         try data.write(to: file, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
     }
+    static func installSkill(_ source: URL, to destination: URL) throws {
+        let fm = FileManager.default
+        let sourceValues = try source.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+        guard sourceValues.isRegularFile == true, sourceValues.isSymbolicLink != true else { throw SetupError.invalidSkillSource }
+        let data = try Data(contentsOf: source)
+        try fm.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        if fm.fileExists(atPath: destination.path) {
+            let targetValues = try destination.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+            guard targetValues.isRegularFile == true, targetValues.isSymbolicLink != true else { throw SetupError.invalidSkillTarget }
+            if try Data(contentsOf: destination) != data { try backup(destination) }
+        }
+        try data.write(to: destination, options: .atomic)
+        try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: destination.path)
+    }
     static func configure(home: URL = FileManager.default.homeDirectoryForCurrentUser,
-                          script: URL, python interpreter: URL, codex cli: URL?, codexHome: URL? = nil) throws -> Report {
+                          script: URL, python interpreter: URL?, codex cli: URL?, codexHome: URL? = nil,
+                          skill: URL? = nil) throws -> Report {
         guard FileManager.default.fileExists(atPath: script.path) else { throw SetupError.missingAdapter }
+        var report = Report()
         // Stable location: registration keeps working when the app bundle is moved or updated.
         let adapter = home.appendingPathComponent("Library/Application Support/ComfyQueueBar/MCP/server.py")
-        try FileManager.default.createDirectory(at: adapter.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        try Data(contentsOf: script).write(to: adapter, options: .atomic)
-        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: adapter.path)
-        var report = Report()
-        do {
-            try configureClaude(home.appendingPathComponent("Library/Application Support/Claude/claude_desktop_config.json"), python: interpreter, adapter: adapter)
-            report.configured.append("Claude")
-        } catch { report.failed.append("Claude: " + error.localizedDescription) }
-        if let cli {
+        if let interpreter {
+            try FileManager.default.createDirectory(at: adapter.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            try Data(contentsOf: script).write(to: adapter, options: .atomic)
+            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: adapter.path)
+            do {
+                try configureClaude(home.appendingPathComponent("Library/Application Support/Claude/claude_desktop_config.json"), python: interpreter, adapter: adapter)
+                report.configured.append("Claude")
+            } catch { report.failed.append("Claude MCP: " + error.localizedDescription) }
+        } else {
+            report.failed.append("Claude MCP: " + SetupError.missingPython.localizedDescription)
+        }
+        if let cli, let interpreter {
             do {
                 let directory = codexHome ?? home.appendingPathComponent(".codex")
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
@@ -96,8 +117,21 @@ enum AgentSetup {
                 environment["CODEX_HOME"] = directory.path
                 try run(cli, arguments: ["mcp", "add", "comfyqueuebar", "--", interpreter.path, adapter.path], environment: environment)
                 report.configured.append("Codex")
-            } catch { report.failed.append("Codex: " + error.localizedDescription) }
-        } else { report.failed.append("Codex: executable not found") }
+            } catch { report.failed.append("Codex MCP: " + error.localizedDescription) }
+        } else if cli == nil { report.failed.append("Codex MCP: executable not found") }
+        else { report.failed.append("Codex MCP: " + SetupError.missingPython.localizedDescription) }
+        if let skill {
+            let installs = [
+                ("Claude Code", home.appendingPathComponent(".claude/skills/comfyqueuebar/SKILL.md")),
+                ("Codex", home.appendingPathComponent(".agents/skills/comfyqueuebar/SKILL.md")),
+            ]
+            for (client, destination) in installs {
+                do {
+                    try installSkill(skill, to: destination)
+                    report.skillsInstalled.append(client)
+                } catch { report.failed.append(client + " skill: " + error.localizedDescription) }
+            }
+        }
         return report
     }
 }

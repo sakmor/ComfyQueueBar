@@ -21,7 +21,7 @@ Let Claude Code in Claude Desktop and Codex Desktop delegate ComfyUI video-job m
 | Bundled Codex CLI | Version 0.159.2 |
 | Python | Homebrew Python available; adapter requires Python 3.9+ |
 | ComfyQueueBar | Development build includes MCP bridge and one-click registration; bundle still reports 1.4.1, not a new published release |
-| ComfyUI | User confirmed this computer does not have ComfyUI; no live render-server validation was performed |
+| ComfyUI | Live local server observed; an existing video job completed successfully during this acceptance pass |
 
 No production video jobs were submitted, stopped, reprioritized, or deleted during these tests. Private workflow data, server addresses, credentials and output media are intentionally omitted from this report.
 
@@ -52,20 +52,38 @@ No production video jobs were submitted, stopped, reprioritized, or deleted duri
 | One-click registration preservation | Passed | Unrelated settings/MCP entries retained; byte-exact backups; invalid Claude files rejected; partial failures reported |
 | Codex registration command | Passed | Actual installed Codex CLI used with isolated temporary `CODEX_HOME`; repeated setup did not duplicate the entry |
 | Release App build and bundle checks | Passed | `bash scripts/check.sh` completed; bundled adapter/guide, plist, ad-hoc signature verification and AVKit linkage checked |
+| Queue/network action regression checks | Passed locally | `bash scripts/check-network.sh` compiles the production queue model and intercepts every HTTP request; 10 scenarios cover queue parsing, progress matching, history isolation, prioritize cleanup/races, stale actions, targeted stop and connection states. No live ComfyUI request was made. |
+| Full development check after queue/network additions | Passed locally | `bash scripts/check.sh`: localization/history checks, 10 intercepted network/action scenarios, all 19 Python tests, release build, plist/resources, strict code signature and AVKit linkage. Swift emits one existing macOS 14 `onChange(of:perform:)` deprecation warning in `Features.swift`. |
 | Packaged MCP startup | Passed on this computer | Adapter initialized and advertised all seven standard-mode tools and delegation instructions |
 | Real Codex conversation tool discovery | Passed | After the user restarted the desktop agents, this conversation exposed the seven `comfyqueuebar` tools |
 | Real Codex `get_status` | Passed | Tool reported a live, enabled app bridge and standard MCP delivery |
 | Real Codex subscription round trip | Passed | Created a disposable test-ID subscription; the app accepted and persisted it; no ComfyUI submission was made |
-| Real Codex event retrieval | Passed | `wait_for_events` returned the app's `monitoring_changed` / `disconnected` event; `finished` remained false |
-| Real Codex acknowledgment and cancellation | Passed | Event acknowledged, subscription cancelled and no unacknowledged events remained |
-| Claude MCP registration | Confirmed in configuration | Registration exists after user setup/restart; Claude Code conversation discovery/calls have not been verified |
-| Live ComfyUI completion/failure and media output | Not tested | This computer has no ComfyUI |
-| Idle desktop conversation wakeup | Not verified | Current registered mode is standard MCP; `push_verified_in_this_session` and `idle_conversation_wakeup` are false |
+| Real Codex event retrieval | Passed | Earlier `wait_for_events` returned a disconnection event. The 2026-10-02 live-job run also returned `batch_finished` with a completed result and one video output reference |
+| Real Codex acknowledgment and cancellation | Passed | The live-job terminal event was acknowledged, then the test subscription was unsubscribed; the job/result remained completed |
+| Codex user-level MCP registration | Passed | The installed Codex CLI now has the `comfyqueuebar` stdio server in `~/.codex/config.toml`; test invocation used the authenticated Codex CLI |
+| Claude MCP registration and Desktop Code discovery | Passed for discovery/status/subscription | A fresh Claude Desktop Code session discovered the registered tools and used `get_status` and `subscribe_jobs`; event retrieval/acknowledgment still awaits a terminal job event |
+| Live ComfyUI successful completion and media output | Passed for one real job | ComfyUI History reported success, the Codex MCP result returned one video output reference, and a ranged local fetch returned `video/mp4` with an MP4 `ftyp` signature |
+| ComfyUI failure/interruption and mixed-result batches | Not tested live | Fixture coverage passed; no live failing job was introduced |
+| Idle conversation wakeup | Not verified | Standard MCP does not wake idle sessions. Claude Desktop Code has no exposed channel opt-in, and no supported Codex desktop push/resume path has been verified |
 | Native one-click button interaction | Partially verified | User performed setup and restarted agents; resulting registrations and live Codex tools confirmed. Automated UI interaction itself was unreliable |
+
+### Acceptance follow-up — 2026-10-02
+
+The user asked to verify the three outstanding claims against the current machine. The latest development App was launched from `build/ComfyQueueBar.app`; its AI Agent integration was enabled with the user's authorization. The bridge reported enabled/connected and a fresh heartbeat. No ComfyUI job was submitted, cancelled, reprioritized or deleted.
+
+| Check | Result | Evidence and limit |
+| --- | --- | --- |
+| Claude Code in Claude Desktop: discover MCP tools | Passed | A fresh local Code session discovered `comfyqueuebar`, called `get_status`, and reported the connected app plus the current running/pending counts. The first session before user-level CLI registration did not discover it; discovery succeeded in the fresh session after `claude mcp add --scope user`. |
+| Claude Code in Claude Desktop: subscribe | Passed | The same session called `subscribe_jobs` for the exact active prompt ID; the adapter returned a subscription UUID. This only subscribed to the existing job. |
+| Real ComfyUI render/output references/final event | Passed for one successful job | The previously observed job completed. ComfyUI History reported success; the Codex MCP returned one video output reference and a `batch_finished` event; a ranged fetch verified an MP4 response/signature. The App had earlier warned that the ComfyUI progress extension was missing, so in-render progress estimates were unavailable. |
+| Codex MCP full round trip on the real result | Passed | Installed Codex CLI discovered and called `get_status`, `subscribe_jobs`, `wait_for_events`, `get_results`, `acknowledge_events`, and `unsubscribe`. The event was acknowledged and only the test subscription was cancelled. No ComfyUI queue action was issued. |
+| Idle Claude session wakeup (Claude Channels) | Not verified | Claude Desktop's Code tab does not expose the documented CLI startup opt-in. An isolated Claude Code CLI 2.1.286 session accepted the channel flag and a temporary MCP config, but `claude auth status` reported no CLI login. The login flow was opened, then cancelled before authorizing an account or persisting credentials. No push-probe or idle wakeup claim is made. |
+
+The standalone Claude CLI used a temporary `/tmp` MCP config with the adapter's `--claude-channel` argument and `--dangerously-load-development-channels server:comfyqueuebar`; its login was not completed and no credentials were saved. The user's permanent Claude MCP configuration was not changed by that attempt. Existing Claude Desktop registration backups remain available.
 
 ## Actual desktop test sequence
 
-After the user performed setup and restarted Claude and Codex:
+Prior Codex acceptance sequence after the user performed setup and restarted the agents:
 
 1. Confirmed both clients' configuration contains the `comfyqueuebar` registration.
 2. Confirmed the app integration heartbeat is fresh and enabled.
@@ -74,7 +92,21 @@ After the user performed setup and restarted Claude and Codex:
 5. Called `wait_for_events` once. It returned a disconnection event; it did not infer task completion.
 6. Called `acknowledge_events`, then `unsubscribe`. The test subscription is cancelled; its record remains as durable test history.
 
-This establishes the real Codex → MCP → App subscription and event-read path. It does not establish asynchronous push, real rendering, or a Claude Code conversation's tool behavior.
+This establishes the real Codex → MCP → App subscription and event-read path. It does not establish asynchronous push or real rendering.
+
+Claude Desktop follow-up on 2026-10-02:
+
+1. User authorized enabling the local bridge and registering MCP only in Claude. The latest development App was launched and integration enabled; Codex configuration was not changed.
+2. In a fresh Claude Desktop Code session, `get_status` reported the live bridge and the existing queue counts. `subscribe_jobs` then returned a subscription ID for the already-running job. No queue action was issued.
+3. A separate CLI attempt used a temporary channel-enabled MCP config. Claude Code 2.1.286 required interactive account login; authentication was cancelled before approval, so the inbound probe and idle delivery were not tested.
+4. The subscribed job later completed successfully; the Codex live-job follow-up below verified its output and final event.
+
+Codex live-job follow-up on 2026-10-02:
+
+1. The user asked to complete Codex acceptance. Added the `comfyqueuebar` stdio server to the installed Codex CLI's user configuration. The first non-interactive attempt was blocked by the CLI's `never` approval policy; the succeeding run used Codex's explicit automatic-review mode rather than bypassing approvals.
+2. An ephemeral Codex CLI turn called `get_status`, subscribed to the exact already-completed prompt ID using the configured endpoint, waited once, read results, acknowledged the `batch_finished` event and unsubscribed. It did not submit or mutate any ComfyUI job.
+3. Codex returned status `completed` and one video output reference. ComfyUI History independently reported success, and a byte-range request to the output reference returned `video/mp4` with an MP4 file signature.
+4. The integration reports standard MCP delivery. This does not verify an idle Codex Desktop conversation wakeup.
 
 ## Desktop automation limitation encountered
 
@@ -93,7 +125,8 @@ Do not use those unsuccessful UI attempts as evidence that either desktop client
 - [ ] Establish an actual supported Codex desktop push/resume mechanism, or explicitly resolve the product limitation before calling the original asynchronous workflow complete.
 - [ ] Verify native setup UX, backups, both-client partial failure feedback and adapter refresh after an App update.
 - [ ] Review same-user data exposure, stale status handling, subscription retention/limits and documented cleanup behavior.
-- [ ] Run the full checks after final changes and review the development diff before merging.
+- [x] Run the full checks after the current local changes; see the results above. Rerun after any further changes.
+- [ ] Review the full development diff before merging into `main`.
 
 ## Commands and references
 

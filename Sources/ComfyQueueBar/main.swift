@@ -95,8 +95,9 @@ enum L10n {
         "Server name": ["伺服器名稱", "服务器名称", "サーバー名"],
         "Save address": ["儲存位址", "保存地址", "アドレスを保存"],
         "Set up Claude and Codex": ["一鍵設定 Claude／Codex", "一键配置 Claude／Codex", "Claude／Codex を設定"],
-        "Adds MCP settings and backs up existing files. Reopen agent chats afterward.": ["自動加入 MCP 設定並備份原檔。完成後請重新開啟 Agent 對話。", "自动加入 MCP 配置并备份原文件。完成后请重新打开 Agent 对话。", "MCP 設定を追加し、既存ファイルをバックアップします。完了後にチャットを開き直してください。"],
+        "Registers MCP and installs the shared skill for Claude Code and Codex. Replaced files are backed up; reopen agent sessions afterward.": ["註冊 MCP 並為 Claude Code 和 Codex 安裝共用 Skill。取代檔案前會先備份；完成後請重新開啟 Agent 工作階段。", "注册 MCP 并为 Claude Code 和 Codex 安装共用 Skill。替换文件前会先备份；完成后请重新打开 Agent 会话。", "MCP を登録し、Claude Code と Codex に共通スキルをインストールします。置き換えるファイルは事前にバックアップし、完了後にエージェントのセッションを開き直してください。"],
         "Configured %@. Reopen your agent chats.": ["已設定 %@。請重新開啟 Agent 對話。", "已配置 %@。请重新打开 Agent 对话。", "%@ を設定しました。チャットを開き直してください。"],
+        "Installed ComfyQueueBar skill for %@.": ["已為 %@ 安裝 ComfyQueueBar Skill。", "已为 %@ 安装 ComfyQueueBar Skill。", "%@ に ComfyQueueBar スキルをインストールしました。"],
         "Copy MCP configuration": ["複製 MCP 設定", "复制 MCP 配置", "MCP 設定をコピー"],
         "Setup guide": ["設定指南", "配置指南", "設定ガイド"],
         "Shares queue IDs, output references, and errors with local agents. Desktop push requires host support.": ["與本機 Agent 分享佇列 ID、輸出參照和錯誤。桌面推送需要 Agent 支援。", "与本机 Agent 分享队列 ID、输出引用和错误。桌面推送需要 Agent 支持。", "キュー ID、出力参照、エラーをローカルエージェントと共有します。デスクトップ通知にはホストの対応が必要です。"],
@@ -275,21 +276,25 @@ final class QueueViewModel: ObservableObject {
 
     func setupAgents() async {
         guard !isSettingUpAgents, let script = Bundle.main.url(forResource: "server", withExtension: "py", subdirectory: "AgentBridge") else { return }
+        let skill = Bundle.main.url(forResource: "SKILL", withExtension: "md", subdirectory: "AgentBridge/skills/comfyqueuebar")
         isSettingUpAgents = true
         defer { isSettingUpAgents = false }
         agentSetupMessage = nil
         let outcome = await Task.detached { () -> Result<AgentSetup.Report, Error> in
             do {
-                guard let python = AgentSetup.python() else { throw AgentSetup.SetupError.missingPython }
+                let python = AgentSetup.python()
                 let customHome = ProcessInfo.processInfo.environment["CODEX_HOME"].map { URL(fileURLWithPath: $0) }
-                return .success(try AgentSetup.configure(script: script, python: python, codex: AgentSetup.codex(), codexHome: customHome))
+                return .success(try AgentSetup.configure(script: script, python: python, codex: AgentSetup.codex(), codexHome: customHome, skill: skill))
             } catch { return .failure(error) }
         }.value
         switch outcome {
         case .success(let report):
             if !report.configured.isEmpty { agentIntegrationEnabled = true }
-            agentSetupMessage = (report.configured.isEmpty ? "" : L10n.text("Configured %@. Reopen your agent chats.", report.configured.joined(separator: ", "))) +
-                (report.failed.isEmpty ? "" : "\n" + report.failed.joined(separator: "\n"))
+            var messages: [String] = []
+            if !report.configured.isEmpty { messages.append(L10n.text("Configured %@. Reopen your agent chats.", report.configured.joined(separator: ", "))) }
+            if !report.skillsInstalled.isEmpty { messages.append(L10n.text("Installed ComfyQueueBar skill for %@.", report.skillsInstalled.joined(separator: ", "))) }
+            messages.append(contentsOf: report.failed)
+            agentSetupMessage = messages.joined(separator: "\n")
         case .failure(let error): agentSetupMessage = error.localizedDescription
         }
     }
@@ -1368,7 +1373,7 @@ struct QueuePopover: View {
             if let script = Bundle.main.url(forResource: "server", withExtension: "py", subdirectory: "AgentBridge") {
                 Button(L10n.text("Set up Claude and Codex")) { Task { await queue.setupAgents() } }
                     .disabled(queue.isSettingUpAgents)
-                Text(L10n.text("Adds MCP settings and backs up existing files. Reopen agent chats afterward."))
+                Text(L10n.text("Registers MCP and installs the shared skill for Claude Code and Codex. Replaced files are backed up; reopen agent sessions afterward."))
                     .font(.caption).foregroundStyle(.secondary)
                 if queue.isSettingUpAgents { ProgressView().controlSize(.small) }
                 HStack {

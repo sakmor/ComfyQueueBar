@@ -28,6 +28,8 @@ cp "$SCRIPT_DIR/assets/app-icon.png" "$APP_DIR/Contents/Resources/AppIconPreview
 mkdir -p "$APP_DIR/Contents/Resources/AgentBridge"
 cp "$SCRIPT_DIR/agent_bridge/server.py" "$APP_DIR/Contents/Resources/AgentBridge/server.py"
 cp "$SCRIPT_DIR/docs/AGENT_INTEGRATION.md" "$APP_DIR/Contents/Resources/AgentBridge/README.md"
+mkdir -p "$APP_DIR/Contents/Resources/AgentBridge/skills/comfyqueuebar"
+cp "$SCRIPT_DIR/.agents/skills/comfyqueuebar/SKILL.md" "$APP_DIR/Contents/Resources/AgentBridge/skills/comfyqueuebar/SKILL.md"
 
 cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -60,5 +62,15 @@ cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
-codesign --force --deep --sign - "$APP_DIR"
+# File Provider metadata can be reattached while a bundle is assembled in a
+# synced checkout. Sign a temporary copy outside the provider's directory.
+SIGNING_DIR="$(mktemp -d "${TMPDIR:-/tmp}/ComfyQueueBar.XXXXXX")"
+trap 'rm -rf "$SIGNING_DIR"' EXIT
+SIGNED_APP="$SIGNING_DIR/$APP_NAME.app"
+ditto "$APP_DIR" "$SIGNED_APP"
+xattr -cr "$SIGNED_APP"
+codesign --force --deep --sign - "$SIGNED_APP"
+codesign --verify --deep --strict "$SIGNED_APP"
+rm -rf "$APP_DIR"
+ditto "$SIGNED_APP" "$APP_DIR"
 printf 'Built %s\n' "$APP_DIR"

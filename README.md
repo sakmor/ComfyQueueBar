@@ -74,7 +74,7 @@ A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote 
 
 ## AI agent monitoring
 
-Enable **Settings → AI agent integration** to let Claude Code or Codex delegate ComfyUI monitoring to this app through a local MCP adapter. Agents receive instructions to subscribe to exact jobs instead of repeatedly querying progress. Subscriptions, results, and acknowledged completion/failure events survive app restarts. The packaged app includes **Set up Claude and Codex** to register MCP with backups and preserve other settings; reopen agent chats afterward. A manual configuration copy button is also available; Python 3.9+ is required, with no pip dependencies.
+Enable **Settings → AI agent integration** to let Claude Code or Codex delegate ComfyUI monitoring to this app through a local MCP adapter. Agents receive instructions to subscribe to exact jobs instead of repeatedly querying progress. Subscriptions, results, and acknowledged completion/failure events survive app restarts. The packaged app includes **Set up Claude and Codex** to register MCP and install the shared ComfyQueueBar Skill for both clients, backing up replaced files; reopen agent sessions afterward. A manual configuration copy button is also available; Python 3.9+ is required for MCP, with no pip dependencies.
 
 Standard MCP cannot wake an idle desktop conversation. It provides a bounded programmatic wait; experimental Claude Channels support verifies inbound delivery before claiming push capability. Claude Desktop Code-tab channel activation and Codex Desktop push are not established. See [setup, delivery modes, and limitations](docs/AGENT_INTEGRATION.md).
 

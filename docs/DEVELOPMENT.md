@@ -7,7 +7,7 @@ Package.swift                              Swift executable package
 Sources/ComfyQueueBar/main.swift            View model, API client, localization, panel
 Sources/ComfyQueueBar/Features.swift        History models, notifications, native media UI
 Sources/ComfyQueueBar/AgentBridge.swift     Durable same-user subscription IPC
-Sources/ComfyQueueBar/AgentSetup.swift      User-triggered MCP registration and backups
+Sources/ComfyQueueBar/AgentSetup.swift      User-triggered MCP registration, shared Skill installation, and backups
 agent_bridge/server.py                    Local stdio MCP / optional Claude channel adapter
 Sources/ComfyQueueBar/StatusBarController.swift Native status-item lifecycle and reopen window
 assets/                                    App icon and artwork provenance
@@ -34,6 +34,8 @@ bash scripts/check.sh
 The check script builds the app, validates its signature and bundle metadata, checks Bash syntax, checks all four localizations and pure Swift history/feature models, and runs Python standard-library unit tests. Tests stub ComfyUI and aiohttp imports, so they need no GPU, models, running ComfyUI server, or pip packages. They cover progress calculation, reset and registration, route response, and installer refusal to overwrite an existing installation.
 
 These checks do not run an actual generation, prove compatibility with every server version, or exercise all UI and network race conditions. For integration testing, use a disposable ComfyUI instance with inexpensive workflows. Do not test stop or prioritize against valuable production jobs.
+
+`bash scripts/check-network.sh` exercises the production queue view model and HTTP request construction with an intercepting `URLProtocol` and isolated temporary preferences. It checks base paths, bounded history requests, matching/missing progress, history failure isolation, prioritize submission and cleanup, the original job starting during resubmission, refused deletion, connection loss after submission, stale action targets, targeted stop, idle/disconnected states, and invalid endpoints. All requests are intercepted; these are simulated API regressions, not live ComfyUI generation tests. Like the history/localization checks, the harness extracts production declarations; only its preferences store is replaced.
 
 GitHub Actions runs the same checks on macOS for pushes and pull requests. Its build is architecture-specific to the runner.
 
