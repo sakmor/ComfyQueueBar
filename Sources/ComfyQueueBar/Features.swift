@@ -187,7 +187,7 @@ final class MediaPreviewModel: ObservableObject {
         player = nil; image = nil; error = nil; downloaded = false; loading = false
         guard let url = output.url(endpoint: endpoint) else { error = L10n.text("Preview unavailable"); return }
         #if DOCUMENTATION_SCREENSHOT
-        error = L10n.text("Preview unavailable")
+        image = NSImage(contentsOf: Bundle.main.url(forResource: "DemoOutput", withExtension: "png")!)
         #else
         if output.isVideo {
             let item = AVPlayerItem(url: url)
@@ -357,7 +357,9 @@ struct Thumbnail: View {
         }
         .frame(width: 42, height: 42).clipShape(RoundedRectangle(cornerRadius: 6))
         .task(id: endpoint + output.id) {
-            #if !DOCUMENTATION_SCREENSHOT
+            #if DOCUMENTATION_SCREENSHOT
+            state.image = NSImage(contentsOf: Bundle.main.url(forResource: "DemoOutput", withExtension: "png")!)
+            #else
             state.image = nil
             guard let url = output.url(endpoint: endpoint) else { return }
             if output.isImage {

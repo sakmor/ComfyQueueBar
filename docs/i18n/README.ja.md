@@ -6,15 +6,15 @@
 
 [English](../../README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · **日本語**
 
-デスクトップ画像は以前のデザインです。現在のパネルは次のとおりです。
+最新版の画面は架空のジョブとオリジナルのサンプル画像を使用しています。デスクトップ画像は実際の macOS キャプチャです。
 
-<img src="../images/queue-light.png" width="360" alt="ComfyQueueBar v1.4.0" />
+<img src="../images/queue-light.png" width="360" alt="ComfyQueueBar v1.4.1" />
 
 ## 使い方を画像で見る
 
 **macOS のメニューバーにあるアイコンをクリックすると、キューパネルが開きます。**
 
-![macOS デスクトップ上の ComfyQueueBar のメニューバーアイコンとキューパネル](../images/desktop-menubar-annotated.png)
+![macOS デスクトップ上の ComfyQueueBar のメニューバーアイコンとキューパネル](../images/desktop-menubar.png)
 
 実際の macOS デスクトップを撮影した画像です。パネルはドキュメント用のデモモードで、固定のサンプルジョブを表示しています。実行中のワークフローや個人情報は含まれていません。画像内の英語の案内は「メニューバーのアイコンをクリック」という意味です。アプリは英語、簡体字中国語、繁体字中国語、日本語に対応し、macOS の優先言語に従って表示します。GitHub の画像は英語のままです。以下では画像と照合できるよう、ボタン名を英語で記載しています。システムまたはアプリの言語を変更したら、アプリを再起動してください。
 

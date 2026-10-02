@@ -219,14 +219,20 @@ final class QueueViewModel: ObservableObject {
         #if DOCUMENTATION_SCREENSHOT
         endpoint = "http://127.0.0.1:8188"
         let graph: [String: Any] = ["12": ["_meta": ["title": "KSampler"], "class_type": "KSampler"]]
-        running = [QueueJob(id: "8f21a7c4-demo-running", title: "Neon city portrait", nodeCount: 24, queueNumber: 1, position: 1, prompt: graph, extraData: [:])]
-        pending = [QueueJob(id: "b390e612-demo-waiting", title: "Product lighting study", nodeCount: 18, queueNumber: 2, position: 1, prompt: [:], extraData: [:])]
+        running = [QueueJob(id: "8f21a7c4-demo-running", title: "Ceramic lamp · turntable", nodeCount: 24, queueNumber: 1, position: 1, prompt: graph, extraData: [:])]
+        pending = [QueueJob(id: "b390e612-demo-waiting", title: "Ceramic lamp · warm lighting", nodeCount: 18, queueNumber: 2, position: 1, prompt: [:], extraData: [:])]
         isConnected = true
         progressBridgeStatus = .available
         queueProgress = QueueProgress(promptID: running[0].id, nodeID: "12", value: 21, maxValue: 30, percent: 70, state: "running")
-        lastUpdated = Date(timeIntervalSince1970: 1790814600)
-        completed = [CompletedJob(id: "demo-completed", title: "Sunrise establishing shot", finishedAt: Date(timeIntervalSince1970: 1790814180), filenames: ["sunrise_shot_00012.mp4"], queueNumber: 0, outputs: [MediaOutput(filename: "sunrise_shot_00012.mp4", subfolder: "", type: "output")])]
-        profiles = [ServerProfile(name: "Local Mac", endpoint: endpoint)]
+        let demoNow = Calendar(identifier: .gregorian).startOfDay(for: Date()).addingTimeInterval(14 * 3600 + 32 * 60)
+        lastUpdated = demoNow
+        let fingerprint = HistoryDetails.fingerprint(graph)
+        completed = (0..<3).map { index in
+            let end = demoNow.addingTimeInterval(-Double(180 + index * 360))
+            let output = MediaOutput(filename: "ceramic_lamp_studio_000\(42 - index).png", subfolder: "product", type: "output")
+            return CompletedJob(id: "demo-completed-\(index)", title: index == 0 ? "Ceramic lamp · studio still" : "Ceramic lamp · lighting test \(3 - index)", finishedAt: end, filenames: [output.displayPath], queueNumber: Double(index), outputs: [output], startedAt: end.addingTimeInterval(-240), fingerprint: fingerprint)
+        }
+        profiles = [ServerProfile(name: "Studio Mac", endpoint: endpoint), ServerProfile(name: "Render PC", endpoint: "http://192.0.2.10:8188")]
         observedStarts[running[0].id] = Date().addingTimeInterval(-124)
         #else
         endpoint = UserDefaults.standard.string(forKey: "comfyEndpoint") ?? "http://127.0.0.1:8188"
@@ -857,7 +863,7 @@ struct DocumentationCapture {
         let dark = CommandLine.arguments.contains("--dark")
         app.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         if CommandLine.arguments.contains("--menu-bar") {
-            let status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+            let status = NSStatusBar.system.statusItem(withLength: 52)
             guard let button = status.button else { fatalError("No status button") }
             button.image = QueueBrand.menuBarIcon
             button.imagePosition = .imageLeading
@@ -874,14 +880,27 @@ struct DocumentationCapture {
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
             app.activate(ignoringOtherApps: true)
             panel.orderFrontRegardless()
+            if let argument = CommandLine.arguments.firstIndex(of: "--desktop-output") {
+                RunLoop.main.run(until: Date(timeIntervalSinceNow: 2))
+                let region = "\(Int(panel.frame.minX)),\(Int(NSScreen.screens[0].frame.maxY - anchor.maxY)),360,\(Int(anchor.height) + 608)"
+                let capture = Process()
+                capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+                capture.arguments = ["-x", "-R", region, CommandLine.arguments[argument + 1]]
+                try! capture.run(); capture.waitUntilExit()
+                precondition(capture.terminationStatus == 0)
+                panel.close()
+                return
+            }
             withExtendedLifetime((status, panel)) { app.run() }
             return
         }
         let queue = QueueViewModel()
         let settings = CommandLine.arguments.contains("--settings")
-        let width: CGFloat = settings ? 360 : 360
-        let height: CGFloat = settings ? 480 : 600
-        let root = settings ? AnyView(QueuePopover(queue: queue).settingsContent.frame(width: 360, height: 480, alignment: .top).background(.regularMaterial)) : AnyView(QueuePopover(queue: queue))
+        let preview = CommandLine.arguments.contains("--preview")
+        let width: CGFloat = preview ? 440 : 360
+        let height: CGFloat = preview ? 460 : (settings ? 480 : 600)
+        let previewModel = MediaPreviewModel()
+        let root = preview ? AnyView(MediaPreview(job: queue.completed[0], endpoint: queue.endpoint, model: previewModel).frame(width: 440, height: 460).background(.regularMaterial)) : settings ? AnyView(QueuePopover(queue: queue).settingsContent.frame(width: 360, height: 480, alignment: .top).background(.regularMaterial)) : AnyView(QueuePopover(queue: queue))
         let view = NSHostingView(rootView: root.frame(width: width, height: height))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: height), styleMask: [.borderless], backing: .buffered, defer: false)
         window.contentView = view

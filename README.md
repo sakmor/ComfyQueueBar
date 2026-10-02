@@ -23,16 +23,9 @@
 
 <p align="center"><strong>A macOS menu bar app — click its icon to open your queue.</strong></p>
 
-<p align="center"><img src="docs/images/queue-light.png" width="360" alt="Current ComfyQueueBar interface: running, waiting, and recently completed clips" /></p>
+<p align="center"><img src="docs/images/desktop-menubar.png" width="360" alt="ComfyQueueBar v1.4.1 on the real macOS menu bar, with a two-job queue and completed output thumbnails" /></p>
 
-<details>
-<summary>See the app on the macOS desktop</summary>
 
-![ComfyQueueBar menu bar placement on the macOS desktop](docs/images/desktop-menubar-annotated.png)
-
-*Real macOS desktop capture from the earlier interface. Menu bar placement is unchanged; the current panel design is shown above. Fixed sample jobs, with no private desktop contents.*
-
-</details>
 
 <details>
 <summary>View close-up screenshots in light and dark appearance</summary>
@@ -46,7 +39,7 @@
 
 </details>
 
-*Screenshots of the actual SwiftUI interface with fixed demonstration data. Node progress is not whole-workflow progress.*
+*Native captures of the v1.4.1 interface. Workflow names, addresses, history, timing, and output artwork are fictional demonstration fixtures; no private jobs or media are shown. Node progress is not whole-workflow progress.*
 
 | Check progress | Choose the next job | Stop a running job |
 | --- | --- | --- |
@@ -73,6 +66,12 @@ A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote 
 - Native macOS appearance, with no Dock window.
 - Local or remote ComfyUI connections, including SSH port forwarding.
 
+## Preview finished outputs
+
+<p align="center"><img src="docs/images/preview.png" width="440" alt="Standalone native output preview window showing a fictional ceramic lamp studio image and Download button" /></p>
+
+*The original illustrated lamp is a demonstration output, not a real ComfyUI generation. The preview uses the shipping SwiftUI view.*
+
 ## Preview, notifications, and servers
 
 Click **Preview & download…** on a completed job to open its output. Images use a native preview; MP4, MOV, and M4V use macOS playback controls when their codec is supported. Choose an output if the job produced several files, then use **Download…** to save it. Other formats remain downloadable.
@@ -82,7 +81,7 @@ Open the **gear** to save a named server address and choose completion notificat
 <details>
 <summary>See server and notification settings</summary>
 
-<img src="docs/images/settings.png" width="360" alt="Native settings with a saved Local Mac server and optional completion and failure notifications" />
+<img src="docs/images/settings.png" width="360" alt="Native settings with a saved Studio Mac and Render PC servers and optional completion and failure notifications" />
 
 *English documentation fixture. Automatic update controls are omitted from this capture build.*
 

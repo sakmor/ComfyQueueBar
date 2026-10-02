@@ -5,6 +5,7 @@ project_dir="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$project_dir"
 capture_app="build/DocumentationCapture.app"
 mkdir -p "$capture_app/Contents/MacOS" "$capture_app/Contents/Resources" docs/images
+cp docs/images/demo-output.png "$capture_app/Contents/Resources/DemoOutput.png"
 cp assets/app-icon.png "$capture_app/Contents/Resources/AppIconPreview.png"
 swiftc -parse-as-library -O -D DOCUMENTATION_SCREENSHOT \
   Sources/ComfyQueueBar/*.swift -framework AVKit -o "$capture_app/Contents/MacOS/DocumentationCapture"
@@ -26,4 +27,5 @@ fi
 TZ=UTC "$capture_app/Contents/MacOS/DocumentationCapture" docs/images/queue-light.png
 TZ=UTC "$capture_app/Contents/MacOS/DocumentationCapture" docs/images/queue-dark.png --dark
 TZ=UTC "$capture_app/Contents/MacOS/DocumentationCapture" docs/images/settings.png --settings
+TZ=UTC "$capture_app/Contents/MacOS/DocumentationCapture" docs/images/preview.png --preview
 printf 'Saved light and dark interface captures to docs/images/\n'

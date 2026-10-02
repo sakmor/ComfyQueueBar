@@ -1,35 +1,27 @@
 # Interface screenshots
 
-`queue-light.png` and `queue-dark.png` are native captures of the same `QueuePopover` SwiftUI view shipped in the app, at its actual 360 × 600 point dimensions (720 × 1200 pixels on the capture machine's Retina display).
+All public screenshots show the v1.4.1 native interface in English. `queue-light.png` and `queue-dark.png` capture the shipping QueuePopover at 360 × 600 points. `settings.png` captures its server/notification settings at 360 × 480 points; the documentation build omits Sparkle controls. `preview.png` captures the shipping standalone MediaPreview content at 440 × 460 points.
 
-The captures use compile-time-only demonstration fixtures: one running job, one waiting job, one completed clip, and 70% progress for a KSampler node. These are illustrative data, not a record of a live generation. No external workflow, user endpoint, or private queue data is included.
+Fixtures use a fictional ceramic-lamp production: one running turntable, one waiting lighting study, three successful still-image records with distinct filenames, and three four-minute timing samples. This demonstrates node progress, an estimate, history filtering, thumbnails, preview, and downloads. Times use a fixed illustrative 2:32 PM clock on the capture date. The observed timer starts two minutes before rendering. Server profiles are fictional: Studio Mac on loopback and Render PC on an RFC 5737 documentation address. No user preferences, private jobs, or server requests are included.
 
-Recreate on a Mac with a logged-in graphical session:
+`demo-output.png` is an original programmatically drawn lamp illustration created for these fixtures. It is not an actual ComfyUI generation, external image, or user asset. It is bundled only into the documentation capture application, never the production app. Repository-owned illustration and captures are MIT licensed.
 
 ```sh
 bash scripts/capture-screenshots.sh
 ```
 
-The capture program renders the panel in an AppKit window, then exports its native bitmap. It uses the real controls and layout, not an AI-generated interface. The `DOCUMENTATION_SCREENSHOT` build excludes HTTP requests, timers, and preference reads. That flag is never enabled by the production build script.
-
-Exact pixel dimensions depend on the Mac display scale. Source images are included under the repository's MIT license.
+The compile-time DOCUMENTATION_SCREENSHOT build disables timers, networking, notification delivery, downloads, and preference reads. Native views are rendered in AppKit windows and exported as bitmaps. Production builds do not enable this flag.
 
 ## macOS desktop context
 
-`desktop-menubar.png` is a cropped native macOS desktop capture taken with `screencapture` on 2026-10-01. `desktop-menubar-annotated.png` adds only a highlight, arrow, and English callout. The desktop wallpaper and menu bar were captured from macOS; they were not generated. Personal windows, filenames, widgets, and screen-sharing details were excluded from the published crop.
+`desktop-menubar.png` is a real macOS capture from 2026-10-02, cropped at capture time to the demonstration panel and the adjacent menu bar. `desktop-menubar-annotated.png` is retained as a compatibility filename for the same capture; the old annotation has been removed. No personal windows, filenames, or queue data appear. System wallpaper, macOS UI, and incidental third-party menu-bar marks belong to their respective owners and are not provided as standalone artwork.
 
-The documentation demo displays the real `QueuePopover` view beneath a native `NSStatusItem` with the same template icon and job count used by the production app. Its window wrapper is for documentation capture; the production app uses a retained native `NSStatusItem` with a SwiftUI popover. The demonstration job data is fixed, and no server requests are made.
-
-To prepare a similar desktop capture:
+The demo uses the production template icon, a native 52-point NSStatusItem, and the same QueuePopover with a 600-point height. Its fixed queue count is two. The production app uses an NSPopover; the capture wrapper positions a documentation window beneath the status item.
 
 ```sh
 bash scripts/capture-screenshots.sh --desktop-demo
+# Or, after compiling the capture executable:
+build/DocumentationCapture.app/Contents/MacOS/DocumentationCapture --menu-bar --dark --desktop-output /tmp/menu-bar.png
 ```
 
-Quit an existing production instance first to avoid duplicate icons. Capture the display containing the panel using macOS screenshot controls, or `screencapture -D DISPLAY_NUMBER -x OUTPUT.png`. Display numbering depends on your setup. Review the image and crop out all private content before publishing. Use **Quit** in the demo panel to close it, then reopen the production app.
-
-The system wallpaper, macOS interface elements, and third-party menu bar marks remain the property of their respective owners and appear only as incidental operating-system context. The screenshot is not a redistribution of those assets as standalone brand artwork. The repository's MIT license covers its own code, icon, and added annotations.
-
-The v1.4.0 light/dark captures show the restrained native list design and recent completion history. Connection and automatic update controls now live in the gear popover.
-
-`settings.png` captures the native server and notification settings at 360 × 480 points. The documentation build excludes Sparkle update controls. Public screenshots remain English; localized layouts are checked separately without publishing their captures. Media thumbnails are placeholders in these fixtures because network access is disabled.
+Quit an existing production instance before a desktop capture to avoid duplicate icons, then restore it afterward. Review every image for private content before publication. The desktop-output option captures only a 360-point-wide region around the panel and exits; the regular desktop demo stays open until Quit.

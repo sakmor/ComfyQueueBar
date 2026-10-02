@@ -6,17 +6,17 @@
 
 [English](../../README.md) · **简体中文** · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md)
 
-桌面场景截图使用早期界面，最新面板如下：
+最新版界面使用虚构示范任务与自制示例图片；桌面图为原生 macOS 截图。
 
-<img src="../images/queue-light.png" width="360" alt="ComfyQueueBar v1.4.0" />
+<img src="../images/queue-light.png" width="360" alt="ComfyQueueBar v1.4.1" />
 
 ## 看看它怎么用
 
 **点击 macOS 菜单栏图标，即可展开队列面板。**
 
-![macOS 桌面上的 ComfyQueueBar 菜单栏图标与队列面板](../images/desktop-menubar-annotated.png)
+![macOS 桌面上的 ComfyQueueBar 菜单栏图标与队列面板](../images/desktop-menubar.png)
 
-这是真实 macOS 桌面截图，面板使用文档演示模式与固定示例任务；不包含私人桌面内容或实时工作流。图中的英文提示表示“点击菜单栏图标”。App 支持英文、简体中文、繁体中文与日文，根据 macOS 首选语言显示。GitHub 截图保持英文，下方按钮名称用英文对应说明。更改系统语言或 App 语言后，请重新启动 App。
+这是真实 macOS 桌面截图，面板使用文档演示模式与固定示例任务；不包含私人桌面内容或实时工作流。App 支持英文、简体中文、繁体中文与日文，根据 macOS 首选语言显示。GitHub 截图保持英文，下方按钮名称用英文对应说明。更改系统语言或 App 语言后，请重新启动 App。
 
 <details>
 <summary>查看浅色与深色界面</summary>
