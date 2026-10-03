@@ -378,10 +378,9 @@ final class QueueViewModel: ObservableObject {
             return
         }
         do {
-            try manager.copyItem(at: source, to: destination)
+            try ProgressExtensionInstaller.install(from: source, to: destination)
             progressExtensionMessage = L10n.text("Progress extension installed. Finish any active generation, then restart ComfyUI.")
         } catch {
-            try? manager.removeItem(at: destination)
             progressExtensionError = L10n.text("Could not install the progress extension: %@", error.localizedDescription)
         }
     }

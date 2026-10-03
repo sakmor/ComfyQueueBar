@@ -6,6 +6,10 @@ bash -n build-app.sh install-comfyui-extension.sh scripts/check.sh scripts/captu
 bash scripts/check-localization.sh
 bash scripts/check-history.sh
 bash scripts/check-network.sh
+mkdir -p build/installer-check
+cp tests/check-progress-installer.swift build/installer-check/main.swift
+swiftc Sources/ComfyQueueBar/ProgressExtensionInstaller.swift build/installer-check/main.swift -o build/installer-check/check
+build/installer-check/check
 python3 -m unittest discover -s tests -v
 bash build-app.sh
 plutil -lint build/ComfyQueueBar.app/Contents/Info.plist
@@ -16,6 +20,7 @@ test -s build/ComfyQueueBar.app/Contents/Resources/Sparkle-LICENSE.txt
 test -s build/ComfyQueueBar.app/Contents/Resources/AgentBridge/server.py
 test -s build/ComfyQueueBar.app/Contents/Resources/AgentBridge/README.md
 cmp .agents/skills/comfyqueuebar/SKILL.md build/ComfyQueueBar.app/Contents/Resources/AgentBridge/skills/comfyqueuebar/SKILL.md
+cmp comfyui_extension/ComfyQueueBarProgress/__init__.py build/ComfyQueueBar.app/Contents/Resources/ComfyQueueBarProgress/__init__.py
 # The synced workspace may reattach Finder metadata after the signed bundle is
 # copied back. Verify a clean copy of the exact built bundle instead.
 verify_dir="$(mktemp -d "${TMPDIR:-/tmp}/ComfyQueueBar-verify.XXXXXX")"

@@ -16,5 +16,6 @@ PY
 swiftc -parse-as-library build/network-check/Models.swift \
   Sources/ComfyQueueBar/Features.swift tests/check-network.swift \
   Sources/ComfyQueueBar/AgentBridge.swift Sources/ComfyQueueBar/AgentSetup.swift \
+  Sources/ComfyQueueBar/ProgressExtensionInstaller.swift \
   -framework AVKit -o build/network-check/check
 build/network-check/check

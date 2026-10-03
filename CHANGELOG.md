@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.1 — 2026-10-03
+
+- Add one-click installation of the bundled node progress extension for local ComfyUI installations, with restart guidance and multilingual settings.
+- Stage extension files before installation and refuse existing destinations without deleting their contents when installation fails.
+- Add detailed agent token-saving tutorials in English, Traditional Chinese, Simplified Chinese, and Japanese.
+
 ## 1.5.0 — 2026-10-02
 
 - Add opt-in AI agent integration with a local stdio MCP adapter that recommends delegating monitoring to the app instead of repeated model queries.
