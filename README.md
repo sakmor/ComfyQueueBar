@@ -5,7 +5,8 @@
 <h1 align="center">ComfyQueueBar</h1>
 
 <p align="center"><strong>Your ComfyUI queue, one click away in the macOS menu bar.</strong></p>
-<p align="center">Follow your queue. Preview finished clips. Get notified when work is done.</p>
+<p align="center"><strong>Spend agent tokens on creating videos. Let the app monitor the render.</strong></p>
+<p align="center">Reduce token use from repeated agent progress checks. Follow your queue, preview clips, and get notified when work is done.</p>
 
 <p align="center">
   <strong>English</strong> ·
@@ -49,6 +50,7 @@ A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote 
 
 ## Features
 
+- **Reduce agent progress-polling token use** with the included Claude Code/Codex skill and local MCP monitoring.
 - Menu bar icon with the total number of running and waiting jobs.
 - Separate running and waiting lists, refreshed every **4 seconds**.
 - Completed history with **last hour / last 24 hours / today / loaded history** filters and search; refreshed every **15 seconds**, bounded to the newest **200 server records**.
@@ -72,7 +74,16 @@ A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote 
 
 *The original illustrated lamp is a demonstration output, not a real ComfyUI generation. The preview uses the shipping SwiftUI view.*
 
-## AI agent monitoring
+## Reduce agent monitoring token use
+
+Long video renders can lead an agent to repeatedly ask “is it done yet?” Each model-driven check can consume tokens and add progress responses to the conversation. **ComfyQueueBar moves that monitoring into the native app:** subscribe to the exact job once, let ordinary code track it, then inspect the result when an event arrives or you resume the chat.
+
+| Monitoring approach | Where the repeated work happens | Agent token impact |
+| --- | --- | --- |
+| Agent repeatedly checks progress | Repeated model turns and tool responses | Can consume tokens on each check |
+| ComfyQueueBar monitors subscribed jobs | App timers and a programmatic MCP wait | Avoids repeated model turns for progress polling; result processing still uses tokens |
+
+The benefit is greatest when replacing frequent agent polling during long renders. Actual savings depend on the model, polling frequency, job duration, and host behavior; no fixed savings percentage has been measured. The app's own monitoring does not invoke a language model. Standard MCP requires a bounded wait or a user-resumed chat, so it does not guarantee that an idle agent will automatically continue.
 
 Enable **Settings → AI agent integration** to let Claude Code or Codex delegate ComfyUI monitoring to this app through a local MCP adapter. Agents receive instructions to subscribe to exact jobs instead of repeatedly querying progress. Subscriptions, results, and acknowledged completion/failure events survive app restarts. The packaged app includes **Set up Claude and Codex** to register MCP and install the shared ComfyQueueBar Skill for both clients, backing up replaced files; reopen agent sessions afterward. A manual configuration copy button is also available; Python 3.9+ is required for MCP, with no pip dependencies.
 

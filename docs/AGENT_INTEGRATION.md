@@ -1,6 +1,12 @@
-# AI agent integration
+# AI agent integration: reduce progress-polling token use
 
 ComfyQueueBar can own ComfyUI monitoring while Claude Code or Codex works on other tasks. Its local MCP adapter tells agents to subscribe to exact prompt IDs instead of repeatedly checking progress. App timers and MCP file checks run ordinary code; they do not invoke a model. Processing tool results or channel events still uses the agent's normal inference allowance.
+
+## Why this can save tokens
+
+During a long video render, repeated model-driven progress checks can consume tokens for each model turn and tool response. Subscribe once and let ComfyQueueBar's ordinary code track the job instead. A bounded `wait_for_events` call checks for events without repeatedly invoking the model. Results can be processed when that wait returns or when the user resumes the conversation.
+
+This reduces tokens spent on progress polling compared with an agent that repeatedly checks the same job. App timers and bridge file checks do not invoke a language model; subscription setup, result processing, and channel-event handling still use normal inference. Savings depend on the model, previous polling frequency, render duration, and host behavior. No fixed token reduction percentage or benchmark is claimed. Standard MCP does not automatically wake an idle chat.
 
 ## Enable and connect
 
