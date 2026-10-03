@@ -12,6 +12,20 @@ struct MediaOutput: Identifiable, Hashable {
     let type: String
     var id: String { type + ":" + subfolder + "/" + filename }
     var displayPath: String { subfolder.isEmpty ? filename : subfolder + "/" + filename }
+    func absolutePath(root: String) -> String? {
+        let root = root.trimmingCharacters(in: .whitespacesAndNewlines)
+        let windows = root.range(of: #"^[A-Za-z]:[\\/]"#, options: .regularExpression) != nil || root.hasPrefix("\\\\")
+        guard root.hasPrefix("/") || windows, type == "output" else { return nil }
+        let parts = (subfolder + "/" + filename).replacingOccurrences(of: "\\", with: "/").split(separator: "/").map(String.init)
+        guard !filename.isEmpty, !filename.hasPrefix("/"), !filename.hasPrefix("\\"),
+              !subfolder.hasPrefix("/"), !subfolder.hasPrefix("\\"),
+              !parts.contains(".."), !parts.contains(where: { $0.contains(":") || $0.contains("\n") || $0.contains("\r") }),
+              !root.contains("\n"), !root.contains("\r") else { return nil }
+        let separator = windows && root.contains("\\") ? "\\" : "/"
+        var base = root
+        while base.hasSuffix("/") || base.hasSuffix("\\") { base.removeLast() }
+        return base + separator + parts.filter { $0 != "." }.joined(separator: separator)
+    }
     var isImage: Bool { ["png", "jpg", "jpeg", "webp", "gif", "heic", "tiff", "bmp"].contains((filename as NSString).pathExtension.lowercased()) }
     var isVideo: Bool { ["mp4", "mov", "m4v"].contains((filename as NSString).pathExtension.lowercased()) }
     func url(endpoint: String) -> URL? {
@@ -240,6 +254,8 @@ final class MediaPreviewModel: ObservableObject {
 
 @MainActor
 final class FeatureViewState: ObservableObject {
+    @Published var outputRoot = ""
+    @Published var copied = false
     @Published var selected = 0
     @Published var preview = false
     @Published var image: NSImage?
@@ -271,18 +287,58 @@ struct MediaPreview: View {
             }
             if let output {
                 Text(output.displayPath).font(.caption).textSelection(.enabled)
-                Button(L10n.text("Download…")) { Task { await model.download(output, endpoint: endpoint) } }
-                    .disabled(model.isDownloading)
+                HStack {
+                    Button(L10n.text("Download…")) { Task { await model.download(output, endpoint: endpoint) } }
+                        .disabled(model.isDownloading)
+                    Button(L10n.text(state.copied ? "Path copied" : "Copy absolute path")) {
+                        guard let path = output.absolutePath(root: state.outputRoot) else { return }
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(path, forType: .string)
+                        state.copied = true
+                    }.disabled(output.absolutePath(root: state.outputRoot) == nil)
+                }
+                Button(L10n.text("Set output folder…")) { configureOutputRoot() }.font(.caption)
+                if let path = output.absolutePath(root: state.outputRoot) {
+                    Text(path).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                }
             }
             if model.isDownloading { ProgressView().controlSize(.small) }
             if model.downloaded { Text(L10n.text("Downloaded")).foregroundStyle(.secondary) }
             if let error = model.error { Text(error).font(.caption).foregroundStyle(.secondary).textSelection(.enabled) }
         }
         .padding(20).frame(width: 440)
-        .onAppear { if let output { model.load(output, endpoint: endpoint) } }
-        .onChange(of: state.selected) { _ in if let output { model.load(output, endpoint: endpoint) } }
+        .onAppear {
+            state.outputRoot = UserDefaults.standard.dictionary(forKey: "outputRoots")?[endpoint] as? String ?? ""
+            if let output { model.load(output, endpoint: endpoint) }
+        }
+        .onChange(of: state.selected) { _ in state.copied = false; if let output { model.load(output, endpoint: endpoint) } }
         .onDisappear { model.stop() }
     }
+    private func configureOutputRoot() {
+        let alert = NSAlert()
+        alert.messageText = L10n.text("Set output folder…")
+        alert.informativeText = L10n.text("Enter this server's absolute output folder path. Remote paths refer to the server, not this Mac.")
+        let field = NSTextField(string: state.outputRoot)
+        field.frame = NSRect(x: 0, y: 0, width: 340, height: 24)
+        alert.accessoryView = field
+        alert.addButton(withTitle: L10n.text("Save folder"))
+        alert.addButton(withTitle: L10n.text("Cancel"))
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let root = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard root.isEmpty || MediaOutput(filename: "check", subfolder: "", type: "output").absolutePath(root: root) != nil else {
+            let error = NSAlert()
+            error.messageText = L10n.text("Enter an absolute folder path.")
+            error.runModal()
+            return
+        }
+        state.outputRoot = root
+        state.copied = false
+        var roots = UserDefaults.standard.dictionary(forKey: "outputRoots") ?? [:]
+        roots[endpoint] = root
+        UserDefaults.standard.set(roots, forKey: "outputRoots")
+    }
+
 }
 
 /// A separate retained window avoids nested popover dismissal in a menu-bar app.
@@ -298,7 +354,7 @@ final class MediaPreviewWindow: NSObject, NSWindowDelegate {
         window.title = job.title
         window.isReleasedWhenClosed = false
         window.delegate = self
-        window.contentViewController = NSHostingController(rootView: MediaPreview(job: job, endpoint: endpoint, model: model).frame(width: 440, height: 460))
+        window.contentViewController = NSHostingController(rootView: MediaPreview(job: job, endpoint: endpoint, model: model).frame(width: 440, height: 560))
         self.model = model
         self.window = window
         window.center()

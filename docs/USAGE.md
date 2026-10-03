@@ -82,6 +82,8 @@ History belongs to ComfyUI. Clearing history or restarting a server without pers
 
 Click a thumbnail or **Preview & download…** to open a standalone preview window. Select an output in the picker when several files were reported. Images are decoded natively; MP4, MOV, and M4V use AVKit with native playback controls and no autoplay. The container extension alone does not guarantee that macOS supports the codec. Other file types can be downloaded without an inline preview.
 
+**Copy absolute path** copies the selected output's full path. First use **Set output folder…** in the preview window to enter that server's actual output directory (for example `/Volumes/Media/ComfyUI/output` or `D:\ComfyUI\output`). The folder is remembered separately for each endpoint; leave it empty to clear the setting. Remote paths refer to the server's filesystem, unless you enter a corresponding Mac mount path. Paths are constructed from the configured folder and reported output reference; file existence is not verified. Input files do not use the output-folder mapping.
+
 **Download…** opens a macOS save dialog. Choose a location and confirm any replacement. The app downloads the original bytes from the configured server's `/view` route. It does not convert or compress outputs. Failed transfers report an error and preserve an existing destination. Image preview decoding is capped at 32 MB; thumbnails at 8 MB. The app does not verify that a reported file still exists until you request it. Remote preview/download traffic follows your configured endpoint, including SSH forwarding.
 
 ## Failures and interruptions

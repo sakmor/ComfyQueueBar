@@ -78,3 +78,11 @@ print("Notification state passed: baseline suppression, deduplication, and batch
 
 let fast = tracker.ingest(ids: ["old", "new", "error", "fast"], successes: ["old", "new", "fast"], failures: ["error"], queueCount: 0)
 precondition(fast.batch?.completed == 1 && fast.successes == ["fast"])
+
+precondition(media.absolutePath(root: "/Volumes/Render/output/") == "/Volumes/Render/output/a folder/中文/shot #1 & next.mp4")
+precondition(media.absolutePath(root: #"D:\ComfyUI\output"#) == #"D:\ComfyUI\output\a folder\中文\shot #1 & next.mp4"#)
+precondition(media.absolutePath(root: #"\\render\share\output"#) == #"\\render\share\output\a folder\中文\shot #1 & next.mp4"#)
+precondition(media.absolutePath(root: "relative/output") == nil)
+precondition(MediaOutput(filename: "clip.mp4", subfolder: "../other", type: "output").absolutePath(root: "/output") == nil)
+precondition(MediaOutput(filename: "clip.mp4", subfolder: "", type: "input").absolutePath(root: "/output") == nil)
+print("Absolute output paths passed: POSIX, Windows, UNC, invalid roots, traversal, and output type")
