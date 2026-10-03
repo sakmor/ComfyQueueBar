@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.2 — 2026-10-03
+
+- Add absolute path copying for completed image and video outputs, with output-folder settings remembered per server endpoint.
+- Support macOS/Linux, Windows drive, and UNC network paths; reject relative folders and output references containing parent traversal.
+- Add English, Traditional Chinese, Simplified Chinese, and Japanese controls and output-path regression checks.
+
 ## 1.5.1 — 2026-10-03
 
 - Add one-click installation of the bundled node progress extension for local ComfyUI installations, with restart guidance and multilingual settings.
