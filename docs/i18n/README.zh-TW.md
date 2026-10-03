@@ -128,6 +128,8 @@ curl --fail http://127.0.0.1:8188/queue
 
 基本佇列監看不需要擴充。要查看節點進度，請安裝到**實際提供連線端點的 ComfyUI**：
 
+若 ComfyUI 安裝在這台 Mac，請在 App 開啟「設定 → 節點進度 → 安裝進度擴充…」，再選擇 ComfyUI 資料夾。等目前生成完成後重新啟動 ComfyUI。App 不會覆寫已存在的擴充。若連線到遠端伺服器，請在伺服器上安裝。
+
 ```sh
 bash install-comfyui-extension.sh /path/to/ComfyUI
 # 路徑有空格時加上引號

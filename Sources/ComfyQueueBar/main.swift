@@ -100,6 +100,13 @@ enum L10n {
         "Installed ComfyQueueBar skill for %@.": ["已為 %@ 安裝 ComfyQueueBar Skill。", "已为 %@ 安装 ComfyQueueBar Skill。", "%@ に ComfyQueueBar スキルをインストールしました。"],
         "Copy MCP configuration": ["複製 MCP 設定", "复制 MCP 配置", "MCP 設定をコピー"],
         "Setup guide": ["設定指南", "配置指南", "設定ガイド"],
+        "Node progress": ["節點進度", "节点进度", "ノード進捗"],
+        "Install progress extension…": ["安裝進度擴充…", "安装进度扩展…", "進捗拡張機能をインストール…"],
+        "Installs on this Mac only. For a remote ComfyUI server, install the extension on that server.": ["只會安裝到這台 Mac。本機連線遠端 ComfyUI 時，請在伺服器上安裝擴充。", "只会安装到这台 Mac。本机连接远程 ComfyUI 时，请在服务器上安装扩展。", "この Mac にのみインストールします。リモート ComfyUI の場合はサーバー側にインストールしてください。"],
+        "Choose the ComfyUI folder": ["選擇 ComfyUI 資料夾", "选择 ComfyUI 文件夹", "ComfyUI フォルダを選択"],
+        "Progress extension installed. Finish any active generation, then restart ComfyUI.": ["進度擴充已安裝。請等目前生成完成後重新啟動 ComfyUI。", "进度扩展已安装。请等当前生成完成后重新启动 ComfyUI。", "進捗拡張機能をインストールしました。生成完了後に ComfyUI を再起動してください。"],
+        "Could not install the progress extension: %@": ["無法安裝進度擴充：%@", "无法安装进度扩展：%@", "進捗拡張機能をインストールできませんでした：%@"],
+        "The progress extension already exists at %@. Remove or back it up before installing again.": ["進度擴充已存在於 %@。請先移除或備份，再重新安裝。", "进度扩展已存在于 %@。请先移除或备份，再重新安装。", "進捗拡張機能は %@ に既にあります。再インストールする前に削除するかバックアップしてください。"],
         "Shares queue IDs, output references, and errors with local agents. Desktop push requires host support.": ["與本機 Agent 分享佇列 ID、輸出參照和錯誤。桌面推送需要 Agent 支援。", "与本机 Agent 分享队列 ID、输出引用和错误。桌面推送需要 Agent 支持。", "キュー ID、出力参照、エラーをローカルエージェントと共有します。デスクトップ通知にはホストの対応が必要です。"],
         "AI agent integration": ["AI Agent 整合", "AI Agent 集成", "AI エージェント連携"],
         "Let agents delegate monitoring to this app using the local MCP bridge.": ["透過本機 MCP 橋接，讓 Agent 將監控交給此 App。", "通过本机 MCP 桥接，让 Agent 将监控交给此 App。", "ローカル MCP ブリッジで監視をこのアプリに委任できます。"],
@@ -208,6 +215,8 @@ final class QueueViewModel: ObservableObject {
     @Published private(set) var profiles: [ServerProfile] = []
     @Published private(set) var observedStarts: [String: Date] = [:]
     @Published private(set) var permissionMessage: String?
+    @Published private(set) var progressExtensionMessage: String?
+    @Published private(set) var progressExtensionError: String?
     @Published var notificationMode = "off" {
         didSet { UserDefaults.standard.set(notificationMode, forKey: "notificationMode") }
     }
@@ -348,6 +357,34 @@ final class QueueViewModel: ObservableObject {
         persistProfiles()
     }
     func deleteProfile(_ id: UUID) { profiles.removeAll { $0.id == id }; persistProfiles() }
+
+    func installProgressExtension(in comfyRoot: URL) {
+        progressExtensionMessage = nil
+        progressExtensionError = nil
+        let manager = FileManager.default
+        let customNodes = comfyRoot.appendingPathComponent("custom_nodes", isDirectory: true)
+        let destination = customNodes.appendingPathComponent("ComfyQueueBarProgress", isDirectory: true)
+        guard manager.fileExists(atPath: customNodes.path) else {
+            progressExtensionError = L10n.text("Could not install the progress extension: %@", "custom_nodes folder not found")
+            return
+        }
+        guard !manager.fileExists(atPath: destination.path) else {
+            progressExtensionError = L10n.text("The progress extension already exists at %@. Remove or back it up before installing again.", destination.path)
+            return
+        }
+        guard let source = Bundle.main.resourceURL?.appendingPathComponent("ComfyQueueBarProgress", isDirectory: true),
+              manager.fileExists(atPath: source.appendingPathComponent("__init__.py").path) else {
+            progressExtensionError = L10n.text("Could not install the progress extension: %@", "extension files are missing from the app")
+            return
+        }
+        do {
+            try manager.copyItem(at: source, to: destination)
+            progressExtensionMessage = L10n.text("Progress extension installed. Finish any active generation, then restart ComfyUI.")
+        } catch {
+            try? manager.removeItem(at: destination)
+            progressExtensionError = L10n.text("Could not install the progress extension: %@", error.localizedDescription)
+        }
+    }
     private func persistProfiles() {
         if let data = try? JSONEncoder().encode(profiles) { UserDefaults.standard.set(data, forKey: "serverProfiles") }
     }
@@ -1172,6 +1209,30 @@ struct QueuePopover: View {
             }
         }.font(.system(size: 11))
     }
+
+    private var progressExtensionSettings: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.text("Node progress")).font(.subheadline).fontWeight(.medium)
+            Button(L10n.text("Install progress extension…")) {
+                let panel = NSOpenPanel()
+                panel.title = L10n.text("Choose the ComfyUI folder")
+                panel.message = L10n.text("Installs on this Mac only. For a remote ComfyUI server, install the extension on that server.")
+                panel.canChooseFiles = false
+                panel.canChooseDirectories = true
+                panel.allowsMultipleSelection = false
+                guard panel.runModal() == .OK, let folder = panel.url else { return }
+                let didAccess = folder.startAccessingSecurityScopedResource()
+                defer { if didAccess { folder.stopAccessingSecurityScopedResource() } }
+                queue.installProgressExtension(in: folder)
+            }
+            .controlSize(.small)
+            Text(L10n.text("Installs on this Mac only. For a remote ComfyUI server, install the extension on that server."))
+                .font(.caption).foregroundStyle(.secondary)
+            if let message = queue.progressExtensionMessage { Text(message).font(.caption).foregroundStyle(.secondary) }
+            if let error = queue.progressExtensionError { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
+        }
+        .font(.system(size: 11))
+    }
     private var notificationSettings: some View {
         VStack(alignment: .leading, spacing: 9) {
             Picker(L10n.text("Completion notifications"), selection: $queue.notificationMode) {
@@ -1403,6 +1464,8 @@ struct QueuePopover: View {
             connectionSettings
             Divider()
             serverSettings
+            Divider()
+            progressExtensionSettings
             Divider()
             notificationSettings
             Divider()

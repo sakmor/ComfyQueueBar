@@ -188,6 +188,8 @@ curl --fail http://127.0.0.1:8188/queue
 
 Queue monitoring works without this step. To show the current node and its percentage, install the included extension into the **ComfyUI installation actually serving your endpoint**:
 
+For a local ComfyUI installation, open **Settings → Node progress → Install progress extension…** in the app and choose its ComfyUI folder. Finish any active generation, then restart ComfyUI. The app refuses to overwrite an existing extension. This installs only on the Mac running ComfyQueueBar.
+
 ```sh
 bash install-comfyui-extension.sh /path/to/ComfyUI
 ```

@@ -30,6 +30,8 @@ cp "$SCRIPT_DIR/agent_bridge/server.py" "$APP_DIR/Contents/Resources/AgentBridge
 cp "$SCRIPT_DIR/docs/AGENT_INTEGRATION.md" "$APP_DIR/Contents/Resources/AgentBridge/README.md"
 mkdir -p "$APP_DIR/Contents/Resources/AgentBridge/skills/comfyqueuebar"
 cp "$SCRIPT_DIR/.agents/skills/comfyqueuebar/SKILL.md" "$APP_DIR/Contents/Resources/AgentBridge/skills/comfyqueuebar/SKILL.md"
+mkdir -p "$APP_DIR/Contents/Resources/ComfyQueueBarProgress"
+cp "$SCRIPT_DIR/comfyui_extension/ComfyQueueBarProgress/__init__.py" "$APP_DIR/Contents/Resources/ComfyQueueBarProgress/__init__.py"
 
 cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
