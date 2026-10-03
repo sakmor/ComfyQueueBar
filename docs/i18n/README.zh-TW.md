@@ -8,7 +8,7 @@
 
 長時間生成影片時，Agent 若反覆查詢「完成了嗎」，每次模型回合與工具結果都可能消耗 token。ComfyQueueBar 讓 Agent 訂閱指定工作一次，由 App 與程式化等待接手監控，再於事件抵達或你回到對話時處理結果，減少重複查進度的 token 消耗。
 
-[安裝 skill 與使用教學](#用-skill-讓-ai-查詢工作)
+[詳細教學：安裝、訂閱、續查與 token 節省原理](AGENT_TOKEN_GUIDE.zh-TW.md)
 
 App 自行監控不會呼叫語言模型；Agent 處理結果仍會使用 token。實際節省取決於原本查詢頻率、模型與影片耗時，目前未量測固定節省比例。標準 MCP 不會自動喚醒閒置對話。
 
@@ -78,6 +78,8 @@ App 僅支援 macOS；遠端 ComfyUI 可在 macOS、Linux 或 Windows 執行。�
 v1.2.0 起會自動檢查（通常每 24 小時）、下載並在適當時機安裝已簽章的更新。面板提供「自動更新 App」開關與「檢查更新」按鈕。請將 App 放在可寫入的應用程式資料夾；v1.1.0 或更舊版本需先手動下載新版一次。GitHub 截圖維持英文，未展示新增的更新控制項。
 
 ## 用 Skill 讓 AI 查詢工作
+
+先看 [Agent 省 token 實作教學](AGENT_TOKEN_GUIDE.zh-TW.md)，內含可直接貼上的指令、如何取得完整 prompt ID、結果判讀與疑難排解。
 
 1. 安裝最新版 App 並連線至 ComfyUI。
 2. 開啟 **設定 → AI Agent 整合 → 一鍵設定 Claude／Codex**，然後重新開啟代理對話。更新 App 後再次執行設定，即可更新已安裝的 skill 與 MCP adapter；被取代的 skill 會備份。

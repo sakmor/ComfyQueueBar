@@ -4,6 +4,8 @@ ComfyQueueBar can own ComfyUI monitoring while Claude Code or Codex works on oth
 
 ## Why this can save tokens
 
+For a step-by-step walkthrough with copy-ready prompts, see the [Traditional Chinese token-saving tutorial](i18n/AGENT_TOKEN_GUIDE.zh-TW.md).
+
 During a long video render, repeated model-driven progress checks can consume tokens for each model turn and tool response. Subscribe once and let ComfyQueueBar's ordinary code track the job instead. A bounded `wait_for_events` call checks for events without repeatedly invoking the model. Results can be processed when that wait returns or when the user resumes the conversation.
 
 This reduces tokens spent on progress polling compared with an agent that repeatedly checks the same job. App timers and bridge file checks do not invoke a language model; subscription setup, result processing, and channel-event handling still use normal inference. Savings depend on the model, previous polling frequency, render duration, and host behavior. No fixed token reduction percentage or benchmark is claimed. Standard MCP does not automatically wake an idle chat.
