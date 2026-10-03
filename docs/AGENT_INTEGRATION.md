@@ -4,7 +4,7 @@ ComfyQueueBar can own ComfyUI monitoring while Claude Code or Codex works on oth
 
 ## Why this can save tokens
 
-For a step-by-step walkthrough with copy-ready prompts, see the [Traditional Chinese token-saving tutorial](i18n/AGENT_TOKEN_GUIDE.zh-TW.md).
+For a step-by-step walkthrough with copy-ready prompts, see the token-saving tutorial: [English](AGENT_TOKEN_GUIDE.md), [简体中文](i18n/AGENT_TOKEN_GUIDE.zh-CN.md), [繁體中文](i18n/AGENT_TOKEN_GUIDE.zh-TW.md), or [日本語](i18n/AGENT_TOKEN_GUIDE.ja.md).
 
 During a long video render, repeated model-driven progress checks can consume tokens for each model turn and tool response. Subscribe once and let ComfyQueueBar's ordinary code track the job instead. A bounded `wait_for_events` call checks for events without repeatedly invoking the model. Results can be processed when that wait returns or when the user resumes the conversation.
 

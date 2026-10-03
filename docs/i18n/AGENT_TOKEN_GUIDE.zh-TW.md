@@ -1,5 +1,7 @@
 # 把影片進度監控交給 App：Agent 省 token 實作教學
 
+[English](../AGENT_TOKEN_GUIDE.md) · [简体中文](AGENT_TOKEN_GUIDE.zh-CN.md) · [繁體中文](AGENT_TOKEN_GUIDE.zh-TW.md) · [日本語](AGENT_TOKEN_GUIDE.ja.md)
+
 影片生成可能需要數分鐘甚至更久。如果 Agent 每隔幾秒就發起新的模型回合、查詢進度、解讀回覆，等待期間也會累積 token 消耗。ComfyQueueBar 讓 App 持續監控指定工作，Agent 只在設定訂閱、收到事件或你回到對話時處理結果。
 
 **適合的情境：你已經有 ComfyUI 影片工作，想知道何時完成，又不想讓 Agent 一直反覆問進度。** 這套方法也適用於圖片工作。

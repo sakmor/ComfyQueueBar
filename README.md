@@ -91,7 +91,7 @@ Standard MCP cannot wake an idle desktop conversation. It provides a bounded pro
 
 ### Use the included skill
 
-[繁體中文詳細教學：減少 Agent 影片監控 token 消耗](docs/i18n/AGENT_TOKEN_GUIDE.zh-TW.md) — installation, exact job IDs, subscriptions, resuming checks, output references, and troubleshooting.
+Detailed token-saving tutorial: [English](docs/AGENT_TOKEN_GUIDE.md) · [简体中文](docs/i18n/AGENT_TOKEN_GUIDE.zh-CN.md) · [繁體中文](docs/i18n/AGENT_TOKEN_GUIDE.zh-TW.md) · [日本語](docs/i18n/AGENT_TOKEN_GUIDE.ja.md). Covers installation, exact job IDs, subscriptions, resuming checks, outputs, and troubleshooting.
 
 1. Install the latest app and connect it to ComfyUI.
 2. Open **Settings → AI agent integration → Set up Claude and Codex**, then reopen your agent session. Re-run setup after an app upgrade to update the installed skill and adapter.
