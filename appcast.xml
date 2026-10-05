@@ -4,17 +4,17 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>ComfyQueueBar</title>
         <item>
-            <title>1.5.2</title>
-            <pubDate>Sat, 03 Oct 2026 20:19:22 +0800</pubDate>
+            <title>1.5.3</title>
+            <pubDate>Tue, 06 Oct 2026 01:03:52 +0800</pubDate>
             <link>https://github.com/sakmor/ComfyQueueBar</link>
-            <sparkle:version>1.5.2</sparkle:version>
-            <sparkle:shortVersionString>1.5.2</sparkle:shortVersionString>
+            <sparkle:version>1.5.3</sparkle:version>
+            <sparkle:shortVersionString>1.5.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/sakmor/ComfyQueueBar/releases/download/v1.5.2/ComfyQueueBar-macOS-arm64.zip" length="4832717" type="application/octet-stream" sparkle:edSignature="8rfp66XvLlzyTLddY0Pj3SE/BzUJm18Tn3KLUXVU5CRLa6TY0SiPOwvVYiBsF1NDzjb6SZyksp/rTh9xTInzDw=="></enclosure>
+            <enclosure url="https://github.com/sakmor/ComfyQueueBar/releases/download/v1.5.3/ComfyQueueBar-macOS-arm64.zip" length="4976734" type="application/octet-stream" sparkle:edSignature="H9dnxvZuANYwqpwlgL+6hi7Kd0I1tdn08y8016C358eR6ulGmUQgtazFkKtawldc5jJGDomPx3tUzIv6jYRSAg=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: FUMAOHyfCoCFvOOiyv/ldZJkrVCcEbckhyDYEnngOEBe4G65ta5vxSZfRsRabt08nHlFfh0pzE+qH3mROHPxAA==
+edSignature: 4lKVqwGq0oMgNm0J9i0RSTyYL1sVC+qy0DGZKx33ErLqyqXFbU2gvmXUiNz+KE0MJV7r7nVRkCYITU3IlpjCCQ==
 length: 1208
 -->
