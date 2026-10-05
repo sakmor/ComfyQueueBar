@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <a href="#quick-start">Install</a> ·
+  <a href="#download-the-mac-app">Install</a> ·
   <a href="docs/USAGE.md">Usage guide</a> ·
   <a href="docs/REMOTE_SETUP.md">Remote setup</a> ·
   <a href="docs/TROUBLESHOOTING.md">Troubleshooting</a>
@@ -56,7 +56,9 @@ A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote 
 - Completed history with **last hour / last 24 hours / today / loaded history** filters and search; refreshed every **15 seconds**, bounded to the newest **200 server records**.
 - Image and video thumbnails, native previews, and downloads to a location you choose.
 - Optional macOS notifications for each completion or the finished queue, plus failures and disconnections.
-- Named server bookmarks and quick switching from the server name in the header.
+- Named server bookmarks with port/queue/history review before switching.
+- GPUtw private/password-protected login in the app, with authenticated output previews and downloads.
+- Optional per-server Wake-on-LAN for a remote Mac, with manual wake and limited automatic retries.
 - Observed running time and estimated remaining time from at least three similar successful jobs.
 - Failed and interrupted jobs with server-reported error details.
 - Workflow names, shortened prompt IDs, node counts, and waiting positions.
@@ -67,6 +69,14 @@ A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote 
 - English, Simplified Chinese, Traditional Chinese, and Japanese interface, selected from macOS preferred languages.
 - Native macOS appearance, with no Dock window.
 - Local or remote ComfyUI connections, including SSH port forwarding.
+
+## GPUtw and remote Mac tutorial
+
+[English](docs/REMOTE_SETUP.md) · [简体中文](docs/i18n/REMOTE_SETUP.zh-CN.md) · [繁體中文](docs/i18n/REMOTE_SETUP.zh-TW.md) · [日本語](docs/i18n/REMOTE_SETUP.ja.md)
+
+Learn to sign in to GPUtw, distinguish services on different ports, read `0` / `—` / `!` / `…`, inspect recent jobs before switching, configure Wake-on-LAN, and connect through SSH. GPU utilization and ComfyUI job counts are separate metrics.
+
+These features are in the current `main` source; the v1.5.2 download predates them. [Build from source](#build-from-source) until the next release.
 
 ## Preview finished outputs
 
@@ -175,10 +185,10 @@ The build script compiles a release binary, creates an app bundle, and signs it 
 1. Start your existing ComfyUI installation.
 2. Click the stacked icon in the macOS menu bar.
 3. Open the **gear** button and enter your **ComfyUI address**, normally `http://127.0.0.1:8188`.
-4. Click **Connect**.
+4. Click **Connect**, review the port and recent jobs, then click **Monitor this server**.
 5. Queue a workflow in ComfyUI. It should appear within the next refresh interval.
 
-An empty connected queue displays zero jobs. A disconnected app also shows zero, so check the connection indicator in the panel. You can inspect the endpoint independently:
+A fresh empty queue displays `0`; a disconnected or stale queue displays `—`, sign-in required displays `!`, and the initial check displays `…`. The number counts ComfyUI jobs on the selected port. You can inspect the endpoint independently:
 
 ```sh
 curl --fail http://127.0.0.1:8188/queue
@@ -238,12 +248,12 @@ Queue and history requests go to the configured ComfyUI address. Update checks a
 
 The progress extension adds a read-only JSON route on the ComfyUI server and observes progress through ComfyUI's internal progress registry. It does not open a WebSocket or modify queue contents. It wraps an internal reset function to re-register the observer for each prompt.
 
-The extension route inherits the server's network exposure; it is **not automatically restricted to localhost**. Keep ComfyUI on a trusted network or use SSH forwarding. The app has no custom API-key, bearer-token, or login UI. Query-string credentials are not supported because request URLs discard the query and fragment. See [security guidance](SECURITY.md).
+The extension route inherits the server's network exposure; it is **not automatically restricted to localhost**. Keep ComfyUI on a trusted network or use SSH forwarding. GPUtw private/password-protected instances use **Settings → Sign in to GPUtw…**; see the [remote tutorial](docs/REMOTE_SETUP.md). WebKit manages login state separately from server bookmarks. Generic API-key, bearer-token and query-string credentials remain unsupported. See [security guidance](SECURITY.md).
 
 ## Documentation
 
 - [Usage and action semantics](docs/USAGE.md)
-- [Remote ComfyUI and SSH tunnels](docs/REMOTE_SETUP.md)
+- [GPUtw, connection status, Wake-on-LAN, and SSH](docs/REMOTE_SETUP.md)
 - [Troubleshooting, updates, and uninstalling](docs/TROUBLESHOOTING.md)
 - [Architecture, API reference, tests, and compatibility](docs/DEVELOPMENT.md)
 - [Contributing](CONTRIBUTING.md)

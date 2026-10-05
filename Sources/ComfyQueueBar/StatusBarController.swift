@@ -66,9 +66,10 @@ final class StatusBarController: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
     private func updateLabel() {
         // Bound width even for large queues; the full count is available in the tooltip.
-        item?.button?.title = " " + (queue.totalJobs > 99 ? "99+" : String(queue.totalJobs))
+        item?.button?.title = " " + queue.queueBadge
         item?.button?.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
-        item?.button?.toolTip = "ComfyQueueBar · " + L10n.text("ComfyUI queue: %@ jobs", String(queue.totalJobs))
+        let status = queue.hasFreshQueue ? L10n.text("ComfyUI queue: %@ jobs", String(queue.totalJobs)) : queue.monitoringState.label
+        item?.button?.toolTip = queue.serverName + " · " + ConnectionAddress.portLabel(queue.endpoint) + " · " + status
         item?.button?.setAccessibilityLabel(item?.button?.toolTip)
     }
 

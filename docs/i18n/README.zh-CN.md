@@ -36,6 +36,8 @@ App 自行监控不会调用语言模型；Agent 处理结果仍会使用 token�
 
 ## 最近完成与新功能
 
+- **唤醒 Mac**：在已保存地址中设置目标网卡 MAC、广播 IPv4 和 UDP 端口，可手动唤醒，或为当前选用的服务器启用离线时自动唤醒。完整步骤与限制见[远程设置教程](REMOTE_SETUP.zh-CN.md)。
+
 每 **15 秒**读取最新 **200 条**服务器历史，可按最近一小时、24 小时、今天或已加载历史筛选，并搜索任务名称或输出文件名。没有时间戳的记录只出现在“已加载历史”。展开“失败与中断”可查看服务器错误原因；清除 ComfyUI 历史也会移除记录。
 
 - **媒体预览与下载**：点击缩略图或 Preview & download…，选择输出后原生预览图片／视频，再通过 Download… 选择保存位置。MP4、MOV、M4V 需要 macOS 支持其编码，其他格式仍可下载。
@@ -44,6 +46,14 @@ App 自行监控不会调用语言模型；Agent 处理结果仍会使用 token�
 - **时间估算**：显示 App 首次观察后的运行时间；至少三条设置相近且有起止时间的成功任务才估算剩余时间，负载与缓存可能影响准确度。
 
 <img src="../images/settings.png" width="360" alt="英文服务器与通知设置" />
+
+## GPUtw 与远程 Mac 教程
+
+[English](../REMOTE_SETUP.md) · [简体中文](REMOTE_SETUP.zh-CN.md) · [繁體中文](REMOTE_SETUP.zh-TW.md) · [日本語](REMOTE_SETUP.ja.md)
+
+学习 GPUtw 登录、辨认不同端口的服务、理解 `0`／`—`／`!`／`…`、切换前核对近期任务，以及 Wake-on-LAN 和 SSH 设置。
+
+新功能已加入当前 `main` 源码，尚未包含在 v1.5.2 下载版中；新版发布前可按下方步骤自行编译。
 
 ## 功能与要求
 
@@ -114,11 +124,11 @@ open build/ComfyQueueBar.app
 
 1. 启动现有的 ComfyUI。
 2. 点击 macOS 菜单栏上的 ComfyQueueBar 图标。
-3. 在齒輪設定的 **ComfyUI address** 输入地址，通常为 `http://127.0.0.1:8188`。
-4. 点击 **Connect**。
+3. 在齿轮设置的 **ComfyUI 地址** 输入地址，通常为 `http://127.0.0.1:8188`。
+4. 点击 **连接**，核对端口和近期任务，再点击 **监控此服务器**。
 5. 在 ComfyUI 提交任务，下一次刷新时应出现在面板中。
 
-空队列与未连接都可能显示 0，请查看面板的连接状态。也可直接检查：
+最新有效响应确认空队列时才显示 `0`；断开连接或数据过期显示 `—`，需要登录显示 `!`，首次检查连接显示 `…`。数字代表选用端口的 ComfyUI 任务数。也可直接检查：
 
 ```sh
 curl --fail http://127.0.0.1:8188/queue
@@ -166,12 +176,14 @@ open "$HOME/Applications/ComfyQueueBar.app"
 
 扩展添加只读 JSON 路由，通过 ComfyUI 内部进度 registry 观察进度，并包装 reset 函数以便逐任务重新注册；不开 WebSocket、不修改队列。路由沿用服务器的网络暴露范围，**不会自动限制为 localhost**。建议使用可信网络或 SSH port forwarding。
 
-App 没有自定义 API key、bearer token 或登录界面；请求会丢弃网址的 query 与 fragment，因此不支持 query-string 凭据。
+GPUtw 私有或密码保护的实例可使用“设置 → 登录 GPUtw…”，打开正确服务后点击“确认此 ComfyUI”，核对端口和近期任务，再点击“监控此服务器”。登录过期可重新登录；Cookie 由 App 的 WebKit 管理，受保护的输出也使用相同登录状态。完整步骤见 [GPUtw 与远程设置教程](REMOTE_SETUP.zh-CN.md)。
 
-## 更多文档（英文）
+App 没有通用的自定义 API key 或 bearer token 界面。GPUtw 登录数据由 App 的 WebKit 管理，不写入服务器书签或 Agent 桥接文件；一般 API 请求仍不支持 query-string 凭据。
+
+## 更多文档（部分为英文）
 
 - [完整操作说明](../USAGE.md)
-- [远程连接、SSH 与 Windows 设置](../REMOTE_SETUP.md)
+- [远程连接、SSH 与 Windows 设置](REMOTE_SETUP.zh-CN.md)
 - [故障排查、更新与卸载](../TROUBLESHOOTING.md)
 - [架构、API、测试与兼容性](../DEVELOPMENT.md)
 - [安全说明](../../SECURITY.md)、[贡献指南](../../CONTRIBUTING.md)、[更新日志](../../CHANGELOG.md)

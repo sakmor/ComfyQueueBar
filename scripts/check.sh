@@ -2,10 +2,12 @@
 set -euo pipefail
 project_dir="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$project_dir"
-bash -n build-app.sh install-comfyui-extension.sh scripts/check.sh scripts/capture-screenshots.sh scripts/package-release.sh scripts/check-history.sh scripts/check-localization.sh scripts/check-network.sh
+bash -n build-app.sh install-comfyui-extension.sh scripts/check.sh scripts/capture-screenshots.sh scripts/package-release.sh scripts/check-history.sh scripts/check-localization.sh scripts/check-network.sh scripts/check-gputw.sh scripts/check-wake.sh
 bash scripts/check-localization.sh
 bash scripts/check-history.sh
 bash scripts/check-network.sh
+bash scripts/check-gputw.sh
+bash scripts/check-wake.sh
 mkdir -p build/installer-check
 cp tests/check-progress-installer.swift build/installer-check/main.swift
 swiftc Sources/ComfyQueueBar/ProgressExtensionInstaller.swift build/installer-check/main.swift -o build/installer-check/check

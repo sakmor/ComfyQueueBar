@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Add GPUtw browser sign-in for private and password-protected ComfyUI services, with scoped authenticated queue/history/progress requests, media previews, and downloads.
+- Review the service port, queue, and recent successful history before switching; preserve the current server when review is cancelled and retain custom GPUtw bookmark names.
+- Distinguish a confirmed empty queue (`0`) from unavailable/stale data (`—`), required sign-in (`!`), and initial connection checks (`…`); reject malformed queue payloads and bypass local API caches.
+- Add optional per-server Wake-on-LAN settings, manual UDP magic packets, and automatic waking for selected-server network failures with a two-minute retry limit.
+- Add English, Traditional Chinese, Simplified Chinese, and Japanese remote setup tutorials covering GPUtw ports, status interpretation, login recovery, Wake-on-LAN, SSH, and remote progress installation.
+- Extend isolated network, authentication, media, history/profile, and UDP regression checks. GPUtw connection review was also checked against a live instance; physical Mac wake compatibility remains environment-dependent.
+
 ## 1.5.2 — 2026-10-03
 
 - Add absolute path copying for completed image and video outputs, with output-folder settings remembered per server endpoint.

@@ -43,6 +43,7 @@ struct ServerProfile: Identifiable, Codable, Equatable {
     var id = UUID()
     var name: String
     var endpoint: String
+    var wake: WakeSettings? = nil
 }
 
 enum HistoryRange: String, CaseIterable {
@@ -194,30 +195,42 @@ final class MediaPreviewModel: ObservableObject {
     @Published var isDownloading = false
     private var loadTask: Task<Void, Never>?
     private var videoObservation: NSKeyValueObservation?
+    private var localVideo: URL?
     func load(_ output: MediaOutput, endpoint: String) {
-        loadTask?.cancel()
-        videoObservation?.invalidate()
-        player?.pause()
+        stop()
         player = nil; image = nil; error = nil; downloaded = false; loading = false
         guard let url = output.url(endpoint: endpoint) else { error = L10n.text("Preview unavailable"); return }
         #if DOCUMENTATION_SCREENSHOT
         image = NSImage(contentsOf: Bundle.main.url(forResource: "DemoOutput", withExtension: "png")!)
         #else
         if output.isVideo {
-            let item = AVPlayerItem(url: url)
-            player = AVPlayer(playerItem: item) // Native playback controls; no automatic playback.
-            videoObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
-                Task { @MainActor in
-                    if item.status == .failed { self?.error = item.error?.localizedDescription ?? L10n.text("Preview unavailable") }
+            if GPUTWAddress.serviceOrigin(url) != nil {
+                // AVPlayer follows redirects independently. Download through the scoped
+                // transport first so credentials never enter AVFoundation's network stack.
+                loading = true
+                loadTask = Task {
+                    defer { if !Task.isCancelled { loading = false } }
+                    do {
+                        var request = URLRequest(url: url); request.timeoutInterval = 60
+                        let (temporary, response) = try await ComfyHTTPClient.shared.download(for: request)
+                        defer { try? FileManager.default.removeItem(at: temporary) }
+                        guard !Task.isCancelled else { return }
+                        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+                        let local = FileManager.default.temporaryDirectory.appendingPathComponent("comfyqueuebar-" + UUID().uuidString)
+                            .appendingPathExtension((output.filename as NSString).pathExtension)
+                        try FileManager.default.moveItem(at: temporary, to: local)
+                        localVideo = local
+                        preparePlayer(url: local)
+                    } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
                 }
-            }
+            } else { preparePlayer(url: url) }
         } else if output.isImage {
             loading = true
             loadTask = Task {
                 defer { if !Task.isCancelled { loading = false } }
                 do {
                     var request = URLRequest(url: url); request.timeoutInterval = 30
-                    let (data, response) = try await URLSession.shared.data(for: request)
+                    let (data, response) = try await ComfyHTTPClient.shared.data(for: request)
                     guard !Task.isCancelled else { return }
                     guard (response as? HTTPURLResponse)?.statusCode == 200, data.count <= 32 * 1024 * 1024, let decoded = NSImage(data: data) else { throw URLError(.cannotDecodeContentData) }
                     image = decoded
@@ -226,7 +239,20 @@ final class MediaPreviewModel: ObservableObject {
         }
         #endif
     }
-    func stop() { loadTask?.cancel(); videoObservation?.invalidate(); player?.pause() }
+    private func preparePlayer(url: URL) {
+        let item = AVPlayerItem(url: url)
+        player = AVPlayer(playerItem: item) // Native playback controls; no automatic playback.
+        videoObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
+            Task { @MainActor in
+                if item.status == .failed { self?.error = item.error?.localizedDescription ?? L10n.text("Preview unavailable") }
+            }
+        }
+    }
+    func stop() {
+        loadTask?.cancel(); videoObservation?.invalidate(); player?.pause(); player = nil
+        if let localVideo { try? FileManager.default.removeItem(at: localVideo) }
+        localVideo = nil
+    }
     func download(_ output: MediaOutput, endpoint: String) async {
         guard !isDownloading, let url = output.url(endpoint: endpoint) else { return }
         let panel = NSSavePanel()
@@ -237,7 +263,8 @@ final class MediaPreviewModel: ObservableObject {
         defer { isDownloading = false }
         do {
             var request = URLRequest(url: url); request.timeoutInterval = 60
-            let (temporary, response) = try await URLSession.shared.download(for: request)
+            let (temporary, response) = try await ComfyHTTPClient.shared.download(for: request)
+            defer { try? FileManager.default.removeItem(at: temporary) }
             guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
             // The user explicitly chose the destination (and confirmed any replacement).
             let staging = destination.deletingLastPathComponent().appendingPathComponent(".comfyqueuebar-" + UUID().uuidString)
@@ -422,9 +449,9 @@ struct Thumbnail: View {
                 var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
                 components.queryItems?.append(URLQueryItem(name: "preview", value: "webp;70"))
                 guard let previewURL = components.url else { return }
-                if let (data, response) = try? await URLSession.shared.data(from: previewURL),
+                if let (data, response) = try? await ComfyHTTPClient.shared.data(for: URLRequest(url: previewURL)),
                    (response as? HTTPURLResponse)?.statusCode == 200, data.count < 8 * 1024 * 1024, !Task.isCancelled { state.image = NSImage(data: data) }
-            } else if output.isVideo {
+            } else if output.isVideo, GPUTWAddress.serviceOrigin(url) == nil {
                 let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
                 generator.appliesPreferredTrackTransform = true
                 generator.maximumSize = CGSize(width: 120, height: 120)

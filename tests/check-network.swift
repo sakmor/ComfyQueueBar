@@ -31,7 +31,9 @@ final class ServerFixture {
     var pending = ["pending-original", "pending-other"]
     var mode: Mode = .normal
     var queueStatus = 200
+    var queueBody: [String: Any]?
     var historyStatus = 200
+    var historyBody: [String: Any] = [:]
     var progressStatus = 200
     var progressID = "running-original"
     var submitted = false
@@ -83,17 +85,19 @@ final class ServerFixture {
             preconditionFailure("Unexpected mutation: \(route)")
         }
         if route == "queue" {
+            precondition(request.cachePolicy == .reloadIgnoringLocalCacheData, "Queue freshness must not come from a cached response")
             if submitted && mode == .offlineAfterSubmit { return (503, ["error": "fixture disconnected"]) }
             if mode == .staleStop { running = [] }
             if mode == .stalePending { pending.removeAll { $0 == "pending-original" } }
-            return (queueStatus, ["queue_running": running.map(row), "queue_pending": pending.map(row)])
+            return (queueStatus, queueBody ?? ["queue_running": running.map(row), "queue_pending": pending.map(row)])
         }
         if route == "queue-progress" {
             return (progressStatus, ["prompt_id": progressID, "node_id": "12", "value": 3, "max": 10, "percent": 30, "state": "running"])
         }
         if route == "history" {
-            precondition(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems == [URLQueryItem(name: "max_items", value: "200")])
-            return (historyStatus, [:])
+            let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+            precondition(query == [URLQueryItem(name: "max_items", value: "200")] || query == [URLQueryItem(name: "max_items", value: "20")])
+            return (historyStatus, historyBody)
         }
         preconditionFailure("Unexpected route: \(route)")
     }
@@ -102,6 +106,17 @@ final class ServerFixture {
 @main
 struct NetworkChecks {
     @MainActor static func main() async {
+        let now = Date()
+        precondition(MonitoringState.resolve(connected: false, loading: true, needsSignIn: false, lastUpdated: nil, hasError: false, now: now) == .checking)
+        precondition(MonitoringState.resolve(connected: false, loading: true, needsSignIn: false, lastUpdated: nil, hasError: true, now: now) == .disconnected)
+        precondition(MonitoringState.resolve(connected: true, loading: true, needsSignIn: false, lastUpdated: now.addingTimeInterval(-29), hasError: false, now: now) == .connected)
+        precondition(MonitoringState.resolve(connected: true, loading: true, needsSignIn: false, lastUpdated: now.addingTimeInterval(-30), hasError: false, now: now) == .stale)
+        precondition(MonitoringState.resolve(connected: false, loading: true, needsSignIn: true, lastUpdated: now, hasError: true, now: now) == .signInRequired)
+        precondition(MonitoringState.stale.badge(count: 3) == "—" && MonitoringState.connected.badge(count: 100) == "99+")
+        precondition(ConnectionAddress.port("https://8090-test-instance.gputw.ai") == "8090")
+        precondition(ConnectionAddress.port("http://fixture.invalid:8188/base") == "8188")
+        precondition(try! ConnectionAddress.normalize(" https://8090-test-instance.gputw.ai/path?token=secret#fragment ") == "https://8090-test-instance.gputw.ai")
+        print("PASS: checking, fresh, stale and sign-in states; service-port labels and safe review addresses")
         validationDefaults.set("http://fixture.invalid/base", forKey: "comfyEndpoint")
         defer { validationDefaults.removePersistentDomain(forName: validationSuite) }
         URLProtocol.registerClass(FixtureProtocol.self)
@@ -115,6 +130,7 @@ struct NetworkChecks {
             try! await Task.sleep(nanoseconds: 10_000_000)
         }
         precondition(model.isConnected && !model.isLoading)
+        precondition(model.monitoringState == .connected && model.queueBadge == "3")
         precondition(model.totalJobs == 3 && model.pending[0].title == "Disposable test")
         precondition(model.queueProgress?.percent == 30 && model.progressBridgeStatus == .available)
         precondition(server.paths.allSatisfy { $0.hasPrefix("/base/") })
@@ -191,11 +207,71 @@ struct NetworkChecks {
         server.running = []; server.pending = []
         await model.refresh(forceHistory: true)
         precondition(model.isConnected && model.totalJobs == 0 && model.queueProgress == nil)
+        precondition(model.queueBadge == "0", "Only a healthy empty queue should display zero")
+        server.queueBody = ["login_required": true]
+        await model.refresh()
+        precondition(!model.isConnected, "Unrelated JSON must not be accepted as an empty ComfyUI queue")
+        precondition(model.queueBadge == "—")
+        server.queueBody = ["queue_running": [[1, 42]], "queue_pending": []]
+        await model.refresh()
+        precondition(model.queueBadge == "—", "Malformed jobs must not silently become an empty queue")
+        server.queueBody = nil
         server.queueStatus = 503
         await model.refresh()
         precondition(!model.isConnected && model.totalJobs == 0 && model.errorMessage != nil)
+        precondition(model.monitoringState == .disconnected && model.queueBadge == "—")
+        for code in [401, 403] {
+            server.queueStatus = code
+            await model.refresh()
+            precondition(model.monitoringState == .signInRequired && model.queueBadge == "!")
+        }
+        server.queueStatus = 200
+        await model.refresh()
+        precondition(model.monitoringState == .connected && model.queueBadge == "0")
+
+        let originalEndpoint = model.endpoint
+        let originalSavedEndpoint = validationDefaults.string(forKey: "comfyEndpoint")
+        let originalProfiles = model.profiles
+        server.historyBody = Dictionary(uniqueKeysWithValues: (0..<5).map { index in
+            let timestamp = now.addingTimeInterval(-Double(90_000 + index)).timeIntervalSince1970 * 1000
+            let status: [String: Any] = ["completed": true, "status_str": "success", "messages": [["execution_success", ["timestamp": timestamp]]]]
+            return ("success-\(index)", ["prompt": server.row("success-\(index)"), "status": status] as [String: Any])
+        })
+        server.historyBody["interrupted"] = ["prompt": server.row("interrupted"), "status": ["completed": true, "status_str": "error", "messages": [["execution_interrupted", ["timestamp": now.timeIntervalSince1970 * 1000]]]]]
+        server.paths = []; server.mutations = []
+        let candidate = "http://fixture.invalid:8090/candidate"
+        let inspection = try! await ConnectionInspector.inspect(candidate)
+        precondition(inspection.endpoint == candidate && inspection.isIdle && inspection.historyAvailable)
+        precondition(inspection.completed.map(\.id) == ["success-0", "success-1", "success-2"])
+        precondition(inspection.failures.first?.id == "interrupted")
+        precondition(server.paths == ["/candidate/queue", "/candidate/history"] && server.mutations.isEmpty)
+        precondition(model.endpoint == originalEndpoint && model.profiles == originalProfiles && model.queueBadge == "0")
+        precondition(validationDefaults.string(forKey: "comfyEndpoint") == originalSavedEndpoint)
+        server.historyStatus = 503
+        let unavailable = try! await ConnectionInspector.inspect(candidate)
+        precondition(!unavailable.historyAvailable && unavailable.completed.isEmpty)
+        let review = ConnectionReviewModel()
+        await review.inspect(candidate)
+        precondition(review.inspection != nil && !review.checking)
+        let cancelled = Task { await review.inspect("http://fixture.invalid/cancelled") }
+        cancelled.cancel()
+        await cancelled.value
+        precondition(review.inspection?.endpoint == candidate && !review.checking)
+        precondition(!server.paths.contains("/cancelled/queue"), "A cancelled review must not replace a newer card or send a request")
+        review.cancel()
+        precondition(review.inspection == nil && !review.checking)
+        server.queueStatus = 401
+        await review.inspect(candidate)
+        precondition(review.inspection == nil && review.error != nil && !review.checking)
+        precondition(model.endpoint == originalEndpoint && model.profiles == originalProfiles && server.mutations.isEmpty)
+        print("PASS: read-only candidate review, latest three successes, interruption, unavailable history, cancellation and authentication failure")
         await model.connect(to: "file:///invalid")
         precondition(!model.isConnected && model.errorMessage != nil)
+        precondition(model.saveProfile(name: "GPUtw fixture", address: "https://8080-test-instance.gputw.ai/handoff?token=do-not-save#secret"))
+        precondition(model.profiles.last?.endpoint == "https://8080-test-instance.gputw.ai")
+        let saved = String(data: validationDefaults.data(forKey: "serverProfiles")!, encoding: .utf8)!
+        precondition(!saved.contains("do-not-save") && !saved.contains("secret"))
+        print("PASS: unrelated JSON rejected and GPUtw handoff credentials excluded from saved profiles")
         print("PASS: connected idle, HTTP disconnection and invalid endpoint states")
         print("Network/action regression checks passed (intercepted HTTP; no live generation).")
     }

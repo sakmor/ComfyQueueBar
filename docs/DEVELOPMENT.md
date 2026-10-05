@@ -6,6 +6,10 @@
 Package.swift                              Swift executable package
 Sources/ComfyQueueBar/main.swift            View model, API client, localization, panel
 Sources/ComfyQueueBar/Features.swift        History models, notifications, native media UI
+Sources/ComfyQueueBar/ConnectionReview.swift Candidate inspection and fresh/unknown queue states
+Sources/ComfyQueueBar/GPUTWConnection.swift Scoped WebKit-cookie HTTP transport and queue validation
+Sources/ComfyQueueBar/GPUTWLogin.swift       GPUtw browser login window
+Sources/ComfyQueueBar/WakeOnLAN.swift        Validated per-server UDP magic packets
 Sources/ComfyQueueBar/AgentBridge.swift     Durable same-user subscription IPC
 Sources/ComfyQueueBar/AgentSetup.swift      User-triggered MCP registration, shared Skill installation, and backups
 agent_bridge/server.py                    Local stdio MCP / optional Claude channel adapter
@@ -39,11 +43,19 @@ These checks do not run an actual generation, prove compatibility with every ser
 
 GitHub Actions runs the same checks on macOS for pushes and pull requests. Its build is architecture-specific to the runner.
 
+Connection regressions also cover fresh zero versus unavailable/sign-in states, the 30-second stale boundary, malformed queue entries, cache bypass, read-only candidate inspection, bounded recent successes, unavailable history, and cancelled review tasks. `bash scripts/check-gputw.sh` checks scoped fixture cookies, login redirects/HTML, session clearing, and authenticated API/media transport without a real account. `bash scripts/check-wake.sh` checks packet bytes, destination validation, retry/error filtering, and actual UDP delivery to a loopback receiver; it never broadcasts to wake a physical machine. Legacy bookmarks without wake settings remain decodable.
+
+The GPUtw browser/port review and cancellation flow were manually verified against a live authenticated instance on 2026-10-05. This was read-only queue/history verification, not live testing of stop/prioritize or universal provider/account compatibility. Physical wake behavior still requires a compatible Mac and network. Public examples use placeholders, not private instance URLs or workflow names.
+
 ## Architecture
 
 `QueueViewModel` runs on the main actor. Two timers schedule asynchronous HTTP refreshes. The app polls `/queue` every four seconds; when connected with a running job, it polls the progress bridge every second. A missing progress route is retried during the ordinary queue refresh. Separate guards prevent overlapping queue and progress refreshes. Action guards serialize queue mutations inside this app, but cannot serialize other clients.
 
 `URLSession` sends JSON requests with an eight-second timeout. The endpoint must have an HTTP or HTTPS scheme and a host. API paths are appended to its base path; query and fragment components are discarded. Non-2xx responses produce an HTTP error with a short response-body excerpt. The app stores the endpoint, Codable server bookmarks, notification settings, and Sparkle update preferences in user defaults. Endpoint generations prevent late responses from contaminating a new server view.
+
+API requests bypass local caches. `ConnectionInspector` reads a candidate's queue and up to 20 history records independently of the active model; a review confirmation applies the endpoint and starts a normal refresh. Cancelled tasks and model revisions prevent late review responses from replacing a newer card. The status item uses a queue-state enum rather than treating disconnected empty arrays as a zero count; a one-second timer expires queue freshness after 30 seconds without a successful response.
+
+GPUtw requests use `ComfyHTTPClient` with an ephemeral URLSession and matching cookies from this app's persistent WebKit store. Redirects are refused, browser login remains visible, and authentication clearing invalidates pending results. See [security details](../SECURITY.md). Wake-on-LAN is independent of HTTP transport and optional per profile; network-error and two-minute retry guards apply only to automatic waking of the selected server.
 
 Queue parsing expects ComfyUI's array entries: queue number, prompt ID, prompt graph, and extra data, with additional server fields ignored. Titles use workflow metadata, then node metadata, then output prefixes. The app shows a single current progress snapshot only when its prompt ID matches the first running job.
 

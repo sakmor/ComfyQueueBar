@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import SwiftUI
+import WebKit
 #if !DOCUMENTATION_SCREENSHOT
 import Sparkle
 #endif
@@ -59,6 +60,41 @@ enum L10n {
     }
 
     static let translations: [String: [String]] = [
+        "Checking connection…": ["正在確認連線…", "正在检查连接…", "接続を確認中…"],
+        "Sign-in required": ["需要重新登入", "需要重新登录", "再ログインが必要です"],
+        "Queue status out of date": ["佇列資料已過期", "队列数据已过期", "キュー情報が古くなっています"],
+        "Port %@": ["連接埠 %@", "端口 %@", "ポート %@"],
+        "Confirm monitoring server": ["確認監控伺服器", "确认监控服务器", "監視するサーバーを確認"],
+        "Reading queue and recent history…": ["正在讀取佇列與近期紀錄…", "正在读取队列与近期记录…", "キューと最近の履歴を読み込み中…"],
+        "Your current monitoring server changes only after you confirm.": ["確認後才會切換目前監控的伺服器。", "确认后才会切换当前监控的服务器。", "確認後に監視先のサーバーを切り替えます。"],
+        "Refresh details": ["重新讀取", "重新读取", "再読み込み"],
+        "Monitor this server": ["監控此伺服器", "监控此服务器", "このサーバーを監視"],
+        "Checked %@": ["確認時間 %@", "检查时间 %@", "確認時刻 %@"],
+        "Counts show ComfyUI jobs, not GPU utilization.": ["數字代表 ComfyUI 工作數；GPU 使用率是另一項指標。", "数字代表 ComfyUI 任务数；GPU 使用率是另一项指标。", "数値は ComfyUI のジョブ数です。GPU 使用率とは別の指標です。"],
+        "This queue is empty. If you expect a running job, check the port and recent work below.": ["此佇列目前沒有工作。如果你正在生成，請確認連接埠與下方近期紀錄。", "此队列当前没有任务。如果你正在生成，请检查端口与下方近期记录。", "このキューは空です。生成中のはずなら、ポートと下の最近の履歴を確認してください。"],
+        "Recent successful jobs": ["近期成功工作", "近期成功任务", "最近成功したジョブ"],
+        "History could not be read. Recent work is unknown.": ["無法讀取歷史，尚無法確認近期工作。", "无法读取历史，尚无法确认近期任务。", "履歴を読み込めないため、最近のジョブは不明です。"],
+        "No successful jobs in the latest 20 history records.": ["最新 20 筆歷史中沒有成功工作。", "最新 20 条历史中没有成功任务。", "最新20件の履歴に成功したジョブはありません。"],
+        "Review this ComfyUI": ["確認此 ComfyUI", "确认此 ComfyUI", "この ComfyUI を確認"],
+        "Open your ComfyUI, then review its port and recent jobs before monitoring.": ["開啟 ComfyUI 後，先確認連接埠與近期工作，再開始監控。", "打开 ComfyUI 后，先检查端口与近期任务，再开始监控。", "ComfyUI を開き、ポートと最近のジョブを確認してから監視を開始してください。"],
+        "ComfyUI job count": ["ComfyUI 工作數", "ComfyUI 任务数", "ComfyUI ジョブ数"],
+        "Expecting a running job? Check the server port.": ["如果你正在生成，請確認伺服器連接埠。", "如果你正在生成，请检查服务器端口。", "生成中のはずなら、サーバーのポートを確認してください。"],
+        "Review this connection": ["查看此連線", "查看此连接", "この接続を確認"],
+        "No fresh queue response for 30 seconds. The job count is unknown.": ["已超過 30 秒未取得最新佇列，工作數目前未知。", "已超过 30 秒未取得最新队列，任务数当前未知。", "30秒以上キューが更新されていないため、ジョブ数は不明です。"],
+        "Waiting for the first queue response.": ["正在等待首次佇列回應。", "正在等待首次队列响应。", "最初のキューレスポンスを待っています。"],
+        "GPUtw sign-in": ["GPUtw 登入", "GPUtw 登录", "GPUtw ログイン"],
+        "Sign in to GPUtw…": ["登入 GPUtw…", "登录 GPUtw…", "GPUtw にログイン…"],
+        "Clear GPUtw sign-in": ["清除 GPUtw 登入", "清除 GPUtw 登录", "GPUtw ログインを消去"],
+        "GPUtw sign-in cleared.": ["已清除 GPUtw 登入。", "已清除 GPUtw 登录。", "GPUtw のログインを消去しました。"],
+        "For private or password-protected GPUtw ComfyUI instances.": ["適用於私人或密碼保護的 GPUtw ComfyUI 執行個體。", "适用于私有或密码保护的 GPUtw ComfyUI 实例。", "非公開またはパスワード保護された GPUtw ComfyUI に対応。"],
+        "Sign in to GPUtw again, then open your ComfyUI Web UI.": ["請重新登入 GPUtw，再開啟 ComfyUI Web UI。", "请重新登录 GPUtw，再打开 ComfyUI Web UI。", "GPUtw に再ログインし、ComfyUI Web UI を開いてください。"],
+        "Open a ComfyUI Web UI in this window before connecting.": ["請先在此視窗開啟 ComfyUI Web UI，再連線。", "请先在此窗口打开 ComfyUI Web UI，再连接。", "このウインドウで ComfyUI Web UI を開いてから接続してください。"],
+        "Back": ["上一頁", "上一页", "戻る"],
+        "GPUtw dashboard": ["GPUtw 控制台", "GPUtw 控制台", "GPUtw ダッシュボード"],
+        "Checking ComfyUI…": ["正在確認 ComfyUI…", "正在检查 ComfyUI…", "ComfyUI を確認中…"],
+        "Use this ComfyUI": ["使用此 ComfyUI", "使用此 ComfyUI", "この ComfyUI を使用"],
+        "Sign in, open the instance's ComfyUI Web UI, then click Use this ComfyUI.": ["登入後開啟執行個體的 ComfyUI Web UI，再按「使用此 ComfyUI」。", "登录后打开实例的 ComfyUI Web UI，再点击“使用此 ComfyUI”。", "ログイン後、インスタンスの ComfyUI Web UI を開き、「この ComfyUI を使用」を押してください。"],
+        "Could not open GPUtw. Check your connection and try again.": ["無法開啟 GPUtw，請確認網路連線後重試。", "无法打开 GPUtw，请检查网络连接后重试。", "GPUtw を開けません。接続を確認して再試行してください。"],
         "Observed %@ · estimate unavailable": ["已觀察 %@ · 暫無估計", "已观察 %@ · 暂无估计", "観測時間 %@・推定なし"],
         "Estimates need 3 similar successful jobs. Elapsed time starts when this app first observes the job.": ["估算需要 3 筆相似的成功工作。經過時間從 App 首次觀察到此工作起算。", "估算需要 3 条相似的成功任务。经过时间从 App 首次观察到此任务起算。", "推定には類似した成功ジョブ3件が必要です。経過時間はアプリがジョブを初めて観測した時点から計測します。"],
         "Allow notifications in macOS System Settings.": ["請在 macOS 系統設定允許通知。", "请在 macOS 系统设置允许通知。", "macOS のシステム設定で通知を許可してください。"],
@@ -135,6 +171,20 @@ enum L10n {
         "Connected": ["已連線", "已连接", "接続済み"],
         "Disconnected": ["未連線", "未连接", "未接続"],
         "Refresh now": ["立即更新", "立即刷新", "今すぐ更新"],
+        "Wake Mac": ["喚醒 Mac", "唤醒 Mac", "Macを起こす"],
+        "MAC address": ["MAC 位址", "MAC 地址", "MACアドレス"],
+        "Broadcast IPv4 address": ["廣播 IPv4 位址", "广播 IPv4 地址", "ブロードキャストIPv4アドレス"],
+        "UDP port": ["UDP 連接埠", "UDP 端口", "UDPポート"],
+        "Automatically wake when offline": ["離線時自動喚醒", "离线时自动唤醒", "オフライン時に自動で起こす"],
+        "Save wake settings": ["儲存喚醒設定", "保存唤醒设置", "起動設定を保存"],
+        "Wake now": ["立即喚醒", "立即唤醒", "今すぐ起こす"],
+        "Wake settings saved": ["喚醒設定已儲存", "唤醒设置已保存", "起動設定を保存しました"],
+        "Wake packet sent. Waiting for ComfyUI to reconnect.": ["已傳送喚醒封包，等待 ComfyUI 重新連線。", "已发送唤醒数据包，等待 ComfyUI 重新连接。", "起動パケットを送信しました。ComfyUIの再接続を待っています。"],
+        "Enter a valid MAC address (AA:BB:CC:DD:EE:FF).": ["請輸入有效的 MAC 位址（AA:BB:CC:DD:EE:FF）。", "请输入有效的 MAC 地址（AA:BB:CC:DD:EE:FF）。", "有効なMACアドレスを入力してください（AA:BB:CC:DD:EE:FF）。"],
+        "Enter a valid IPv4 destination and UDP port.": ["請輸入有效的 IPv4 目的位址與 UDP 連接埠。", "请输入有效的 IPv4 目标地址与 UDP 端口。", "有効なIPv4宛先とUDPポートを入力してください。"],
+        "Checks the selected server only. Retries every 2 minutes. Enable Wake for network access on the target Mac; the network must allow wake packets.": ["僅檢查目前選取的伺服器，每 2 分鐘重試。目標 Mac 須啟用「喚醒以供網路存取」，網路須允許喚醒封包。", "仅检查当前选中的服务器，每 2 分钟重试。目标 Mac 须启用“唤醒以供网络访问”，网络须允许唤醒数据包。", "選択中のサーバーのみ確認し、2分ごとに再試行します。対象Macで「ネットワークアクセスによるスリープ解除」を有効にし、ネットワークで起動パケットを許可してください。"],
+        "Address saved": ["位址已儲存", "地址已保存", "アドレスを保存しました"],
+        "Saved addresses": ["已儲存的位址", "已保存的地址", "保存済みアドレス"],
         "ComfyUI address": ["ComfyUI 位址", "ComfyUI 地址", "ComfyUI アドレス"],
         "Connect": ["連線", "连接", "接続"],
         "Running": ["執行中", "运行中", "実行中"],
@@ -207,6 +257,8 @@ final class QueueViewModel: ObservableObject {
     @Published private(set) var pending: [QueueJob] = []
     @Published private(set) var isConnected = false
     @Published private(set) var isLoading = false
+    @Published private(set) var monitoringState: MonitoringState = .checking
+    private var needsSignIn = false
     @Published private(set) var movingJobID: String?
     @Published private(set) var stoppingJobID: String?
     @Published private(set) var queueProgress: QueueProgress?
@@ -218,7 +270,10 @@ final class QueueViewModel: ObservableObject {
     @Published private(set) var completed: [CompletedJob] = []
     @Published private(set) var historyUnavailable = false
     @Published private(set) var failures: [FailedJob] = []
+    @Published private(set) var wakeMessages: [UUID: String] = [:]
+    private var lastWakeAttempts: [UUID: Date] = [:]
     @Published private(set) var profiles: [ServerProfile] = []
+    @Published private(set) var isClearingGPUTW = false
     @Published private(set) var observedStarts: [String: Date] = [:]
     @Published private(set) var permissionMessage: String?
     @Published private(set) var progressExtensionMessage: String?
@@ -249,6 +304,14 @@ final class QueueViewModel: ObservableObject {
     private var isProgressLoading = false
 
     var totalJobs: Int { running.count + pending.count }
+    var hasFreshQueue: Bool { monitoringState == .connected }
+    var queueBadge: String { monitoringState.badge(count: totalJobs) }
+
+    private func updateMonitoringState() {
+        let state = MonitoringState.resolve(connected: isConnected, loading: isLoading, needsSignIn: needsSignIn,
+            lastUpdated: lastUpdated, hasError: errorMessage != nil, now: Date())
+        if monitoringState != state { monitoringState = state }
+    }
 
     init() {
         #if DOCUMENTATION_SCREENSHOT
@@ -257,6 +320,7 @@ final class QueueViewModel: ObservableObject {
         running = [QueueJob(id: "8f21a7c4-demo-running", title: "Ceramic lamp · turntable", nodeCount: 24, queueNumber: 1, position: 1, prompt: graph, extraData: [:])]
         pending = [QueueJob(id: "b390e612-demo-waiting", title: "Ceramic lamp · warm lighting", nodeCount: 18, queueNumber: 2, position: 1, prompt: [:], extraData: [:])]
         isConnected = true
+        monitoringState = .connected
         progressBridgeStatus = .available
         queueProgress = QueueProgress(promptID: running[0].id, nodeID: "12", value: 21, maxValue: 30, percent: 70, state: "running")
         let demoNow = Calendar(identifier: .gregorian).startOfDay(for: Date()).addingTimeInterval(14 * 3600 + 32 * 60)
@@ -283,7 +347,7 @@ final class QueueViewModel: ObservableObject {
         agentIntegrationEnabled = UserDefaults.standard.bool(forKey: "agentIntegrationEnabled")
         configureAgentBridge()
         agentTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.tickAgentBridge() }
+            Task { @MainActor in self?.updateMonitoringState(); self?.tickAgentBridge() }
         }
         Task { await refresh() }
         #endif
@@ -351,18 +415,96 @@ final class QueueViewModel: ObservableObject {
     var serverName: String { profiles.first { $0.endpoint == endpoint }?.name ?? (URLComponents(string: endpoint)?.host ?? endpoint) }
     var canChangeServer: Bool { movingJobID == nil && stoppingJobID == nil }
 
-    func saveProfile(name: String, address: String) {
-        let address = address.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+    func signInToGPUTW(address: String) {
+        guard canChangeServer, !isClearingGPUTW else { return }
+        GPUTWLoginWindow.shared.open(address: address) { [weak self] address in
+            guard let self, self.canChangeServer else { return }
+            let port = URL(string: address)?.host?.split(separator: "-").first.map(String.init) ?? ""
+            let name = self.profiles.first(where: { $0.endpoint == address })?.name ?? "GPUtw · " + port
+            self.reviewConnection(to: address, profileName: name, fromGPUTW: true)
+        }
+    }
+
+    func reviewConnection(to address: String, profileName: String? = nil, fromGPUTW: Bool = false) {
+        guard canChangeServer, !isClearingGPUTW else { return }
+        let value = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let url = URL(string: value), GPUTWAddress.isDashboard(url) { signInToGPUTW(address: value); return }
+        do {
+            let address = try ConnectionAddress.normalize(value)
+            ConnectionReviewWindow.shared.open(address: address) { [weak self] selected in
+                guard let self, self.canChangeServer, !self.isClearingGPUTW else { return }
+                if let profileName { self.saveProfile(name: profileName, address: selected) }
+                if fromGPUTW { GPUTWLoginWindow.shared.close() }
+                Task { await self.connect(to: selected) }
+            }
+        } catch { actionMessage = error.localizedDescription; actionIsError = true }
+    }
+
+    func clearGPUTWLogin() async {
+        guard canChangeServer, !isClearingGPUTW else { return }
+        isClearingGPUTW = true
+        defer { isClearingGPUTW = false }
+        GPUTWLoginWindow.shared.close()
+        ConnectionReviewWindow.shared.close()
+        ComfyHTTPClient.shared.beginClearingAuthentication()
+        defer { ComfyHTTPClient.shared.finishClearingAuthentication() }
+        let isGPUTW = URL(string: endpoint).flatMap { GPUTWAddress.serviceOrigin($0) } != nil
+        if isGPUTW {
+            connectionGeneration = UUID()
+            setDisconnected(L10n.text("GPUtw sign-in cleared."), requiresSignIn: true)
+        }
+        // This is this app's WebKit store, never Safari/Chrome's browsing data.
+        await WKWebsiteDataStore.default().removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
+        actionMessage = L10n.text("GPUtw sign-in cleared.")
+        actionIsError = false
+    }
+
+    @discardableResult
+    func saveProfile(name: String, address: String) -> Bool {
+        var address = address.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if let url = URL(string: address) {
+            if GPUTWAddress.isDashboard(url) { signInToGPUTW(address: address); return false }
+            if let origin = GPUTWAddress.serviceOrigin(url) { address = origin.absoluteString }
+        }
         guard let url = URLComponents(string: address), ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host != nil, url.user == nil, url.password == nil else {
-            actionMessage = L10n.text("Enter a valid http:// or https:// address."); actionIsError = true; return
+            actionMessage = L10n.text("Enter a valid http:// or https:// address."); actionIsError = true; return false
         }
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let label = name.isEmpty ? (url.host ?? address) : name
-        if let index = profiles.firstIndex(where: { $0.endpoint == address }) { profiles[index].name = label }
+        if let index = profiles.firstIndex(where: { $0.endpoint == address }) {
+            if !name.isEmpty { profiles[index].name = label }
+        }
         else { profiles.append(ServerProfile(name: label, endpoint: address)) }
         persistProfiles()
+        actionMessage = L10n.text("Address saved")
+        actionIsError = false
+        return true
     }
     func deleteProfile(_ id: UUID) { profiles.removeAll { $0.id == id }; persistProfiles() }
+
+    func saveWakeSettings(_ settings: WakeSettings, for id: UUID) {
+        guard let index = profiles.firstIndex(where: { $0.id == id }) else { return }
+        do {
+            try WakeOnLAN.validate(settings)
+            profiles[index].wake = settings
+            persistProfiles()
+            wakeMessages[id] = L10n.text("Wake settings saved")
+        } catch { wakeMessages[id] = L10n.text(error.localizedDescription) }
+    }
+
+    func wakeServer(_ id: UUID, automatically: Bool = false) {
+        guard let profile = profiles.first(where: { $0.id == id }), let settings = profile.wake else { return }
+        let now = Date()
+        if automatically {
+            guard settings.automaticallyWake,
+                  WakeOnLAN.canRetry(lastAttempt: lastWakeAttempts[id], now: now) else { return }
+        }
+        lastWakeAttempts[id] = now
+        do {
+            try WakeOnLAN.send(settings)
+            wakeMessages[id] = L10n.text("Wake packet sent. Waiting for ComfyUI to reconnect.")
+        } catch { wakeMessages[id] = L10n.text(error.localizedDescription) }
+    }
 
     func installProgressExtension(in comfyRoot: URL) {
         progressExtensionMessage = nil
@@ -431,12 +573,20 @@ final class QueueViewModel: ObservableObject {
 
     func connect(to value: String) async {
         guard canChangeServer else { return }
-        let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        var cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if let url = URL(string: cleaned) {
+            if GPUTWAddress.isDashboard(url) { signInToGPUTW(address: cleaned); return }
+            if let origin = GPUTWAddress.serviceOrigin(url) { cleaned = origin.absoluteString }
+        }
         if endpoint != cleaned {
             connectionGeneration = UUID()
             completed = []; failures = []; running = []; pending = []; observedStarts = [:]
             notificationTracker = NotificationTracker()
             isConnected = false
+            needsSignIn = false
+            lastUpdated = nil
+            errorMessage = nil
+            monitoringState = .checking
             lastHistoryPoll = nil
             historyUnavailable = false
         }
@@ -446,11 +596,13 @@ final class QueueViewModel: ObservableObject {
     }
 
     func refresh(forceHistory: Bool = false) async {
-        guard !isLoading, movingJobID == nil, stoppingJobID == nil else { return }
+        guard !isLoading, !isClearingGPUTW, movingJobID == nil, stoppingJobID == nil else { return }
         isLoading = true
+        updateMonitoringState()
         let generation = connectionGeneration
         defer {
             isLoading = false
+            updateMonitoringState()
             if generation != connectionGeneration { Task { await refresh(forceHistory: true) } }
         }
 
@@ -459,14 +611,20 @@ final class QueueViewModel: ObservableObject {
             guard generation == connectionGeneration else { return }
             apply(snapshot)
             isConnected = true
+            needsSignIn = false
             errorMessage = nil
             lastUpdated = Date()
+            updateMonitoringState()
             await refreshProgress(forceBridgeCheck: true)
             guard generation == connectionGeneration else { return }
             await refreshHistory(force: forceHistory)
         } catch {
             guard generation == connectionGeneration else { return }
-            setDisconnected(error.localizedDescription)
+            setDisconnected(error.localizedDescription, requiresSignIn: MonitoringState.requiresSignIn(error))
+            if WakeOnLAN.isOfflineError(error),
+               let profile = profiles.first(where: { $0.endpoint == endpoint }) {
+                wakeServer(profile.id, automatically: true)
+            }
         }
     }
 
@@ -536,7 +694,7 @@ final class QueueViewModel: ObservableObject {
     }
 
     func moveToFront(_ requestedJob: QueueJob) async {
-        guard isConnected, movingJobID == nil, stoppingJobID == nil, !isLoading else { return }
+        guard hasFreshQueue, movingJobID == nil, stoppingJobID == nil, !isLoading else { return }
         movingJobID = requestedJob.id
         actionMessage = nil
         actionIsError = false
@@ -603,7 +761,7 @@ final class QueueViewModel: ObservableObject {
     }
 
     func stopRunning(_ requestedJob: QueueJob) async {
-        guard isConnected, movingJobID == nil, stoppingJobID == nil, !isLoading else { return }
+        guard hasFreshQueue, movingJobID == nil, stoppingJobID == nil, !isLoading else { return }
         let generation = connectionGeneration
         stoppingJobID = requestedJob.id
         actionMessage = nil
@@ -626,8 +784,10 @@ final class QueueViewModel: ObservableObject {
                 let updated = try await fetchQueue()
                 apply(updated)
                 isConnected = true
+                needsSignIn = false
                 errorMessage = nil
                 lastUpdated = Date()
+                updateMonitoringState()
                 if !Self.parseJobs(updated["queue_running"]).contains(where: { $0.id == requestedJob.id }) {
                     stopped = true
                     break
@@ -714,7 +874,8 @@ final class QueueViewModel: ObservableObject {
 
     private func fetchQueue() async throws -> [String: Any] {
         let data = try await requestData(path: "queue")
-        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              ComfyQueuePayload.isValid(object) else {
             throw QueueError.invalidResponse
         }
         return object
@@ -727,7 +888,7 @@ final class QueueViewModel: ObservableObject {
         guard var components = URLComponents(string: endpoint),
               let scheme = components.scheme?.lowercased(),
               ["http", "https"].contains(scheme),
-              components.host != nil else {
+              components.host != nil, components.user == nil, components.password == nil else {
             throw QueueError.invalidEndpoint
         }
 
@@ -740,12 +901,13 @@ final class QueueViewModel: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.timeoutInterval = 8
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         if let body {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await ComfyHTTPClient.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
               (200..<300).contains(httpResponse.statusCode) else {
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
@@ -771,7 +933,7 @@ final class QueueViewModel: ObservableObject {
         }
     }
 
-    private func setDisconnected(_ message: String) {
+    private func setDisconnected(_ message: String, requiresSignIn: Bool = false) {
         if isConnected && notifyProblems {
             NotificationService.shared.send(id: UUID().uuidString, title: L10n.text("Server disconnected"), body: serverName)
         }
@@ -781,9 +943,11 @@ final class QueueViewModel: ObservableObject {
         pending = []
         queueProgress = nil
         errorMessage = message
+        needsSignIn = requiresSignIn
+        updateMonitoringState()
     }
 
-    private static func parseJobs(_ value: Any?) -> [QueueJob] {
+    static func parseJobs(_ value: Any?) -> [QueueJob] {
         guard let rows = value as? [[Any]] else { return [] }
         return rows.enumerated().compactMap { index, row in
             guard row.count > 1, let promptID = row[1] as? String else { return nil }
@@ -804,7 +968,7 @@ final class QueueViewModel: ObservableObject {
         }
     }
 
-    private static func jobTitle(prompt: [String: Any], extra: [String: Any]) -> String {
+    static func jobTitle(prompt: [String: Any], extra: [String: Any]) -> String {
         if let pngInfo = extra["extra_pnginfo"] as? [String: Any],
            let workflow = pngInfo["workflow"] as? [String: Any],
            let name = workflow["name"] as? String,
@@ -1108,6 +1272,7 @@ struct QueuePopover: View {
         }
         .background(.regularMaterial)
         .onAppear { panel.urlInput = queue.endpoint }
+        .onChange(of: queue.endpoint) { panel.urlInput = $0 }
         .confirmationDialog(panel.confirmation?.title ?? L10n.text("Confirm action"), isPresented: Binding(
             get: { panel.confirmation.map { _ in true } ?? false },
             set: { if !$0 { panel.confirmation = nil } }
@@ -1144,21 +1309,26 @@ struct QueuePopover: View {
                     .font(.system(size: 13, weight: .semibold))
                 HStack(spacing: 5) {
                     Circle()
-                        .fill(queue.isConnected ? Color.green : Color.orange)
+                        .fill(queue.hasFreshQueue ? Color.green : Color.orange)
                         .frame(width: 5, height: 5)
                     Menu {
                         ForEach(queue.profiles) { profile in
-                            Button(profile.name) { panel.urlInput = profile.endpoint; panel.profileName = profile.name; Task { await queue.connect(to: profile.endpoint) } }
+                            Button(profile.name + " · " + ConnectionAddress.portLabel(profile.endpoint)) {
+                                panel.urlInput = profile.endpoint; panel.profileName = profile.name
+                                queue.reviewConnection(to: profile.endpoint)
+                            }
                         }
                     } label: {
-                        Text(queue.isConnected ? queue.serverName : L10n.text("Disconnected"))
+                        Text(queue.serverName)
                             .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                     }
                     .menuStyle(.borderlessButton)
-                    .fixedSize()
                     .disabled(queue.profiles.isEmpty || !queue.canChangeServer)
                 }
-                .accessibilityLabel(queue.isConnected ? L10n.text("Connected") : L10n.text("Disconnected"))
+                .accessibilityLabel(queue.serverName + " · " + queue.monitoringState.label)
+                Text(ConnectionAddress.portLabel(queue.endpoint) + " · " + (queue.hasFreshQueue ? L10n.text("ComfyUI job count") : queue.monitoringState.label))
+                    .font(.system(size: 10)).foregroundStyle(queue.hasFreshQueue ? Color.secondary : Color.orange)
+                    .help(queue.endpoint)
             }
             Spacer()
             Button {
@@ -1194,23 +1364,29 @@ struct QueuePopover: View {
 
     private var serverSettings: some View {
         VStack(alignment: .leading, spacing: 9) {
-            Text(L10n.text("Servers")).font(.subheadline).fontWeight(.medium)
+            Text(L10n.text("Saved addresses")).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
             ForEach(queue.profiles) { profile in
-                HStack {
-                    Button(profile.name) {
-                        panel.urlInput = profile.endpoint
-                        panel.profileName = profile.name
-                        Task { await queue.connect(to: profile.endpoint) }
-                    }.buttonStyle(.link).disabled(!queue.canChangeServer)
-                    if profile.endpoint == queue.endpoint { Image(systemName: "checkmark").font(.caption).foregroundStyle(.secondary) }
-                    Spacer()
-                    Button { queue.deleteProfile(profile.id) } label: { Image(systemName: "minus.circle") }
-                        .buttonStyle(.plain).help(L10n.text("Remove server"))
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack {
+                        Button {
+                            panel.urlInput = profile.endpoint
+                            panel.profileName = profile.name
+                            queue.reviewConnection(to: profile.endpoint)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(profile.name).fontWeight(.medium)
+                                Text(profile.endpoint).font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary)
+                                    .lineLimit(2).textSelection(.enabled)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }.buttonStyle(.plain).disabled(!queue.canChangeServer)
+                        if profile.endpoint == queue.endpoint { Image(systemName: "checkmark").font(.caption).foregroundStyle(.secondary) }
+                        Spacer()
+                        Button { queue.deleteProfile(profile.id) } label: { Image(systemName: "minus.circle") }
+                            .buttonStyle(.plain).help(L10n.text("Remove server"))
+                    }
+                    WakeSettingsView(queue: queue, profile: profile)
                 }
-            }
-            HStack {
-                TextField(L10n.text("Server name"), text: $panel.profileName).textFieldStyle(.roundedBorder)
-                Button(L10n.text("Save address")) { queue.saveProfile(name: panel.profileName, address: panel.urlInput); panel.profileName = "" }.controlSize(.small)
             }
         }.font(.system(size: 11))
     }
@@ -1263,24 +1439,50 @@ struct QueuePopover: View {
                 TextField("http://127.0.0.1:8188", text: $panel.urlInput)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 12, design: .monospaced))
-                    .onSubmit { Task { await queue.connect(to: panel.urlInput) } }
+                    .onSubmit { queue.reviewConnection(to: panel.urlInput) }
                 Button(L10n.text("Connect")) {
-                    Task { await queue.connect(to: panel.urlInput) }
+                    queue.reviewConnection(to: panel.urlInput)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
                 .disabled(!queue.canChangeServer)
             }
+            HStack(spacing: 8) {
+                TextField(L10n.text("Server name"), text: $panel.profileName)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 12))
+                Button(L10n.text("Save address")) {
+                    if queue.saveProfile(name: panel.profileName, address: panel.urlInput) {
+                        panel.profileName = ""
+                    }
+                }.controlSize(.small)
+            }
+            HStack {
+                Button(L10n.text("Sign in to GPUtw…")) { queue.signInToGPUTW(address: panel.urlInput) }
+                Button(L10n.text("Clear GPUtw sign-in")) { Task { await queue.clearGPUTWLogin() } }
+            }.controlSize(.small).disabled(!queue.canChangeServer || queue.isClearingGPUTW)
+            Text(L10n.text("For private or password-protected GPUtw ComfyUI instances."))
+                .font(.caption).foregroundStyle(.secondary)
+            if let message = queue.actionMessage {
+                Text(message).font(.caption)
+                    .foregroundStyle(queue.actionIsError ? Color.red : Color.secondary)
+            }
+            if !queue.profiles.isEmpty { serverSettings.padding(.top, 6) }
         }
     }
 
     private var runningSection: some View {
         VStack(alignment: .leading, spacing: 9) {
-            sectionHeading(L10n.text("Running"), count: queue.running.count, symbol: "waveform.path")
-            if !queue.isConnected {
+            sectionHeading(L10n.text("Running"), count: queue.hasFreshQueue ? queue.running.count : nil, symbol: "waveform.path")
+            if !queue.hasFreshQueue {
                 connectionError
             } else if queue.running.isEmpty {
                 emptyState(L10n.text("No jobs are running"), symbol: "checkmark.circle")
+                if queue.pending.isEmpty {
+                    Text(L10n.text("Expecting a running job? Check the server port.")).font(.caption).foregroundStyle(.secondary)
+                    Button(L10n.text("Review this connection")) { queue.reviewConnection(to: queue.endpoint) }
+                        .buttonStyle(.link).font(.caption)
+                }
             } else {
                 VStack(spacing: 0) {
                 ForEach(queue.running) { job in
@@ -1307,10 +1509,10 @@ struct QueuePopover: View {
 
     private var pendingSection: some View {
         VStack(alignment: .leading, spacing: 9) {
-            sectionHeading(L10n.text("Waiting queue"), count: queue.pending.count, symbol: "list.number")
-            if queue.isConnected && queue.pending.isEmpty {
+            sectionHeading(L10n.text("Waiting queue"), count: queue.hasFreshQueue ? queue.pending.count : nil, symbol: "list.number")
+            if queue.hasFreshQueue && queue.pending.isEmpty {
                 emptyState(L10n.text("No waiting jobs"), symbol: "tray")
-            } else if queue.isConnected {
+            } else if queue.hasFreshQueue {
                 VStack(spacing: 0) {
                 ForEach(queue.pending) { job in
                     JobCard(
@@ -1417,12 +1619,18 @@ struct QueuePopover: View {
 
     private var connectionError: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(L10n.text("Unable to read the queue"))
+            Text(queue.monitoringState.label)
                 .font(.system(size: 12, weight: .semibold))
-            Text(queue.errorMessage ?? L10n.text("Check that ComfyUI is running and the address is correct."))
+            Text(queue.monitoringState == .stale ? L10n.text("No fresh queue response for 30 seconds. The job count is unknown.")
+                 : queue.monitoringState == .checking ? L10n.text("Waiting for the first queue response.")
+                 : queue.errorMessage ?? L10n.text("Check that ComfyUI is running and the address is correct."))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            if queue.monitoringState == .signInRequired, let url = URL(string: queue.endpoint), GPUTWAddress.serviceOrigin(url) != nil {
+                Button(L10n.text("Sign in to GPUtw…")) { queue.signInToGPUTW(address: queue.endpoint) }
+                    .controlSize(.small)
+            }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1468,8 +1676,6 @@ struct QueuePopover: View {
             Text(L10n.text("Settings")).font(.headline)
             connectionSettings
             Divider()
-            serverSettings
-            Divider()
             progressExtensionSettings
             Divider()
             notificationSettings
@@ -1512,11 +1718,11 @@ struct QueuePopover: View {
         .overlay(alignment: .top) { Divider() }
     }
 
-    private func sectionHeading(_ title: String, count: Int, symbol: String) -> some View {
+    private func sectionHeading(_ title: String, count: Int?, symbol: String) -> some View {
         HStack(spacing: 7) {
             Text(title).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
             Spacer()
-            Text(L10n.text("%@", String(count)))
+            Text(count.map(String.init) ?? "—")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         }
@@ -1687,5 +1893,53 @@ struct JobCard: View {
         case .missing: return L10n.text("Install the progress extension and restart ComfyUI")
         case .error: return L10n.text("Unable to read live progress")
         }
+    }
+}
+
+
+@MainActor
+final class WakeSettingsDraft: ObservableObject {
+    @Published var settings = WakeSettings()
+    @Published var portInput = "9"
+}
+
+struct WakeSettingsView: View {
+    @ObservedObject var queue: QueueViewModel
+    let profile: ServerProfile
+    @StateObject private var draft = WakeSettingsDraft()
+
+    var body: some View {
+        DisclosureGroup(L10n.text("Wake Mac")) {
+            VStack(alignment: .leading, spacing: 8) {
+                TextField(L10n.text("MAC address"), text: $draft.settings.macAddress)
+                TextField(L10n.text("Broadcast IPv4 address"), text: $draft.settings.broadcastAddress)
+                TextField(L10n.text("UDP port"), text: $draft.portInput)
+                Toggle(L10n.text("Automatically wake when offline"), isOn: $draft.settings.automaticallyWake)
+                    .toggleStyle(.checkbox)
+                Text(L10n.text("Checks the selected server only. Retries every 2 minutes. Enable Wake for network access on the target Mac; the network must allow wake packets."))
+                    .font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    Button(L10n.text("Save wake settings")) { save() }
+                    Button(L10n.text("Wake now")) {
+                        guard save() else { return }
+                        queue.wakeServer(profile.id)
+                    }
+                }.controlSize(.small)
+                if let message = queue.wakeMessages[profile.id] {
+                    Text(message).font(.caption).textSelection(.enabled)
+                }
+            }.textFieldStyle(.roundedBorder).padding(.top, 6)
+        }
+        .onAppear {
+            draft.settings = profile.wake ?? WakeSettings()
+            draft.portInput = String(draft.settings.port)
+        }
+    }
+
+    @discardableResult
+    private func save() -> Bool {
+        draft.settings.port = UInt16(draft.portInput) ?? 0
+        queue.saveWakeSettings(draft.settings, for: profile.id)
+        return (try? WakeOnLAN.validate(draft.settings)) != nil
     }
 }

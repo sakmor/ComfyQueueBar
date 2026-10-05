@@ -20,13 +20,25 @@ The build is ad-hoc signed, not Developer ID signed or notarized. For a download
 
 1. Open ComfyUI in your browser and verify it is running.
 2. Check the exact base address and port. Include `http://` or `https://`.
-3. Run `curl --fail YOUR_BASE_URL/queue`.
+3. For an endpoint that does not need browser authentication, run `curl --fail YOUR_BASE_URL/queue`. For GPUtw private/password-protected services, use the app's **Sign in to GPUtw…** flow; a bare curl command does not share that login.
 4. Check whether an SSH tunnel or reverse proxy is still working.
 5. Check network permission, firewall, certificate, and proxy configuration.
 
-A base address should not end in `/queue`, `/prompt`, or a browser page route. A reverse-proxy path prefix is allowed. Query strings and fragments are removed from requests. HTTP 401/403 often means the server requires authentication the app cannot supply. The app has an eight-second timeout.
+A base address should not end in `/queue`, `/prompt`, or a browser page route. A reverse-proxy path prefix is allowed. Query strings and fragments are removed from requests. HTTP 401/403 means authentication or access needs attention. GPUtw supports browser login in the app; generic custom authentication headers remain unsupported. The app has an eight-second timeout.
 
 The connection indicator reflects successful queue requests, not progress-extension availability. Losing the connection clears displayed jobs; it does not cancel server jobs.
+
+## GPU is busy but the menu bar shows 0
+
+The count belongs to the selected ComfyUI queue, not the whole GPU. Different ports on the same rented instance can run different ComfyUI processes. Compare the port with the browser where you submitted the job, then use **Review this connection** or a saved server to compare recent titles and finish times before switching. The dashboard's default Web UI can be a different service.
+
+Only a fresh valid empty queue shows `0`. Unavailable/stale data shows `—`; login required shows `!`; the initial connection check shows `…`. If the correct queue is empty, inspect **Recently completed** and **Failures & interruptions**. Missing history is not proof of completion. [Step-by-step GPUtw and remote setup tutorial](REMOTE_SETUP.md).
+
+## Wake packet sent, but the remote Mac stays offline
+
+The message confirms local UDP transmission, not a successful physical wake. Check the target interface's MAC address, its Wake for network access setting, power state, and the configured UDP destination. Packets do not travel through the app's SSH TCP tunnel or automatically cross routers/VPNs. ComfyUI and any SSH tunnel must still become reachable after waking.
+
+Save a bookmark and configure **Wake Mac → Wake now** even if its queue cannot yet pass connection review. Automatic waking applies only to the currently selected server, for qualifying network failures, at most once every two minutes; it does not run for HTTP/login errors or for every bookmark. Keep the monitoring Mac awake and the app running. [Wake-on-LAN setup](REMOTE_SETUP.md#wake-a-remote-mac).
 
 ## Queue works but progress does not
 

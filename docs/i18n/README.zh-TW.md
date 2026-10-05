@@ -41,9 +41,18 @@ App 自行監控不會呼叫語言模型；Agent 處理結果仍會使用 token�
 - **媒體預覽與下載**：點選縮圖或 Preview & download…，選擇輸出後原生預覽圖片／影片，再透過 Download… 選擇儲存位置。MP4、MOV、M4V 需 macOS 支援其編碼，其他格式仍可下載。
 - **通知**：齒輪設定可選關閉、每項完成或佇列完成通知，並另開失敗／斷線提醒。預設關閉，開啟需 macOS 授權；首次連線不通知舊歷史。
 - **多伺服器**：輸入位址與名稱，按 Save address；點選面板頂端伺服器名稱可快速切換，一次監看一台。
+- **喚醒 Mac**：在已儲存位址設定目標網卡 MAC、廣播 IPv4 與 UDP 連接埠，可手動喚醒或為目前選用的伺服器啟用離線時自動喚醒。完整步驟與限制見[遠端設定教學](REMOTE_SETUP.zh-TW.md)。
 - **時間估算**：顯示 App 首次觀察後的執行時間；至少三筆設定相近且有起訖時間的成功工作才估算剩餘時間，負載與快取可能影響準確度。
 
 <img src="../images/settings.png" width="360" alt="英文伺服器與通知設定" />
+
+## GPUtw 與遠端 Mac 教學
+
+[English](../REMOTE_SETUP.md) · [简体中文](REMOTE_SETUP.zh-CN.md) · [繁體中文](REMOTE_SETUP.zh-TW.md) · [日本語](REMOTE_SETUP.ja.md)
+
+學習 GPUtw 登入、辨認不同連接埠的服務、閱讀 `0`／`—`／`!`／`…`、切換前核對近期工作，以及 Wake-on-LAN 與 SSH 設定。
+
+新功能已加入目前 `main` 原始碼，尚未包含在 v1.5.2 下載版；新版發行前可依下方步驟自行編譯。
 
 ## 功能與需求
 
@@ -114,11 +123,11 @@ open build/ComfyQueueBar.app
 
 1. 啟動你現有的 ComfyUI。
 2. 點選 macOS 選單列上的 ComfyQueueBar 圖示。
-3. 在齒輪設定的 **ComfyUI address** 輸入位址，通常為 `http://127.0.0.1:8188`。
-4. 點選 **Connect**。
+3. 在齒輪設定的 **ComfyUI 位址** 輸入位址，通常為 `http://127.0.0.1:8188`。
+4. 點選 **連線**，核對連接埠與近期工作，再按 **監控此伺服器**。
 5. 在 ComfyUI 提交工作，下一次更新時應出現在面板。
 
-空佇列與未連線都可能顯示 0，請查看面板的連線狀態。也可直接檢查：
+最新有效回應確認空佇列時才顯示 `0`；斷線或資料過期顯示 `—`，需要登入顯示 `!`，首次確認連線顯示 `…`。數字代表選用連接埠的 ComfyUI 工作數。也可直接檢查：
 
 ```sh
 curl --fail http://127.0.0.1:8188/queue
@@ -168,12 +177,14 @@ open "$HOME/Applications/ComfyQueueBar.app"
 
 擴充新增唯讀 JSON 路由，透過 ComfyUI 內部進度 registry 觀察進度，並包裝 reset 函式以逐工作重新註冊；不開 WebSocket、不修改佇列。路由沿用伺服器的網路曝露範圍，**不會自動限制為 localhost**。建議使用可信任網路或 SSH port forwarding。
 
-App 沒有自訂 API key、bearer token 或登入介面；請求會捨棄網址的 query 與 fragment，因此不支援 query-string 憑證。
+GPUtw 私人或密碼保護的執行個體可使用「設定 → 登入 GPUtw…」，開啟正確服務後按「確認此 ComfyUI」，核對連接埠與近期工作，再按「監控此伺服器」。登入過期可重新登入；Cookie 由 App 的 WebKit 管理，受保護的輸出也使用相同登入狀態。完整步驟見 [GPUtw 與遠端設定教學](REMOTE_SETUP.zh-TW.md)。
 
-## 進一步文件（英文）
+App 沒有通用的自訂 API key 或 bearer token 介面；GPUtw 登入資料由 App 的 WebKit 管理，不會寫入伺服器書籤或 Agent 橋接資料。一般 API 請求仍不支援 query-string 憑證。
+
+## 進一步文件（部分為英文）
 
 - [完整操作說明](../USAGE.md)
-- [遠端連線、SSH 與 Windows 設定](../REMOTE_SETUP.md)
+- [遠端連線、SSH 與 Windows 設定](REMOTE_SETUP.zh-TW.md)
 - [疑難排解、更新與移除](../TROUBLESHOOTING.md)
 - [架構、API、測試與相容性](../DEVELOPMENT.md)
 - [安全說明](../../SECURITY.md)、[貢獻指南](../../CONTRIBUTING.md)、[更新紀錄](../../CHANGELOG.md)

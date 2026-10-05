@@ -86,3 +86,12 @@ precondition(media.absolutePath(root: "relative/output") == nil)
 precondition(MediaOutput(filename: "clip.mp4", subfolder: "../other", type: "output").absolutePath(root: "/output") == nil)
 precondition(MediaOutput(filename: "clip.mp4", subfolder: "", type: "input").absolutePath(root: "/output") == nil)
 print("Absolute output paths passed: POSIX, Windows, UNC, invalid roots, traversal, and output type")
+
+let legacyProfileData = "[{\"id\":\"11111111-1111-1111-1111-111111111111\",\"name\":\"Mac\",\"endpoint\":\"http://mac.local:8188\"}]".data(using: .utf8)!
+let legacyProfiles = try JSONDecoder().decode([ServerProfile].self, from: legacyProfileData)
+precondition(legacyProfiles[0].wake == nil)
+var wakeProfile = legacyProfiles[0]
+wakeProfile.wake = WakeSettings(macAddress: "02:11:22:33:44:55", automaticallyWake: true)
+let wakeRoundTrip = try JSONDecoder().decode(ServerProfile.self, from: JSONEncoder().encode(wakeProfile))
+precondition(wakeRoundTrip == wakeProfile)
+print("Legacy server profiles and wake settings persistence passed")

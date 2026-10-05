@@ -2,7 +2,9 @@
 
 ## Reading the panel
 
-Click the stack icon in the menu bar. Its number is the sum of running and waiting entries. The panel shows connection status, the named server, running jobs, waiting jobs, completion history, and the last successful queue refresh time.
+Click the stack icon in the menu bar. A fresh queue response shows the sum of running and waiting entries. `0` means the selected queue is empty; `—` means disconnected, invalid data, or no fresh queue response for 30 seconds; `!` means sign-in is required; `…` means the initial check is in progress. The panel identifies the selected server and port, running/waiting jobs, completion history, and the last successful queue refresh time. GPU utilization is a separate metric and is not measured by this app.
+
+The new connection review, GPUtw login, status symbols, and Wake-on-LAN are in current `main` source, after v1.5.2. See the [multilingual remote setup tutorial](REMOTE_SETUP.md) for availability and setup.
 
 Use the refresh icon to update immediately. Queue requests run every four seconds while the app is running, including when the panel is closed. Progress requests run every second when a job is running and the server is connected. The app uses an eight-second network timeout and prevents overlapping requests of the same type.
 
@@ -94,9 +96,11 @@ Expand **Failures & interruptions** below history. Each entry shows its workflow
 
 1. Open the gear and enter a ComfyUI address.
 2. Enter a **Server name**, then click **Save address**.
-3. Click the saved name to connect, or click the current server name in the panel header to switch quickly.
+3. Click the saved name, or choose it from the current server name in the panel header. Review the port, running/waiting counts, and three most recent successful jobs from up to 20 history records, then click **Monitor this server**. **Cancel** leaves your current connection unchanged. A failed queue check prevents switching; unavailable history is labeled unknown.
 
 Only one server is monitored at a time. Switching does not launch or stop a server and is disabled during queue actions. Saving the same address updates its name. The minus button removes the bookmark while leaving the current connection active. Addresses must use HTTP or HTTPS; bookmarks do not accept embedded usernames/passwords. The app does not manage SSH tunnels or credentials.
+
+For GPUtw, use **Sign in to GPUtw…** and open the correct service port in the app's browser before reviewing it. For a sleeping Mac, save the address first and expand **Wake Mac** to configure manual or optional automatic Wake-on-LAN. A sleeping candidate does not need to pass a connection review before you can send a manual wake packet. See the [remote setup tutorial](REMOTE_SETUP.md).
 
 ## Notifications
 
