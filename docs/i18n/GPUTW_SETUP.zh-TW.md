@@ -16,9 +16,9 @@
 
 ## 1. 準備支援 GPUtw 的版本
 
-**截至 2026-10-05，GPUtw 內建登入功能已在 GitHub `main`，尚未包含於 v1.5.2 下載版。** 請先從原始碼編譯；不要用 v1.5.2 尋找本篇的登入按鈕。
+**從 v1.5.3 起，下載版已包含 GPUtw 內建登入。** 若目前使用 v1.5.2，請在 App 的齒輪設定按 **檢查更新…**；也可從 [GitHub Releases](https://github.com/sakmor/ComfyQueueBar/releases/latest) 下載新版。下載版需要 macOS 13 以上與 Apple Silicon（M1 或更新）。
 
-需要 macOS 13 以上，以及 Swift 5.9 以上的 Xcode／Command Line Tools。若尚未安裝編譯工具，先執行 `xcode-select --install`，完成後再執行：
+若使用 Intel Mac 或想自行編譯，還需要 Swift 5.9 以上的 Xcode／Command Line Tools。若尚未安裝編譯工具，先執行 `xcode-select --install`，完成後再執行：
 
 ```sh
 git clone https://github.com/sakmor/ComfyQueueBar.git
@@ -76,7 +76,7 @@ GPUtw 的私人服務由控制台建立擁有者登入狀態；密碼保護的�
 
 | 畫面或問題 | 如何處理 |
 | --- | --- |
-| 找不到「登入 GPUtw…」 | 確認使用包含此功能的 `main` 編譯版；v1.5.2 沒有這個按鈕。 |
+| 找不到「登入 GPUtw…」 | 確認 App 已更新到 v1.5.3 或更新版本；v1.5.2 沒有這個按鈕。 |
 | GPU 正在忙，App 卻顯示 `0` | 核對生成頁面與 App 的連接埠，並查看近期工作。GPU 使用率與佇列數是不同資料。 |
 | 顯示 `!` 或要求登入 | 在 App 內重新登入，開啟正確 ComfyUI Web UI，再確認監控。 |
 | 顯示 `—` | 連線失敗或佇列資料過期，工作數目前未知，不能當成已完成。 |

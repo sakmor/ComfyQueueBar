@@ -74,11 +74,11 @@ A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote 
 
 [English](docs/REMOTE_SETUP.md) · [简体中文](docs/i18n/REMOTE_SETUP.zh-CN.md) · [繁體中文](docs/i18n/REMOTE_SETUP.zh-TW.md) · [日本語](docs/i18n/REMOTE_SETUP.ja.md)
 
-**[GPUtw video queue quick start with real screenshots (繁體中文)](docs/i18n/GPUTW_SETUP.zh-TW.md)** — build the current version, sign in, check the correct port, and monitor a batch of videos.
+**[GPUtw video queue quick start with real screenshots (繁體中文)](docs/i18n/GPUTW_SETUP.zh-TW.md)** — update to v1.5.3, sign in, check the correct port, and monitor a batch of videos.
 
 Learn to sign in to GPUtw, distinguish services on different ports, read `0` / `—` / `!` / `…`, inspect recent jobs before switching, configure Wake-on-LAN, and connect through SSH. GPU utilization and ComfyUI job counts are separate metrics.
 
-These features are in the current `main` source; the v1.5.2 download predates them. [Build from source](#build-from-source) until the next release.
+These features are included in v1.5.3. Users of v1.5.2 can choose **Check for updates…** in the app's settings.
 
 ## Preview finished outputs
 

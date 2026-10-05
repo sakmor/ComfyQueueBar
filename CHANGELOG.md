@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.5.3 — 2026-10-06
 
 - Add GPUtw browser sign-in for private and password-protected ComfyUI services, with scoped authenticated queue/history/progress requests, media previews, and downloads.
 - Review the service port, queue, and recent successful history before switching; preserve the current server when review is cancelled and retain custom GPUtw bookmark names.

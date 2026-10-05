@@ -4,7 +4,7 @@
 
 This guide covers GPUtw login, choosing the correct ComfyUI service, SSH connections, and waking a remote Mac. One server is monitored at a time; the number represents running plus waiting ComfyUI jobs.
 
-**Availability:** GPUtw browser login, connection review, distinct connection badges, and Wake-on-LAN are available in the current `main` source. They are not included in the v1.5.2 download. [Build from source](../README.md#build-from-source) to use them before the next release.
+**Availability:** GPUtw browser login, connection review, distinct connection badges, and Wake-on-LAN are included in v1.5.3. From v1.5.2, use **Check for updates…** in the app's settings.
 
 ## GPUtw private and password-protected instances
 

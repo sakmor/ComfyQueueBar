@@ -4,7 +4,7 @@
 
 Click the stack icon in the menu bar. A fresh queue response shows the sum of running and waiting entries. `0` means the selected queue is empty; `—` means disconnected, invalid data, or no fresh queue response for 30 seconds; `!` means sign-in is required; `…` means the initial check is in progress. The panel identifies the selected server and port, running/waiting jobs, completion history, and the last successful queue refresh time. GPU utilization is a separate metric and is not measured by this app.
 
-The new connection review, GPUtw login, status symbols, and Wake-on-LAN are in current `main` source, after v1.5.2. See the [multilingual remote setup tutorial](REMOTE_SETUP.md) for availability and setup.
+Connection review, GPUtw login, status symbols, and Wake-on-LAN are included in v1.5.3. See the [multilingual remote setup tutorial](REMOTE_SETUP.md) for setup.
 
 Use the refresh icon to update immediately. Queue requests run every four seconds while the app is running, including when the panel is closed. Progress requests run every second when a job is running and the server is connected. The app uses an eight-second network timeout and prevents overlapping requests of the same type.
 
