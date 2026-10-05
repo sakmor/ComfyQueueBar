@@ -50,6 +50,8 @@ App 自行監控不會呼叫語言模型；Agent 處理結果仍會使用 token�
 
 [English](../REMOTE_SETUP.md) · [简体中文](REMOTE_SETUP.zh-CN.md) · [繁體中文](REMOTE_SETUP.zh-TW.md) · [日本語](REMOTE_SETUP.ja.md)
 
+**[GPUtw.ai 影片佇列圖文快速入門](GPUTW_SETUP.zh-TW.md)**：從編譯、登入、核對連接埠到開始監控，附上實際「1 個執行中＋11 個等待中」的影片佇列截圖。
+
 學習 GPUtw 登入、辨認不同連接埠的服務、閱讀 `0`／`—`／`!`／`…`、切換前核對近期工作，以及 Wake-on-LAN 與 SSH 設定。
 
 新功能已加入目前 `main` 原始碼，尚未包含在 v1.5.2 下載版；新版發行前可依下方步驟自行編譯。
