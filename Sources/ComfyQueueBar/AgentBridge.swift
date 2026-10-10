@@ -42,6 +42,36 @@ struct AgentCommand: Codable {
 }
 
 final class AgentBridge {
+    static let maxSubscriptionCount = 1000
+    static let maxActiveSubscriptionCount = 100
+    /// Completed/cancelled subscriptions remain durable until their events have
+    /// been acknowledged and this retention period has elapsed.
+    static let subscriptionRetention: TimeInterval = 30 * 24 * 60 * 60
+    /// The adapter considers the app unavailable after 15 seconds. Keep a
+    /// safety margin while avoiding a disk write on every one-second UI tick.
+    static let snapshotHeartbeatInterval: TimeInterval = 10
+
+    private struct SnapshotState: Equatable {
+        let enabled: Bool
+        let lastQueueUpdate: Double?
+        let endpoint: String
+        let connected: Bool
+        let historyAvailable: Bool
+        let running: [String]
+        let pending: [String]
+    }
+
+    private struct Snapshot: Encodable {
+        let enabled: Bool
+        let heartbeat_at: Double
+        let last_queue_update: Double?
+        let endpoint: String
+        let connected: Bool
+        let history_available: Bool
+        let running: [String]
+        let pending: [String]
+    }
+
     static var defaultRoot: URL {
         if let path = ProcessInfo.processInfo.environment["COMFYQUEUEBAR_AGENT_DIR"] {
             return URL(fileURLWithPath: path, isDirectory: true)
@@ -54,11 +84,13 @@ final class AgentBridge {
     private var historyCursor = 0
     private let fm = FileManager.default
     private let encoder = JSONEncoder()
+    private var lastSnapshotState: SnapshotState?
+    private var lastSnapshotWrite: Date?
 
     init(root: URL = AgentBridge.defaultRoot) throws {
         self.root = root
         encoder.outputFormatting = [.sortedKeys]
-        for directory in [root, root.appendingPathComponent("commands"), root.appendingPathComponent("responses")] {
+        for directory in [root, root.appendingPathComponent("commands"), root.appendingPathComponent("responses"), root.appendingPathComponent("rejected")] {
             try fm.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
             try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
         }
@@ -82,14 +114,48 @@ final class AgentBridge {
         }
     }
 
+    /// Quarantine malformed regular command files so they are visible for
+    /// diagnosis without allowing them to starve valid requests. Symlinks are
+    /// unlinked instead of moved, so the bridge never follows or preserves a
+    /// link supplied to the IPC directory.
+    private func quarantineCommand(_ file: URL, reason: String) {
+        guard let values = try? file.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey]) else { return }
+        if values.isSymbolicLink == true {
+            try? fm.removeItem(at: file)
+            return
+        }
+        guard values.isRegularFile == true else { return }
+        let safeReason = reason.replacingOccurrences(of: "[^A-Za-z0-9-]", with: "-", options: .regularExpression)
+        let destination = root.appendingPathComponent("rejected", isDirectory: true)
+            .appendingPathComponent("\(safeReason)-\(UUID().uuidString).json")
+        do { try fm.moveItem(at: file, to: destination) }
+        catch { try? fm.removeItem(at: file) }
+    }
+
     func processCommands(endpoint: String) throws {
         let directory = root.appendingPathComponent("commands")
-        let files = try fm.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey])
-            .filter { $0.pathExtension == "json" }.sorted { $0.lastPathComponent < $1.lastPathComponent }.prefix(32)
-        for file in files {
-            guard validID(file.deletingPathExtension().lastPathComponent) else { continue }
-            let values = try file.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey])
-            guard values.isRegularFile == true, values.isSymbolicLink != true, (values.fileSize ?? 0) <= 65536 else { continue }
+        let listed = try fm.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey])
+            .filter { $0.pathExtension == "json" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+        var files: [URL] = []
+        for file in listed {
+            let requestID = file.deletingPathExtension().lastPathComponent
+            guard let values = try? file.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey]) else { continue }
+            guard values.isSymbolicLink != true else {
+                quarantineCommand(file, reason: "symlink")
+                continue
+            }
+            guard values.isRegularFile == true else { continue }
+            guard (values.fileSize ?? 0) <= 65536 else {
+                quarantineCommand(file, reason: "oversized")
+                continue
+            }
+            guard validID(requestID) else {
+                quarantineCommand(file, reason: "invalid-request-id")
+                continue
+            }
+            files.append(file)
+        }
+        for file in files.prefix(32) {
             let requestID = file.deletingPathExtension().lastPathComponent
             let responsePath = "responses/\(requestID).json"
             if fm.fileExists(atPath: root.appendingPathComponent(responsePath).path) {
@@ -130,8 +196,9 @@ final class AgentBridge {
                 guard existing.endpoint == endpoint, existing.prompt_ids == ids, !existing.cancelled else { throw BridgeError.conflictingSubscription }
                 return // Idempotent recovery if a response was lost.
             }
-            guard subscriptions.count < 1000,
-                  subscriptions.values.filter({ !$0.cancelled && !$0.finished }).count < 100 else { throw BridgeError.capacityReached }
+            pruneSubscriptions(now: Date().timeIntervalSince1970)
+            guard subscriptions.count < Self.maxSubscriptionCount,
+                  subscriptions.values.filter({ !$0.cancelled && !$0.finished }).count < Self.maxActiveSubscriptionCount else { throw BridgeError.capacityReached }
             subscriptions[command.subscription_id] = AgentSubscription(subscription_id: command.subscription_id,
                 endpoint: endpoint, prompt_ids: ids, label: command.label ?? "", created_at: Date().timeIntervalSince1970)
         case "unsubscribe":
@@ -145,6 +212,22 @@ final class AgentBridge {
             subscriptions[command.subscription_id] = subscription
         default: throw BridgeError.invalidCommand
         }
+    }
+
+    @discardableResult
+    private func pruneSubscriptions(now: TimeInterval) -> Bool {
+        let removable = subscriptions.values.filter { subscription in
+            guard (subscription.cancelled || subscription.finished),
+                  now - subscription.created_at >= Self.subscriptionRetention else { return false }
+            let eventIDs = Set(subscription.events.map(\.id))
+            return eventIDs.isSubset(of: Set(subscription.acknowledged))
+        }.sorted {
+            if $0.created_at != $1.created_at { return $0.created_at < $1.created_at }
+            return $0.subscription_id < $1.subscription_id
+        }
+        guard !removable.isEmpty else { return false }
+        for subscription in removable { subscriptions.removeValue(forKey: subscription.subscription_id) }
+        return true
     }
 
     private func addEvent(_ kind: String, prompt: String? = nil, to subscription: inout AgentSubscription) {
@@ -180,6 +263,7 @@ final class AgentBridge {
     func tick(endpoint: String, connected: Bool, historyAvailable: Bool, lastUpdated: Date?, running: [String], pending: [String]) throws {
         try processCommands(endpoint: endpoint)
         let previous = subscriptions
+        _ = pruneSubscriptions(now: Date().timeIntervalSince1970)
         for id in Array(subscriptions.keys) {
             guard var subscription = subscriptions[id], !subscription.cancelled, !subscription.finished else { continue }
             let status = subscription.endpoint != endpoint ? "paused_server_changed" : !connected ? "disconnected" : !historyAvailable ? "history_unavailable" : "monitoring"
@@ -195,19 +279,17 @@ final class AgentBridge {
             subscriptions[id] = subscription
         }
         do { if subscriptions != previous { try persist() } } catch { subscriptions = previous; throw error }
-        struct Snapshot: Encodable {
-            let enabled: Bool
-            let heartbeat_at: Double
-            let last_queue_update: Double?
-            let endpoint: String
-            let connected: Bool
-            let history_available: Bool
-            let running: [String]
-            let pending: [String]
+        let now = Date()
+        let state = SnapshotState(enabled: true, lastQueueUpdate: lastUpdated?.timeIntervalSince1970,
+            endpoint: endpoint, connected: connected, historyAvailable: historyAvailable,
+            running: running, pending: pending)
+        if lastSnapshotState != state || lastSnapshotWrite.map({ now.timeIntervalSince($0) >= Self.snapshotHeartbeatInterval }) ?? true {
+            try write(Snapshot(enabled: true, heartbeat_at: now.timeIntervalSince1970,
+                last_queue_update: state.lastQueueUpdate, endpoint: endpoint, connected: connected,
+                history_available: historyAvailable, running: running, pending: pending), to: "snapshot.json")
+            lastSnapshotState = state
+            lastSnapshotWrite = now
         }
-        try write(Snapshot(enabled: true, heartbeat_at: Date().timeIntervalSince1970,
-            last_queue_update: lastUpdated?.timeIntervalSince1970, endpoint: endpoint, connected: connected,
-            history_available: historyAvailable, running: running, pending: pending), to: "snapshot.json")
     }
 
     func historyCandidates(endpoint: String, queued: Set<String>, limit: Int = 8) -> [String] {
@@ -223,6 +305,8 @@ final class AgentBridge {
     func stop() {
         struct Disabled: Encodable { let enabled = false; let heartbeat_at = Date().timeIntervalSince1970 }
         try? write(Disabled(), to: "snapshot.json")
+        lastSnapshotState = nil
+        lastSnapshotWrite = Date()
     }
     enum BridgeError: Error { case invalidCommand, unknownSubscription, conflictingSubscription, capacityReached }
 }

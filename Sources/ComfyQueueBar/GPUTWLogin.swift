@@ -13,9 +13,17 @@ final class GPUTWLoginWindow: NSObject, ObservableObject, NSWindowDelegate, WKNa
     private var onConnect: ((String) -> Void)?
 
     func open(address: String, onConnect: @escaping (String) -> Void) {
-        if let window { window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); return }
         self.onConnect = onConnect
         service = nil; message = nil
+        let origin = URL(string: address).flatMap { GPUTWAddress.serviceOrigin($0) }
+        // Reuse the sign-in window when checking a paired port; the address the
+        // user asked to inspect must replace whichever service was open before.
+        if let window {
+            webView?.load(URLRequest(url: origin ?? GPUTWAddress.dashboard))
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
@@ -31,7 +39,6 @@ final class GPUTWLoginWindow: NSObject, ObservableObject, NSWindowDelegate, WKNa
         window.delegate = self
         window.contentViewController = NSHostingController(rootView: GPUTWLoginView(controller: self, browser: browser))
         self.window = window
-        let origin = URL(string: address).flatMap { GPUTWAddress.serviceOrigin($0) }
         // Do not replay a pasted one-time handoff token; the dashboard issues a new one.
         browser.load(URLRequest(url: origin ?? GPUTWAddress.dashboard))
         window.center()
@@ -66,7 +73,7 @@ final class GPUTWLoginWindow: NSObject, ObservableObject, NSWindowDelegate, WKNa
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
-                 decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+                 decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
         let url = navigationAction.request.url
         // HTTPS identity-provider redirects are allowed in the visible login browser.
         // Native monitoring requests use a separate session that refuses redirects.

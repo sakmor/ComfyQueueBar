@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.4 — 2026-10-10
+
+- When an 8080/8090 GPUtw queue is empty, automatically check the paired port with a 30-second throttle and show any running or waiting work, without switching the monitored server.
+- Distinguish a missing HTTP port (404), a required owner sign-in, and a temporary connection failure; point private-port sign-in to the dashboard's Other ports handoff.
+- Keep manual connection review as the explicit step before changing the monitored port.
+- Keep retrying an unavailable or expired monitored connection every four seconds, including while the menu or popover is being used.
+- Clear stale address-validation warnings after a new connection is reviewed or successfully monitored, and keep connection feedback separate from queue-action results.
+- Keep primary queue polling independent from slower progress, history, and Agent enrichment requests, and reject stale progress responses after the running job changes.
+- Canonicalize saved server addresses so query strings, fragments, and equivalent trailing-slash variants cannot create duplicate profiles or retain handoff secrets.
+- Harden Agent integration against malformed command starvation and unbounded completed-subscription retention, while reducing unchanged snapshot writes to a ten-second heartbeat.
+
 ## 1.5.3 — 2026-10-06
 
 - Add GPUtw browser sign-in for private and password-protected ComfyUI services, with scoped authenticated queue/history/progress requests, media previews, and downloads.

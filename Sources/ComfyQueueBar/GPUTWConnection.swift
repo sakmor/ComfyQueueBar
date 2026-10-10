@@ -27,6 +27,23 @@ enum GPUTWAddress {
         return URL(string: "https://" + host)
     }
 
+    /// GPUtw commonly exposes the same ComfyUI pod on 8080 and 8090. When an
+    /// inspected queue is empty, this gives the review flow a safe, same-pod
+    /// alternative to check without silently changing the selected server.
+    static func pairedServiceOrigin(_ url: URL) -> URL? {
+        guard let origin = serviceOrigin(url), let host = origin.host else { return nil }
+        let label = String(host.dropLast(".gputw.ai".count))
+        let components = label.split(separator: "-", maxSplits: 1)
+        guard components.count == 2, let port = Int(components[0]) else { return nil }
+        let pairedPort: Int
+        switch port {
+        case 8080: pairedPort = 8090
+        case 8090: pairedPort = 8080
+        default: return nil
+        }
+        return URL(string: "https://\(pairedPort)-\(components[1]).gputw.ai")
+    }
+
     static func isDashboard(_ url: URL) -> Bool {
         url.scheme?.lowercased() == "https" && url.host?.lowercased() == "gputw.ai"
             && url.user == nil && url.password == nil && (url.port == nil || url.port == 443)

@@ -107,6 +107,7 @@ final class ServerFixture {
 struct NetworkChecks {
     @MainActor static func main() async {
         let now = Date()
+        precondition(QueueViewModel.connectionRetryInterval == 4)
         precondition(MonitoringState.resolve(connected: false, loading: true, needsSignIn: false, lastUpdated: nil, hasError: false, now: now) == .checking)
         precondition(MonitoringState.resolve(connected: false, loading: true, needsSignIn: false, lastUpdated: nil, hasError: true, now: now) == .disconnected)
         precondition(MonitoringState.resolve(connected: true, loading: true, needsSignIn: false, lastUpdated: now.addingTimeInterval(-29), hasError: false, now: now) == .connected)
@@ -116,7 +117,13 @@ struct NetworkChecks {
         precondition(ConnectionAddress.port("https://8090-test-instance.gputw.ai") == "8090")
         precondition(ConnectionAddress.port("http://fixture.invalid:8188/base") == "8188")
         precondition(try! ConnectionAddress.normalize(" https://8090-test-instance.gputw.ai/path?token=secret#fragment ") == "https://8090-test-instance.gputw.ai")
-        print("PASS: checking, fresh, stale and sign-in states; service-port labels and safe review addresses")
+        precondition(GPUTWAddress.pairedServiceOrigin(URL(string: "https://8080-test-instance.gputw.ai/path")!)?.absoluteString == "https://8090-test-instance.gputw.ai")
+        precondition(GPUTWAddress.pairedServiceOrigin(URL(string: "https://8090-test-instance.gputw.ai")!)?.absoluteString == "https://8080-test-instance.gputw.ai")
+        precondition(GPUTWAddress.pairedServiceOrigin(URL(string: "https://8188-test-instance.gputw.ai")!) == nil)
+        precondition(PairedPortIssue.classify(QueueError.serverStatus(404, nil)) == .portNotEnabled)
+        precondition(PairedPortIssue.classify(QueueError.serverStatus(401, nil)) == .signInRequired)
+        precondition(PairedPortIssue.classify(URLError(.cannotConnectToHost)) == .unavailable)
+        print("PASS: four-second connection retries; checking, fresh, stale and sign-in states; service-port labels and safe review addresses")
         validationDefaults.set("http://fixture.invalid/base", forKey: "comfyEndpoint")
         defer { validationDefaults.removePersistentDomain(forName: validationSuite) }
         URLProtocol.registerClass(FixtureProtocol.self)
@@ -127,6 +134,10 @@ struct NetworkChecks {
         // Let the production initializer's first refresh finish before assertions/actions.
         for _ in 0..<200 {
             if model.lastUpdated != nil && !model.isLoading { break }
+            try! await Task.sleep(nanoseconds: 10_000_000)
+        }
+        for _ in 0..<200 {
+            if model.progressBridgeStatus == .available || model.progressBridgeStatus == .missing { break }
             try! await Task.sleep(nanoseconds: 10_000_000)
         }
         precondition(model.isConnected && !model.isLoading)
@@ -146,6 +157,10 @@ struct NetworkChecks {
         server.progressID = "running-original"
         server.historyStatus = 500
         await model.refresh(forceHistory: true)
+        for _ in 0..<200 {
+            if model.historyUnavailable && model.progressBridgeStatus == .available { break }
+            try! await Task.sleep(nanoseconds: 10_000_000)
+        }
         precondition(model.historyUnavailable && model.isConnected && model.progressBridgeStatus == .available)
         print("PASS: mismatched/missing progress, bridge retry and independent history failure")
 
@@ -267,10 +282,28 @@ struct NetworkChecks {
         print("PASS: read-only candidate review, latest three successes, interruption, unavailable history, cancellation and authentication failure")
         await model.connect(to: "file:///invalid")
         precondition(!model.isConnected && model.errorMessage != nil)
+        let previousActionMessage = model.actionMessage
+        let previousActionIsError = model.actionIsError
+        precondition(!model.saveProfile(name: "Invalid", address: "192.168.1.140"))
+        precondition(model.connectionMessage != nil && model.connectionMessageIsError)
+        precondition(model.actionMessage == previousActionMessage && model.actionIsError == previousActionIsError,
+            "Address validation must not leak into queue-action feedback")
+        precondition(model.saveProfile(name: "Generic fixture", address: "http://fixture.invalid/base?token=do-not-save#fragment"))
+        precondition(model.profiles.filter { $0.endpoint == "http://fixture.invalid/base" }.count == 1,
+            "generic profile addresses use one canonical origin/path")
+        precondition(model.saveProfile(name: "Generic renamed", address: "http://fixture.invalid/base///?another=secret"))
+        precondition(model.profiles.filter { $0.endpoint == "http://fixture.invalid/base" }.count == 1
+            && model.profiles.first(where: { $0.endpoint == "http://fixture.invalid/base" })?.name == "Generic renamed",
+            "canonical profile matching updates an existing entry")
         precondition(model.saveProfile(name: "GPUtw fixture", address: "https://8080-test-instance.gputw.ai/handoff?token=do-not-save#secret"))
+        precondition(model.connectionMessage == L10n.text("Address saved") && !model.connectionMessageIsError)
         precondition(model.profiles.last?.endpoint == "https://8080-test-instance.gputw.ai")
         let saved = String(data: validationDefaults.data(forKey: "serverProfiles")!, encoding: .utf8)!
         precondition(!saved.contains("do-not-save") && !saved.contains("secret"))
+        server.queueStatus = 200
+        await model.connect(to: originalEndpoint)
+        precondition(model.isConnected && model.connectionMessage == nil && !model.connectionMessageIsError,
+            "A confirmed connection must clear stale address feedback")
         print("PASS: unrelated JSON rejected and GPUtw handoff credentials excluded from saved profiles")
         print("PASS: connected idle, HTTP disconnection and invalid endpoint states")
         print("Network/action regression checks passed (intercepted HTTP; no live generation).")

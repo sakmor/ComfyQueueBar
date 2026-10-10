@@ -25,10 +25,11 @@ Different ports on one GPU instance can run independent ComfyUI processes. For e
 
 1. Compare that port with the port in ComfyQueueBar.
 2. Use **Review this connection**, or select the intended saved server, to inspect recent work before switching.
-3. Match the workflow title and completion time to your own job. An empty queue with unrelated history can indicate the wrong service; missing history is not proof of completion.
-4. If the correct service's queue is empty, check **Recently completed** and **Failures & interruptions**. A job may have finished between refreshes.
+3. When an inspected GPUtw queue on port `8080` or `8090` is empty, ComfyQueueBar checks the paired port on the same instance. If it finds queued work, the review shows its counts and offers **Review Port**. If the paired service needs its own sign-in, **Open Port** opens it in the GPUtw browser. The app changes servers only after you confirm.
+4. Match the workflow title and completion time to your own job. An empty queue with unrelated history can indicate the wrong service; missing history is not proof of completion.
+5. If the correct service's queue is empty, check **Recently completed** and **Failures & interruptions**. A job may have finished between refreshes.
 
-GPU utilization and allocated VRAM are not ComfyUI job counts. This app does not currently read GPU utilization, automatically discover every port, or aggregate multiple services. It checks the selected queue every four seconds. Do not resubmit a job solely because this app shows 0.
+GPU utilization and allocated VRAM are not ComfyUI job counts. This app does not currently read GPU utilization, discover every possible port, or aggregate multiple services; it checks only the selected queue every four seconds and checks the paired `8080`/`8090` port during a manual review of an empty GPUtw queue. Do not resubmit a job solely because this app shows 0.
 
 ### Read the menu-bar status
 

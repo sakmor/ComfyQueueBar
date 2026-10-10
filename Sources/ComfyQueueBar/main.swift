@@ -72,6 +72,24 @@ enum L10n {
         "Checked %@": ["確認時間 %@", "检查时间 %@", "確認時刻 %@"],
         "Counts show ComfyUI jobs, not GPU utilization.": ["數字代表 ComfyUI 工作數；GPU 使用率是另一項指標。", "数字代表 ComfyUI 任务数；GPU 使用率是另一项指标。", "数値は ComfyUI のジョブ数です。GPU 使用率とは別の指標です。"],
         "This queue is empty. If you expect a running job, check the port and recent work below.": ["此佇列目前沒有工作。如果你正在生成，請確認連接埠與下方近期紀錄。", "此队列当前没有任务。如果你正在生成，请检查端口与下方近期记录。", "このキューは空です。生成中のはずなら、ポートと下の最近の履歴を確認してください。"],
+        "Found work on Port %@.": ["在連接埠 %@ 找到工作。", "在端口 %@ 找到任务。", "ポート %@ にジョブがあります。"],
+        "No queued work on Port %@.": ["連接埠 %@ 目前也沒有排隊工作。", "端口 %@ 目前也没有排队任务。", "ポート %@ にもキュー内のジョブはありません。"],
+        "Checking Port %@…": ["正在檢查連接埠 %@…", "正在检查端口 %@…", "ポート %@ を確認中…"],
+        "GPUtw returned 404 on port %@. Enable it as an HTTP port in Network Ports, then open it from the dashboard's Other ports menu.": ["GPUtw 在連接埠 %@ 回傳 404。請先在 Network Ports 啟用 HTTP 連接埠，再從控制台的 Other ports 開啟一次。", "GPUtw 在端口 %@ 返回 404。请先在 Network Ports 启用 HTTP 端口，再从控制台的 Other ports 打开一次。", "ポート %@ で GPUtw が 404 を返しました。Network Ports で HTTP ポートを有効にし、ダッシュボードの Other ports から一度開いてください。"],
+        "Port %@ needs an owner session. Open it from the GPUtw dashboard's Other ports menu.": ["連接埠 %@ 需要擁有者工作階段。請從 GPUtw 控制台的 Other ports 開啟。", "端口 %@ 需要所有者会话。请从 GPUtw 控制台的 Other ports 打开。", "ポート %@ には所有者セッションが必要です。GPUtw ダッシュボードの Other ports から開いてください。"],
+        "Could not check GPUtw port %@. Check your connection and retry.": ["目前無法檢查 GPUtw 連接埠 %@。請確認連線後重試。", "目前无法检查 GPUtw 端口 %@。请检查连接后重试。", "GPUtw ポート %@ を確認できません。接続を確認して再試行してください。"],
+        "Checking paired GPUtw port %@…": ["正在檢查配對的 GPUtw 連接埠 %@…", "正在检查配对的 GPUtw 端口 %@…", "GPUtw の対応ポート %@ を確認中…"],
+        "Paired port %@ is also empty.": ["配對的連接埠 %@ 也沒有工作。", "配对的端口 %@ 也没有任务。", "対応ポート %@ にもジョブはありません。"],
+        "Found work on paired port %@.": ["在配對的連接埠 %@ 找到工作。", "在配对的端口 %@ 找到任务。", "対応ポート %@ にジョブがあります。"],
+        "GPUtw port %@ returned 404. Enable it as an HTTP port in Network Ports; private ports need one dashboard handoff from Other ports.": ["GPUtw 連接埠 %@ 回傳 404。請在 Network Ports 啟用 HTTP 連接埠；私人連接埠還需從控制台 Other ports 開啟一次。", "GPUtw 端口 %@ 返回 404。请在 Network Ports 启用 HTTP 端口；私有端口还需要从控制台 Other ports 打开一次。", "GPUtw ポート %@ が 404 を返しました。Network Ports で HTTP ポートを有効にし、非公開ポートは Other ports から一度開いてください。"],
+        "GPUtw port %@ needs an owner session. Open it from the dashboard's Other ports menu.": ["GPUtw 連接埠 %@ 需要擁有者工作階段。請從控制台的 Other ports 開啟一次。", "GPUtw 端口 %@ 需要所有者会话。请从控制台的 Other ports 打开一次。", "GPUtw ポート %@ には所有者セッションが必要です。ダッシュボードの Other ports から一度開いてください。"],
+        "Could not check paired GPUtw port %@. Check your connection and retry.": ["目前無法檢查配對的 GPUtw 連接埠 %@。請確認連線後重試。", "目前无法检查配对的 GPUtw 端口 %@。请检查连接后重试。", "GPUtw の対応ポート %@ を確認できません。接続を確認して再試行してください。"],
+        "Open GPUtw dashboard": ["開啟 GPUtw 控制台", "打开 GPUtw 控制台", "GPUtw ダッシュボードを開く"],
+        "Retry paired port check": ["重新檢查配對連接埠", "重新检查配对端口", "対応ポートを再確認"],
+        "Port %@ could not be checked. Open it to sign in or review the service.": ["無法檢查連接埠 %@。請開啟該服務登入或查看狀態。", "无法检查端口 %@。请打开该服务登录或查看状态。", "ポート %@ を確認できません。開いてログインするか、状態を確認してください。"],
+        "Running %@ · Waiting %@": ["執行中 %@ · 等待中 %@", "运行中 %@ · 等待中 %@", "実行中 %@・待機中 %@"],
+        "Review Port %@": ["查看連接埠 %@", "查看端口 %@", "ポート %@ を確認"],
+        "Open Port %@": ["開啟連接埠 %@", "打开端口 %@", "ポート %@ を開く"],
         "Recent successful jobs": ["近期成功工作", "近期成功任务", "最近成功したジョブ"],
         "History could not be read. Recent work is unknown.": ["無法讀取歷史，尚無法確認近期工作。", "无法读取历史，尚无法确认近期任务。", "履歴を読み込めないため、最近のジョブは不明です。"],
         "No successful jobs in the latest 20 history records.": ["最新 20 筆歷史中沒有成功工作。", "最新 20 条历史中没有成功任务。", "最新20件の履歴に成功したジョブはありません。"],
@@ -250,11 +268,22 @@ enum L10n {
     ]
 }
 
+enum PairedQueueStatus: Equatable {
+    case checking
+    case empty
+    case work(running: Int, waiting: Int, title: String?)
+    case issue(PairedPortIssue)
+}
+
 @MainActor
 final class QueueViewModel: ObservableObject {
+    static let connectionRetryInterval: TimeInterval = 4
+
     @Published var endpoint: String
     @Published private(set) var running: [QueueJob] = []
     @Published private(set) var pending: [QueueJob] = []
+    @Published private(set) var pairedPortEndpoint: String?
+    @Published private(set) var pairedQueueStatus: PairedQueueStatus?
     @Published private(set) var isConnected = false
     @Published private(set) var isLoading = false
     @Published private(set) var monitoringState: MonitoringState = .checking
@@ -264,6 +293,8 @@ final class QueueViewModel: ObservableObject {
     @Published private(set) var queueProgress: QueueProgress?
     @Published private(set) var progressBridgeStatus: ProgressBridgeStatus = .checking
     @Published private(set) var errorMessage: String?
+    @Published private(set) var connectionMessage: String?
+    @Published private(set) var connectionMessageIsError = false
     @Published private(set) var actionMessage: String?
     @Published private(set) var actionIsError = false
     @Published private(set) var lastUpdated: Date?
@@ -298,10 +329,16 @@ final class QueueViewModel: ObservableObject {
     private var notificationTracker = NotificationTracker()
     private var connectionGeneration = UUID()
     private var lastHistoryPoll: Date?
+    private var lastPairedPortCheck: Date?
+    private var pairedPortCheckTask: Task<Void, Never>?
+    private var pairedPortCheckToken = UUID()
 
     private var refreshTimer: Timer?
     private var progressTimer: Timer?
     private var isProgressLoading = false
+    private var secondaryRefreshTask: Task<Void, Never>?
+    private var secondaryRefreshForceHistory = false
+    private var secondaryRefreshToken = UUID()
 
     var totalJobs: Int { running.count + pending.count }
     var hasFreshQueue: Bool { monitoringState == .connected }
@@ -338,17 +375,23 @@ final class QueueViewModel: ObservableObject {
         if let data = UserDefaults.standard.data(forKey: "serverProfiles"), let saved = try? JSONDecoder().decode([ServerProfile].self, from: data) { profiles = saved }
         notificationMode = UserDefaults.standard.string(forKey: "notificationMode") ?? "off"
         notifyProblems = UserDefaults.standard.bool(forKey: "notifyProblems")
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
+        let refreshTimer = Timer(timeInterval: Self.connectionRetryInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.refresh() }
         }
-        progressTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+        RunLoop.main.add(refreshTimer, forMode: .common)
+        self.refreshTimer = refreshTimer
+        let progressTimer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.refreshProgress() }
         }
+        RunLoop.main.add(progressTimer, forMode: .common)
+        self.progressTimer = progressTimer
         agentIntegrationEnabled = UserDefaults.standard.bool(forKey: "agentIntegrationEnabled")
         configureAgentBridge()
-        agentTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+        let agentTimer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.updateMonitoringState(); self?.tickAgentBridge() }
         }
+        RunLoop.main.add(agentTimer, forMode: .common)
+        self.agentTimer = agentTimer
         Task { await refresh() }
         #endif
     }
@@ -427,17 +470,33 @@ final class QueueViewModel: ObservableObject {
 
     func reviewConnection(to address: String, profileName: String? = nil, fromGPUTW: Bool = false) {
         guard canChangeServer, !isClearingGPUTW else { return }
+        clearConnectionFeedback()
         let value = address.trimmingCharacters(in: .whitespacesAndNewlines)
         if let url = URL(string: value), GPUTWAddress.isDashboard(url) { signInToGPUTW(address: value); return }
         do {
             let address = try ConnectionAddress.normalize(value)
             ConnectionReviewWindow.shared.open(address: address) { [weak self] selected in
                 guard let self, self.canChangeServer, !self.isClearingGPUTW else { return }
-                if let profileName { self.saveProfile(name: profileName, address: selected) }
+                if fromGPUTW {
+                    let name = self.profiles.first(where: { $0.endpoint == selected })?.name
+                        ?? "GPUtw · " + ConnectionAddress.port(selected)
+                    self.saveProfile(name: name, address: selected)
+                } else if let profileName {
+                    self.saveProfile(name: profileName, address: selected)
+                }
                 if fromGPUTW { GPUTWLoginWindow.shared.close() }
                 Task { await self.connect(to: selected) }
+            } onOpenAlternative: { [weak self] alternative in
+                guard let self, self.canChangeServer, !self.isClearingGPUTW else { return }
+                GPUTWLoginWindow.shared.open(address: alternative) { [weak self] service in
+                    guard let self, self.canChangeServer, !self.isClearingGPUTW else { return }
+                    self.reviewConnection(to: service, fromGPUTW: true)
+                }
             }
-        } catch { actionMessage = error.localizedDescription; actionIsError = true }
+        } catch {
+            connectionMessage = error.localizedDescription
+            connectionMessageIsError = true
+        }
     }
 
     func clearGPUTWLogin() async {
@@ -455,20 +514,25 @@ final class QueueViewModel: ObservableObject {
         }
         // This is this app's WebKit store, never Safari/Chrome's browsing data.
         await WKWebsiteDataStore.default().removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
-        actionMessage = L10n.text("GPUtw sign-in cleared.")
-        actionIsError = false
+        connectionMessage = L10n.text("GPUtw sign-in cleared.")
+        connectionMessageIsError = false
     }
 
     @discardableResult
     func saveProfile(name: String, address: String) -> Bool {
-        var address = address.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        if let url = URL(string: address) {
-            if GPUTWAddress.isDashboard(url) { signInToGPUTW(address: address); return false }
-            if let origin = GPUTWAddress.serviceOrigin(url) { address = origin.absoluteString }
+        let value = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let url = URL(string: value), GPUTWAddress.isDashboard(url) {
+            signInToGPUTW(address: value)
+            return false
         }
-        guard let url = URLComponents(string: address), ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host != nil, url.user == nil, url.password == nil else {
-            actionMessage = L10n.text("Enter a valid http:// or https:// address."); actionIsError = true; return false
+        let address: String
+        do { address = try ConnectionAddress.normalize(value) }
+        catch {
+            connectionMessage = L10n.text("Enter a valid http:// or https:// address.")
+            connectionMessageIsError = true
+            return false
         }
+        guard let url = URLComponents(string: address) else { return false }
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let label = name.isEmpty ? (url.host ?? address) : name
         if let index = profiles.firstIndex(where: { $0.endpoint == address }) {
@@ -476,8 +540,8 @@ final class QueueViewModel: ObservableObject {
         }
         else { profiles.append(ServerProfile(name: label, endpoint: address)) }
         persistProfiles()
-        actionMessage = L10n.text("Address saved")
-        actionIsError = false
+        connectionMessage = L10n.text("Address saved")
+        connectionMessageIsError = false
         return true
     }
     func deleteProfile(_ id: UUID) { profiles.removeAll { $0.id == id }; persistProfiles() }
@@ -573,6 +637,9 @@ final class QueueViewModel: ObservableObject {
 
     func connect(to value: String) async {
         guard canChangeServer else { return }
+        clearConnectionFeedback()
+        actionMessage = nil
+        actionIsError = false
         var cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         if let url = URL(string: cleaned) {
             if GPUTWAddress.isDashboard(url) { signInToGPUTW(address: cleaned); return }
@@ -580,6 +647,11 @@ final class QueueViewModel: ObservableObject {
         }
         if endpoint != cleaned {
             connectionGeneration = UUID()
+            secondaryRefreshTask?.cancel()
+            secondaryRefreshTask = nil
+            secondaryRefreshForceHistory = false
+            secondaryRefreshToken = UUID()
+            clearPairedPortCheck(resetThrottle: true)
             completed = []; failures = []; running = []; pending = []; observedStarts = [:]
             notificationTracker = NotificationTracker()
             isConnected = false
@@ -593,6 +665,11 @@ final class QueueViewModel: ObservableObject {
         endpoint = cleaned
         UserDefaults.standard.set(cleaned, forKey: "comfyEndpoint")
         await refresh(forceHistory: true)
+    }
+
+    private func clearConnectionFeedback() {
+        connectionMessage = nil
+        connectionMessageIsError = false
     }
 
     func refresh(forceHistory: Bool = false) async {
@@ -615,17 +692,109 @@ final class QueueViewModel: ObservableObject {
             errorMessage = nil
             lastUpdated = Date()
             updateMonitoringState()
-            await refreshProgress(forceBridgeCheck: true)
-            guard generation == connectionGeneration else { return }
-            await refreshHistory(force: forceHistory)
+            schedulePairedPortCheck(generation: generation)
+            // Queue state is the primary monitor. Progress and history are
+            // enrichment and must not hold isLoading across their network
+            // requests; otherwise a slow history endpoint blocks the next
+            // four-second queue retry.
+            scheduleSecondaryRefresh(generation: generation, forceHistory: forceHistory)
         } catch {
             guard generation == connectionGeneration else { return }
+            clearPairedPortCheck(resetThrottle: true)
             setDisconnected(error.localizedDescription, requiresSignIn: MonitoringState.requiresSignIn(error))
             if WakeOnLAN.isOfflineError(error),
                let profile = profiles.first(where: { $0.endpoint == endpoint }) {
                 wakeServer(profile.id, automatically: true)
             }
         }
+    }
+
+    private func scheduleSecondaryRefresh(generation: UUID, forceHistory: Bool) {
+        guard generation == connectionGeneration else { return }
+        secondaryRefreshForceHistory = secondaryRefreshForceHistory || forceHistory
+        guard secondaryRefreshTask == nil else { return }
+
+        let token = UUID()
+        secondaryRefreshToken = token
+        let requestedForceHistory = secondaryRefreshForceHistory
+        secondaryRefreshForceHistory = false
+        secondaryRefreshTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                if self.secondaryRefreshToken == token {
+                    self.secondaryRefreshTask = nil
+                    if self.secondaryRefreshForceHistory {
+                        self.scheduleSecondaryRefresh(generation: self.connectionGeneration, forceHistory: true)
+                    }
+                }
+            }
+            await self.refreshProgress(forceBridgeCheck: true)
+            guard !Task.isCancelled, self.connectionGeneration == generation else { return }
+            await self.refreshHistory(force: requestedForceHistory)
+        }
+    }
+
+    private func schedulePairedPortCheck(generation: UUID) {
+        guard isConnected, let url = URL(string: endpoint),
+              let paired = GPUTWAddress.pairedServiceOrigin(url) else {
+            clearPairedPortCheck(resetThrottle: true)
+            return
+        }
+        guard running.isEmpty, pending.isEmpty else {
+            clearPairedPortCheck(resetThrottle: true)
+            return
+        }
+        let source = endpoint
+        let pairedAddress = paired.absoluteString
+        if pairedPortEndpoint != pairedAddress {
+            clearPairedPortCheck(resetThrottle: true)
+            pairedPortEndpoint = pairedAddress
+        }
+        guard pairedPortCheckTask == nil else { return }
+        if let lastPairedPortCheck, Date().timeIntervalSince(lastPairedPortCheck) < 30 { return }
+
+        lastPairedPortCheck = Date()
+        pairedQueueStatus = .checking
+        let token = UUID()
+        pairedPortCheckToken = token
+        pairedPortCheckTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                if self.pairedPortCheckToken == token { self.pairedPortCheckTask = nil }
+            }
+            do {
+                let inspection = try await ConnectionInspector.inspectQueue(pairedAddress, timeout: 4)
+                guard !Task.isCancelled, self.pairedPortCheckToken == token,
+                      self.connectionGeneration == generation, self.endpoint == source,
+                      self.isConnected, self.running.isEmpty, self.pending.isEmpty else { return }
+                if inspection.isIdle {
+                    self.pairedQueueStatus = .empty
+                } else {
+                    let firstJob = inspection.running.first ?? inspection.pending.first
+                    self.pairedQueueStatus = .work(running: inspection.running.count,
+                        waiting: inspection.pending.count, title: firstJob?.title)
+                }
+            } catch {
+                guard !Task.isCancelled, self.pairedPortCheckToken == token,
+                      self.connectionGeneration == generation, self.endpoint == source,
+                      self.isConnected, self.running.isEmpty, self.pending.isEmpty else { return }
+                self.pairedQueueStatus = .issue(PairedPortIssue.classify(error))
+            }
+        }
+    }
+
+    private func clearPairedPortCheck(resetThrottle: Bool) {
+        pairedPortCheckToken = UUID()
+        pairedPortCheckTask?.cancel()
+        pairedPortCheckTask = nil
+        pairedPortEndpoint = nil
+        pairedQueueStatus = nil
+        if resetThrottle { lastPairedPortCheck = nil }
+    }
+
+    func retryPairedPortCheck() {
+        lastPairedPortCheck = nil
+        schedulePairedPortCheck(generation: connectionGeneration)
     }
 
     private func refreshHistory(force: Bool) async {
@@ -679,15 +848,18 @@ final class QueueViewModel: ObservableObject {
         do {
             let data = try await requestData(path: "comfyqueuebar/queue-progress")
             let snapshot = try JSONDecoder().decode(QueueProgress.self, from: data)
-            guard generation == connectionGeneration else { return }
+            // The queue can change while this request is in flight. Never let
+            // a response for the previous running prompt overwrite the new
+            // job's progress state.
+            guard generation == connectionGeneration, running.first?.id == job.id else { return }
             progressBridgeStatus = .available
             queueProgress = snapshot.promptID == job.id ? snapshot : nil
         } catch QueueError.serverStatus(let status, _) where status == 404 {
-            guard generation == connectionGeneration else { return }
+            guard generation == connectionGeneration, running.first?.id == job.id else { return }
             progressBridgeStatus = .missing
             queueProgress = nil
         } catch {
-            guard generation == connectionGeneration else { return }
+            guard generation == connectionGeneration, running.first?.id == job.id else { return }
             progressBridgeStatus = .error
             queueProgress = nil
         }
@@ -1463,9 +1635,9 @@ struct QueuePopover: View {
             }.controlSize(.small).disabled(!queue.canChangeServer || queue.isClearingGPUTW)
             Text(L10n.text("For private or password-protected GPUtw ComfyUI instances."))
                 .font(.caption).foregroundStyle(.secondary)
-            if let message = queue.actionMessage {
+            if let message = queue.connectionMessage {
                 Text(message).font(.caption)
-                    .foregroundStyle(queue.actionIsError ? Color.red : Color.secondary)
+                    .foregroundStyle(queue.connectionMessageIsError ? Color.red : Color.secondary)
             }
             if !queue.profiles.isEmpty { serverSettings.padding(.top, 6) }
         }
@@ -1479,9 +1651,13 @@ struct QueuePopover: View {
             } else if queue.running.isEmpty {
                 emptyState(L10n.text("No jobs are running"), symbol: "checkmark.circle")
                 if queue.pending.isEmpty {
-                    Text(L10n.text("Expecting a running job? Check the server port.")).font(.caption).foregroundStyle(.secondary)
-                    Button(L10n.text("Review this connection")) { queue.reviewConnection(to: queue.endpoint) }
-                        .buttonStyle(.link).font(.caption)
+                    if let pairedEndpoint = queue.pairedPortEndpoint {
+                        pairedPortStatus(endpoint: pairedEndpoint)
+                    } else {
+                        Text(L10n.text("Expecting a running job? Check the server port.")).font(.caption).foregroundStyle(.secondary)
+                        Button(L10n.text("Review this connection")) { queue.reviewConnection(to: queue.endpoint) }
+                            .buttonStyle(.link).font(.caption)
+                    }
                 }
             } else {
                 VStack(spacing: 0) {
@@ -1505,6 +1681,62 @@ struct QueuePopover: View {
                 .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5) }
             }
         }
+    }
+
+    @ViewBuilder
+    private func pairedPortStatus(endpoint: String) -> some View {
+        let port = ConnectionAddress.port(endpoint)
+        VStack(alignment: .leading, spacing: 6) {
+            switch queue.pairedQueueStatus {
+            case .checking:
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    Text(L10n.text("Checking paired GPUtw port %@…", port))
+                }.font(.caption).foregroundStyle(.secondary)
+            case .empty:
+                Text(L10n.text("Paired port %@ is also empty.", port))
+                    .font(.caption).foregroundStyle(.secondary)
+            case .work(let running, let waiting, let title):
+                Label(L10n.text("Found work on paired port %@.", port), systemImage: "arrow.left.arrow.right")
+                    .font(.caption.weight(.semibold)).foregroundStyle(.orange)
+                Text(L10n.text("Running %@ · Waiting %@", String(running), String(waiting)))
+                    .font(.caption).foregroundStyle(.secondary)
+                if let title {
+                    Text(title).font(.caption).lineLimit(2).help(title)
+                }
+            case .issue(.portNotEnabled):
+                Text(L10n.text("GPUtw port %@ returned 404. Enable it as an HTTP port in Network Ports; private ports need one dashboard handoff from Other ports.", port))
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Button(L10n.text("Open GPUtw dashboard")) {
+                    queue.signInToGPUTW(address: GPUTWAddress.dashboard.absoluteString)
+                }.buttonStyle(.link).font(.caption)
+            case .issue(.signInRequired):
+                Text(L10n.text("GPUtw port %@ needs an owner session. Open it from the dashboard's Other ports menu.", port))
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Button(L10n.text("Open GPUtw dashboard")) {
+                    queue.signInToGPUTW(address: GPUTWAddress.dashboard.absoluteString)
+                }.buttonStyle(.link).font(.caption)
+            case .issue(.unavailable):
+                Text(L10n.text("Could not check paired GPUtw port %@. Check your connection and retry.", port))
+                    .font(.caption).foregroundStyle(.secondary)
+                Button(L10n.text("Retry paired port check"), action: queue.retryPairedPortCheck)
+                    .buttonStyle(.link).font(.caption)
+            case nil:
+                Text(L10n.text("Expecting a running job? Check the server port."))
+                    .font(.caption).foregroundStyle(.secondary)
+                Button(L10n.text("Review this connection")) { queue.reviewConnection(to: queue.endpoint) }
+                    .buttonStyle(.link).font(.caption)
+            }
+            if case .work = queue.pairedQueueStatus {
+                Button(L10n.text("Review Port %@", port)) { queue.reviewConnection(to: endpoint) }
+                    .buttonStyle(.link).font(.caption)
+            } else if case .empty = queue.pairedQueueStatus {
+                Button(L10n.text("Review this connection")) { queue.reviewConnection(to: queue.endpoint) }
+                    .buttonStyle(.link).font(.caption)
+            }
+        }
+        .padding(10)
+        .background(Color.orange.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private var pendingSection: some View {

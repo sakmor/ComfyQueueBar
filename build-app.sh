@@ -43,8 +43,8 @@ cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleName</key><string>ComfyUI Queue</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.5.3</string>
-  <key>CFBundleVersion</key><string>1.5.3</string>
+  <key>CFBundleShortVersionString</key><string>1.5.4</string>
+  <key>CFBundleVersion</key><string>1.5.4</string>
   <key>SUFeedURL</key><string>https://raw.githubusercontent.com/sakmor/ComfyQueueBar/main/appcast.xml</string>
   <key>SUPublicEDKey</key><string>xIDXTXpij8/7ugU8GpxCgk27FI9+oLthBJ4XEKr4VGs=</string>
   <key>SUEnableAutomaticChecks</key><true/>

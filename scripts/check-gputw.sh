@@ -6,7 +6,7 @@ mkdir -p build/gputw-check
 python3 - <<'PY'
 from pathlib import Path
 s = Path('Sources/ComfyQueueBar/main.swift').read_text()
-helper = s[s.index('enum L10n {'):s.index('@MainActor\nfinal class QueueViewModel')]
+helper = s[s.index('enum L10n {'):s.index('\nenum PairedQueueStatus')]
 Path('build/gputw-check/Localization.swift').write_text('import Foundation\n' + helper)
 PY
 swiftc -parse-as-library build/gputw-check/Localization.swift \
