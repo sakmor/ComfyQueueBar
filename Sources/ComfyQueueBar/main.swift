@@ -421,10 +421,13 @@ final class QueueViewModel: ObservableObject {
         serverMonitor.configure(profiles: profiles)
     }
 
-    func refreshServers() {
+    /// Background servers follow the fleet poll policy; the selected server is
+    /// refreshed only by `refresh()`, which reports into the fleet monitor.
+    func refreshServers(force: Bool = false) {
         #if !DOCUMENTATION_SCREENSHOT
         configureServerMonitor()
-        serverMonitor.refresh()
+        serverMonitor.focus(hasSelectedServer ? endpoint : nil)
+        serverMonitor.refresh(force: force)
         #endif
     }
 
@@ -843,6 +846,7 @@ final class QueueViewModel: ObservableObject {
             errorMessage = nil
             lastUpdated = Date()
             updateMonitoringState()
+            serverMonitor.record(endpoint, running: running, pending: pending, checkedAt: lastUpdated ?? Date())
             schedulePairedPortCheck(generation: generation)
             // Queue state is the primary monitor. Progress and history are
             // enrichment and must not hold isLoading across their network
@@ -853,6 +857,7 @@ final class QueueViewModel: ObservableObject {
             guard generation == connectionGeneration else { return }
             clearPairedPortCheck(resetThrottle: true)
             setDisconnected(error.localizedDescription, requiresSignIn: MonitoringState.requiresSignIn(error))
+            serverMonitor.recordFailure(endpoint, error)
             if WakeOnLAN.isOfflineError(error),
                let profile = profiles.first(where: { $0.endpoint == endpoint }) {
                 wakeServer(profile.id, automatically: true)
@@ -1687,7 +1692,7 @@ struct QueuePopover: View {
                 Text(L10n.text("Render overview")).font(.system(size: 11)).foregroundStyle(.secondary)
             }
             Spacer()
-            Button { queue.refreshServers() } label: {
+            Button { queue.refreshServers(force: true) } label: {
                 Image(systemName: "arrow.clockwise").frame(width: 28, height: 28)
             }.buttonStyle(.plain).foregroundStyle(.secondary)
                 .help(L10n.text("Refresh now")).accessibilityLabel(L10n.text("Refresh now"))

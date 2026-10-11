@@ -51,7 +51,7 @@ func checkMultiServerMonitoring() async {
     fixture.counts[a] = (1, 2)
     fixture.counts[b] = (1, 0)
     fixture.slow = [c]
-    let monitor = MultiServerMonitor(inspect: fixture.inspect)
+    let monitor = MultiServerMonitor(inspect: fixture.inspect, policy: .immediate)
     var snapshots: [MonitoredServer] = []
     var available: [String] = []
     var disconnected: [String] = []
@@ -134,5 +134,111 @@ func checkMultiServerMonitoring() async {
     precondition(!baseline.receive(fixture.snapshot(b)) && baseline.isAvailable && baseline.becameAvailableAt == nil)
     precondition(baseline.fail(GPUTWError.signInRequired))
     precondition(baseline.state == .signInRequired && !baseline.isAvailable)
+    await checkFleetPollPolicy()
     print("PASS: fleet polling, slow-server isolation, endpoint deduplication, switching, idle transitions, outages, stale states, removal races and GPUtw session clearing")
+}
+
+@MainActor
+private final class ManualClock {
+    var now = Date(timeIntervalSince1970: 1_800_000_000)
+    func advance(_ seconds: TimeInterval) { now = now.addingTimeInterval(seconds) }
+}
+
+@MainActor
+private func settle() async {
+    for _ in 0..<10 { await Task.yield() }
+    try! await Task.sleep(nanoseconds: 20_000_000)
+}
+
+@MainActor
+func checkFleetPollPolicy() async {
+    let policy = FleetPollPolicy()
+    precondition(policy.delay(consecutiveFailures: 0) == 12 && policy.delay(consecutiveFailures: 1) == 4)
+    precondition(policy.delay(consecutiveFailures: 3) == 16 && policy.delay(consecutiveFailures: 5) == 60)
+    precondition(policy.delay(consecutiveFailures: 1_000) == 60, "Backoff is capped and never overflows")
+
+    let background = "http://background.fixture.invalid:8188"
+    let selected = "http://selected.fixture.invalid:8188"
+    let fixture = FleetFixture()
+    let clock = ManualClock()
+    let monitor = MultiServerMonitor(inspect: fixture.inspect, policy: policy, clock: { clock.now })
+    var snapshots: [MonitoredServer] = []
+    var available: [String] = []
+    var disconnected: [String] = []
+    monitor.onUpdate = { snapshots = $0 }
+    monitor.onAvailable = { available.append($0.endpoint) }
+    monitor.onDisconnected = { disconnected.append($0.endpoint) }
+    monitor.configure(profiles: [ServerProfile(name: "Background", endpoint: background),
+        ServerProfile(name: "Selected", endpoint: selected + "/")])
+    monitor.focus(selected)
+
+    // The selected server is never requested twice per tick: only the detailed view polls it.
+    monitor.refresh()
+    await fleetEventually { snapshots[0].state == .connected }
+    precondition(fixture.calls[selected] == nil, "Focused server must not be polled by the fleet")
+
+    // Healthy background servers are polled on the slower interval.
+    monitor.refresh(); await settle()
+    precondition(fixture.calls[background] == 1)
+    clock.advance(11); monitor.refresh(); await settle()
+    precondition(fixture.calls[background] == 1)
+    clock.advance(1); monitor.refresh()
+    await fleetEventually { fixture.calls[background] == 2 }
+    await settle()
+
+    // Failures back off exponentially: 4s, 8s, 16s ...
+    fixture.failing = [background]
+    clock.advance(12); monitor.refresh()
+    await fleetEventually { snapshots[0].state == .disconnected }
+    precondition(disconnected == [background])
+    clock.advance(3); monitor.refresh(); await settle()
+    precondition(fixture.calls[background] == 3)
+    clock.advance(1); monitor.refresh()
+    await fleetEventually { fixture.calls[background] == 4 }
+    await settle()
+    clock.advance(7); monitor.refresh(); await settle()
+    precondition(fixture.calls[background] == 4)
+    clock.advance(1); monitor.refresh()
+    await fleetEventually { fixture.calls[background] == 5 }
+    await settle()
+    precondition(monitor.secondsUntilNextPoll(background) == 16)
+
+    // Manual refresh ignores the schedule.
+    monitor.refresh(force: true)
+    await fleetEventually { fixture.calls[background] == 6 }
+    await settle()
+
+    // A flapping server produces at most one disconnection notice per cooldown.
+    fixture.failing = []
+    monitor.refresh(force: true)
+    await fleetEventually { snapshots[0].state == .connected }
+    fixture.failing = [background]
+    monitor.refresh(force: true)
+    await fleetEventually { snapshots[0].state == .disconnected }
+    precondition(disconnected == [background], "Repeated outage inside the cooldown must stay quiet")
+    clock.advance(300)
+    fixture.failing = []
+    monitor.refresh(force: true)
+    await fleetEventually { snapshots[0].state == .connected }
+    fixture.failing = [background]
+    monitor.refresh(force: true)
+    await fleetEventually { disconnected.count == 2 }
+
+    // Detailed-queue results flow into the fleet for the focused server only.
+    let job = fixture.snapshot(selected, running: 1).running
+    monitor.record(selected, running: job, pending: [], checkedAt: clock.now)
+    precondition(snapshots[1].state == .connected && snapshots[1].runningCount == 1)
+    monitor.record(selected, running: [], pending: [], checkedAt: clock.now)
+    precondition(snapshots[1].isAvailable && available == [selected])
+    monitor.recordFailure(selected, URLError(.cannotConnectToHost))
+    precondition(snapshots[1].state == .disconnected && disconnected.last == selected)
+    monitor.record(background, running: job, pending: [], checkedAt: clock.now)
+    precondition(snapshots[0].state == .disconnected, "Unfocused servers ignore recorded results")
+
+    // Leaving focus returns the server to background polling immediately.
+    monitor.focus(nil)
+    monitor.refresh()
+    await fleetEventually { fixture.calls[selected] == 1 }
+    monitor.stop()
+    print("PASS: fleet poll policy, selected-server deduplication, exponential backoff, manual refresh and disconnect notice cooldown")
 }
