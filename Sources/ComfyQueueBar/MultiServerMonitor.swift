@@ -102,7 +102,7 @@ final class MultiServerMonitor {
     var onAvailable: ((MonitoredServer) -> Void)?
     var onDisconnected: ((MonitoredServer) -> Void)?
 
-    init(inspect: Inspection? = nil, policy: FleetPollPolicy = FleetPollPolicy(), clock: @escaping () -> Date = Date.init) {
+    init(inspect: Inspection? = nil, policy: FleetPollPolicy = FleetPollPolicy(), clock: @escaping () -> Date = { Date() }) {
         self.inspect = inspect ?? { try await ConnectionInspector.inspectQueue($0, timeout: 8) }
         self.policy = policy
         self.clock = clock

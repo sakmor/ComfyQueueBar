@@ -169,7 +169,7 @@ func checkFleetPollPolicy() async {
     monitor.onAvailable = { available.append($0.endpoint) }
     monitor.onDisconnected = { disconnected.append($0.endpoint) }
     monitor.configure(profiles: [ServerProfile(name: "Background", endpoint: background),
-        ServerProfile(name: "Selected", endpoint: selected + "/")])
+        ServerProfile(name: "Selected", endpoint: selected)])
     monitor.focus(selected)
 
     // The selected server is never requested twice per tick: only the detailed view polls it.
