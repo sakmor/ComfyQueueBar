@@ -29,7 +29,7 @@ Different ports on one GPU instance can run independent ComfyUI processes. For e
 4. Match the workflow title and completion time to your own job. An empty queue with unrelated history can indicate the wrong service; missing history is not proof of completion.
 5. If the correct service's queue is empty, check **Recently completed** and **Failures & interruptions**. A job may have finished between refreshes.
 
-GPU utilization and allocated VRAM are not ComfyUI job counts. This app does not currently read GPU utilization, discover every possible port, or aggregate multiple services; it checks all saved queues every four seconds and checks the paired `8080`/`8090` port during a manual review of an empty GPUtw queue. Do not resubmit a job solely because this app shows 0.
+GPU utilization and allocated VRAM are not ComfyUI job counts. This app does not currently read GPU utilization, discover every possible port, or aggregate multiple services; it checks the selected queue every four seconds and other saved queues every 12 seconds and checks the paired `8080`/`8090` port during a manual review of an empty GPUtw queue. Do not resubmit a job solely because this app shows 0.
 
 ### Read the menu-bar status
 

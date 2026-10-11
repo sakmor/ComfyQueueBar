@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.0 — 2026-10-11
+
+- Monitor every saved server at once, with independent running/waiting counts, availability, and an optional notification when any server's queue becomes empty and ready for the next batch.
+- Show available/total servers in the menu bar when several servers are monitored, with per-server details in the tooltip.
+- Replace the fixed panel with a compact overview (search and an Available filter) and a resizable workspace window with a server sidebar, separate Queue/History views, and Connections/Notifications/Agents/App settings pages. Add standard Close (⌘W) and Minimize (⌘M) window commands.
+- Add a local network scanner that finds ComfyUI on this Mac and nearby Wi-Fi/Ethernet devices on chosen ports, limited to a nearby /22 range and 48 concurrent probes.
+- Reduce network load: the selected server is requested once per four-second refresh instead of twice, unselected healthy servers are polled every 12 seconds, and unreachable servers back off from 4 to 60 seconds. The refresh button still checks every server immediately.
+- Send at most one disconnection notice per server every five minutes, so an unstable connection cannot flood Notification Center.
+- Split the main source file into focused files and compile regression checks against them directly.
+
 ## 1.5.4 — 2026-10-10
 
 - When an 8080/8090 GPUtw queue is empty, automatically check the paired port with a 30-second throttle and show any running or waiting work, without switching the monitored server.

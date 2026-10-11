@@ -80,7 +80,7 @@ A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote 
 
 Learn to sign in to GPUtw, distinguish services on different ports, read `0` / `—` / `!` / `…`, inspect recent jobs before switching, configure Wake-on-LAN, and connect through SSH. GPU utilization and ComfyUI job counts are separate metrics.
 
-The latest connection-recovery and paired-port improvements are included in v1.5.4. Users of v1.5.3 can choose **Check for updates…** in the app's settings.
+Multi-server monitoring, local network scanning, and the new workspace window are included in v1.6.0. Users of v1.5.x can choose **Check for updates…** in the app's settings.
 
 ## Preview finished outputs
 
