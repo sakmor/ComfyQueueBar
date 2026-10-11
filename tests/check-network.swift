@@ -106,6 +106,7 @@ final class ServerFixture {
 @main
 struct NetworkChecks {
     @MainActor static func main() async {
+        await checkMultiServerMonitoring()
         let now = Date()
         precondition(QueueViewModel.connectionRetryInterval == 4)
         precondition(MonitoringState.resolve(connected: false, loading: true, needsSignIn: false, lastUpdated: nil, hasError: false, now: now) == .checking)
@@ -130,7 +131,10 @@ struct NetworkChecks {
         defer { URLProtocol.unregisterClass(FixtureProtocol.self) }
         var server = ServerFixture()
         FixtureProtocol.handler = { server.handle($0) }
-        let model = QueueViewModel()
+        let model = QueueViewModel(serverMonitor: MultiServerMonitor(inspect: { endpoint in
+            guard URL(string: endpoint)?.host == "fixture.invalid" else { throw QueueError.invalidEndpoint }
+            return try await ConnectionInspector.inspectQueue(endpoint)
+        }))
         // Let the production initializer's first refresh finish before assertions/actions.
         for _ in 0..<200 {
             if model.lastUpdated != nil && !model.isLoading { break }
@@ -146,6 +150,8 @@ struct NetworkChecks {
         precondition(model.queueProgress?.percent == 30 && model.progressBridgeStatus == .available)
         precondition(server.paths.allSatisfy { $0.hasPrefix("/base/") })
         print("PASS: queue parsing, workflow title, base path, bounded history and matching progress")
+        precondition(model.profiles.contains { MultiServerMonitor.key($0.endpoint) == MultiServerMonitor.key(model.endpoint) },
+            "The legacy current address must become a persistent monitored server before selection changes")
 
         server.progressID = "unrelated-job"
         await model.refreshProgress()
@@ -306,6 +312,31 @@ struct NetworkChecks {
             "A confirmed connection must clear stale address feedback")
         print("PASS: unrelated JSON rejected and GPUtw handoff credentials excluded from saved profiles")
         print("PASS: connected idle, HTTP disconnection and invalid endpoint states")
+        for profile in model.profiles where URL(string: profile.endpoint)?.host != "fixture.invalid" {
+            model.deleteProfile(profile.id)
+        }
+        let firstMonitoredEndpoint = model.endpoint
+        let otherMonitoredEndpoint = "http://fixture.invalid/another-server"
+        let beforeSelection = Set(model.monitoredServers.map(\.endpoint))
+        await model.connect(to: otherMonitoredEndpoint)
+        precondition(model.profiles.contains { $0.endpoint == otherMonitoredEndpoint })
+        precondition(Set(model.monitoredServers.map(\.endpoint)) == beforeSelection.union([otherMonitoredEndpoint]),
+            "Selecting another server must retain every existing monitor")
+        await model.connect(to: firstMonitoredEndpoint)
+        precondition(Set(model.monitoredServers.map(\.endpoint)) == beforeSelection.union([otherMonitoredEndpoint]))
+        let retained = try! JSONDecoder().decode([ServerProfile].self, from: validationDefaults.data(forKey: "serverProfiles")!)
+        precondition(retained.contains { $0.endpoint == firstMonitoredEndpoint } && retained.contains { $0.endpoint == otherMonitoredEndpoint },
+            "Both monitors must survive app restart")
+        let selectedProfile = model.profiles.first { $0.endpoint == firstMonitoredEndpoint }!
+        model.deleteProfile(selectedProfile.id)
+        precondition(!model.monitoredServers.contains { $0.endpoint == firstMonitoredEndpoint },
+            "Explicit removal must stop the selected monitor without silently re-adding it")
+        precondition(model.endpoint != firstMonitoredEndpoint && model.profiles.contains { $0.endpoint == model.endpoint })
+        for profile in model.profiles { model.deleteProfile(profile.id) }
+        precondition(model.monitoredServers.isEmpty && model.endpoint.isEmpty && model.running.isEmpty && model.pending.isEmpty)
+        await model.refresh()
+        precondition(model.monitoredServers.isEmpty, "Refreshing after last removal must not recreate a monitor")
+        print("PASS: persistent legacy/current monitors, selection isolation, restart persistence, explicit selected removal and last-server removal")
         print("Network/action regression checks passed (intercepted HTTP; no live generation).")
     }
 }

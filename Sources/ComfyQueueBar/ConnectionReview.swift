@@ -295,7 +295,7 @@ struct ConnectionReviewView: View {
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }
             Divider()
-            Text(L10n.text("Your current monitoring server changes only after you confirm.")).font(.caption).foregroundStyle(.secondary)
+            Text(L10n.text("The detailed queue changes only after you confirm.")).font(.caption).foregroundStyle(.secondary)
             HStack {
                 Button(L10n.text("Cancel"), action: cancel).keyboardShortcut(.cancelAction)
                 Button(L10n.text("Refresh details"), action: refresh).disabled(model.checking)

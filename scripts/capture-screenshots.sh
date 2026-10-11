@@ -24,8 +24,10 @@ PLIST
   printf 'Desktop demo: capture the display containing the panel, then Quit to close the demo.\n'
   TZ=UTC exec "$capture_app/Contents/MacOS/DocumentationCapture" --menu-bar --dark
 fi
-TZ=UTC "$capture_app/Contents/MacOS/DocumentationCapture" docs/images/queue-light.png
-TZ=UTC "$capture_app/Contents/MacOS/DocumentationCapture" docs/images/queue-dark.png --dark
-TZ=UTC "$capture_app/Contents/MacOS/DocumentationCapture" docs/images/settings.png --settings
-TZ=UTC "$capture_app/Contents/MacOS/DocumentationCapture" docs/images/preview.png --preview
-printf 'Saved light and dark interface captures to docs/images/\n'
+TZ=UTC "$capture_app/Contents/MacOS/DocumentationCapture" docs/images/overview-light.png --many-servers
+TZ=UTC "$capture_app/Contents/MacOS/DocumentationCapture" docs/images/overview-dark.png --many-servers --dark
+TZ=UTC "$capture_app/Contents/MacOS/DocumentationCapture" docs/images/workspace-light.png --workspace --many-servers
+TZ=UTC "$capture_app/Contents/MacOS/DocumentationCapture" docs/images/workspace-dark.png --workspace --many-servers --dark
+TZ=UTC "$capture_app/Contents/MacOS/DocumentationCapture" docs/images/workspace-history.png --workspace --history --many-servers
+TZ=UTC "$capture_app/Contents/MacOS/DocumentationCapture" docs/images/workspace-settings.png --workspace --settings --many-servers
+printf 'Saved overview and workspace interface captures to docs/images/\n'

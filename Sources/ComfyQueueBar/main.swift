@@ -60,13 +60,74 @@ enum L10n {
     }
 
     static let translations: [String: [String]] = [
+        "This Mac": ["這台 Mac", "这台 Mac", "このMac"],
+        "No monitored servers": ["尚未加入監控主機", "尚未添加监控主机", "監視中のサーバーはありません"],
+        "Add a server": ["新增主機", "添加主机", "サーバーを追加"],
+        "Add a server to start monitoring its queue.": ["新增主機後即可開始監控佇列。", "添加主机后即可开始监控队列。", "サーバーを追加してキューの監視を開始します。"],
+        "Select to view details. All servers keep monitoring.": ["點選只會查看詳情，所有主機都會持續監控。", "点击只会查看详情，所有主机都会持续监控。", "選択すると詳細を表示します。全サーバーの監視は継続します。"],
+        "Remove this server?": ["要移除此主機嗎？", "要移除此主机吗？", "このサーバーを削除しますか？"],
+        "Stop monitoring %@? Jobs on this server will continue running.": ["要停止監控「%@」嗎？此主機上的工作仍會繼續執行。", "要停止监控“%@”吗？此主机上的任务仍会继续执行。", "「%@」の監視を停止しますか？このサーバー上のジョブは引き続き実行されます。"],
+        "Window": ["視窗", "窗口", "ウインドウ"],
+        "Close window": ["關閉視窗", "关闭窗口", "ウインドウを閉じる"],
+        "Minimize": ["縮小視窗", "最小化", "しまう"],
+        "Connections": ["連線", "连接", "接続"],
+        "Render overview": ["算圖總覽", "渲染总览", "レンダリング一覧"],
+        "Render workspace": ["算圖工作台", "渲染工作台", "レンダリングワークスペース"],
+        "Needs attention": ["需要留意", "需要留意", "要確認"],
+        "%@ available": ["%@ 台空閒", "%@ 台空闲", "%@ 台利用可能"],
+        "%@ rendering": ["%@ 台生成中", "%@ 台生成中", "%@ 台生成中"],
+        "%@ need attention": ["%@ 台需要留意", "%@ 台需要留意", "%@ 台要確認"],
+        "Manage servers": ["管理主機", "管理主机", "サーバーを管理"],
+        "Back to queue": ["返回佇列", "返回队列", "キューに戻る"],
+        "View": ["檢視", "查看", "表示"],
+        "Queue": ["目前佇列", "当前队列", "現在のキュー"],
+        "History": ["完成紀錄", "完成记录", "履歴"],
+        "Find a server": ["搜尋主機", "搜索主机", "サーバーを検索"],
+        "Clear search": ["清除搜尋", "清除搜索", "検索をクリア"],
+        "All servers": ["全部主機", "全部主机", "全サーバー"],
+        "No servers available": ["目前沒有空閒主機", "当前没有空闲主机", "利用可能なサーバーはありません"],
+        "No matching servers": ["找不到符合的主機", "找不到匹配的主机", "一致するサーバーはありません"],
+        "Show all servers": ["顯示全部主機", "显示全部主机", "全サーバーを表示"],
+        "Ready for next batch": ["可安排下一批影片", "可安排下一批视频", "次のバッチを実行できます"],
+        "Open workspace": ["開啟工作台", "打开工作台", "ワークスペースを開く"],
+        "More options": ["更多選項", "更多选项", "その他のオプション"],
+        "Notifications": ["通知", "通知", "通知"],
+        "Agents": ["Agent", "Agent", "エージェント"],
+        "App": ["App", "App", "アプリ"],
+        "Know when a server is ready for your next batch.": ["主機可以接下一批工作時，立即得知。", "主机可以接下一批任务时，立即获知。", "次のバッチを実行できるサーバーを通知します。"],
+        "Version %@": ["版本 %@", "版本 %@", "バージョン %@"],
+        "Rendering": ["生成中", "生成中", "生成中"],
+        "Waiting to run": ["等待執行", "等待执行", "実行待ち"],
+        "Available": ["空閒可用", "空闲可用", "利用可能"],
+        "%@ available / %@ servers": ["%@ 台空閒 / 共 %@ 台", "%@ 台空闲 / 共 %@ 台", "%@ 台利用可能 / 全 %@ 台"],
+        "%@ running · %@ waiting": ["%@ 個執行中 · %@ 個等待中", "%@ 个执行中 · %@ 个等待中", "%@ 件実行中 · %@ 件待機中"],
+        "Queue empty since": ["佇列清空於", "队列清空于", "キューが空になった時刻"],
+        "Availability unknown": ["無法確認是否空閒", "无法确认是否空闲", "利用可能か確認できません"],
+        "View queue": ["查看佇列", "查看队列", "キューを表示"],
+        "Selected queue: %@": ["目前查看：%@", "当前查看：%@", "表示中のキュー：%@"],
+        "Server available": ["主機已空閒", "主机已空闲", "サーバーが利用可能になりました"],
+        "Queue is empty. Ready for the next batch.": ["佇列已空，可安排下一批工作。", "队列已空，可安排下一批任务。", "キューが空になりました。次のバッチを実行できます。"],
+        "Notify when any server becomes available": ["任一主機轉為空閒時通知", "任一主机转为空闲时通知", "いずれかのサーバーが利用可能になったら通知"],
+        "All saved servers are monitored continuously. Select a server to view its queue.": ["所有已儲存主機都會持續監控。選取主機可查看詳細佇列。", "所有已保存主机都会持续监控。选择主机可查看详细队列。", "保存した全サーバーを継続監視します。サーバーを選択するとキューの詳細を表示します。"],
+        "Save another address in Settings to monitor it alongside these servers.": ["在設定中儲存其他位址，即可一起監控更多主機。", "在设置中保存其他地址，即可一起监控更多主机。", "設定で別のアドレスを保存すると、同時に監視するサーバーを追加できます。"],
+        "Scan local network": ["掃描區網", "扫描局域网", "ローカルネットワークをスキャン"],
+        "Find ComfyUI on this Mac and nearby Wi-Fi or Ethernet devices.": ["尋找這台 Mac 與附近 Wi-Fi 或乙太網路裝置上的 ComfyUI。", "查找这台 Mac 和附近 Wi-Fi 或以太网设备上的 ComfyUI。", "この Mac と近くの Wi-Fi・Ethernet デバイスの ComfyUI を探します。"],
+        "Ports (comma separated)": ["連接埠（以逗號分隔）", "端口（以逗号分隔）", "ポート（カンマ区切り）"],
+        "Stop scan": ["停止掃描", "停止扫描", "スキャンを停止"],
+        "Scan": ["開始掃描", "开始扫描", "スキャン"],
+        "Enter up to 8 ports from 1 to 65535, separated by commas.": ["請輸入最多 8 個介於 1 到 65535 的連接埠，以逗號分隔。", "请输入最多 8 个介于 1 到 65535 的端口，以逗号分隔。", "1～65535 のポートを最大8個、カンマで区切って入力してください。"],
+        "Large networks are limited to the nearby /22 range, up to 4096 LAN addresses. Enter other addresses manually.": ["大型網路只掃描附近的 /22 範圍，最多 4096 個區網位址。其他位址請手動輸入。", "大型网络仅扫描附近的 /22 范围，最多 4096 个局域网地址。其他地址请手动输入。", "大規模ネットワークは近くの /22 範囲、最大4096アドレスまでです。その他は手動で入力してください。"],
+        "Checked %@ / %@ addresses and ports": ["已檢查 %@ / %@ 個位址與連接埠組合", "已检查 %@ / %@ 个地址与端口组合", "%@ / %@ 件のアドレスとポートを確認済み"],
+        "Scan stopped. Found %@ servers.": ["掃描已停止，找到 %@ 台主機。", "扫描已停止，找到 %@ 台主机。", "スキャンを停止しました。%@ 台見つかりました。"],
+        "Scan complete. Found %@ servers.": ["掃描完成，找到 %@ 台主機。", "扫描完成，找到 %@ 台主机。", "スキャンが完了しました。%@ 台見つかりました。"],
+        "Check the port, firewall, and macOS Local Network permission. Start remote ComfyUI with --listen 0.0.0.0.": ["請確認連接埠、防火牆與 macOS「區域網路」權限。遠端 ComfyUI 請加上 --listen 0.0.0.0 啟動。", "请检查端口、防火墙和 macOS「本地网络」权限。远程 ComfyUI 请加上 --listen 0.0.0.0 启动。", "ポート、ファイアウォール、macOS のローカルネットワーク権限を確認してください。リモートの ComfyUI は --listen 0.0.0.0 を付けて起動してください。"],
         "Checking connection…": ["正在確認連線…", "正在检查连接…", "接続を確認中…"],
         "Sign-in required": ["需要重新登入", "需要重新登录", "再ログインが必要です"],
         "Queue status out of date": ["佇列資料已過期", "队列数据已过期", "キュー情報が古くなっています"],
         "Port %@": ["連接埠 %@", "端口 %@", "ポート %@"],
         "Confirm monitoring server": ["確認監控伺服器", "确认监控服务器", "監視するサーバーを確認"],
         "Reading queue and recent history…": ["正在讀取佇列與近期紀錄…", "正在读取队列与近期记录…", "キューと最近の履歴を読み込み中…"],
-        "Your current monitoring server changes only after you confirm.": ["確認後才會切換目前監控的伺服器。", "确认后才会切换当前监控的服务器。", "確認後に監視先のサーバーを切り替えます。"],
+        "The detailed queue changes only after you confirm.": ["確認後才會切換目前查看的詳細佇列。", "确认后才会切换当前查看的详细队列。", "確認後に表示中のキューを切り替えます。"],
         "Refresh details": ["重新讀取", "重新读取", "再読み込み"],
         "Monitor this server": ["監控此伺服器", "监控此服务器", "このサーバーを監視"],
         "Checked %@": ["確認時間 %@", "检查时间 %@", "確認時刻 %@"],
@@ -150,7 +211,7 @@ enum L10n {
         "Save folder": ["儲存資料夾", "保存文件夹", "フォルダを保存"],
         "Enter an absolute folder path.": ["請輸入資料夾的絕對路徑。", "请输入文件夹的绝对路径。", "フォルダの絶対パスを入力してください。"],
         "Enter this server's absolute output folder path. Remote paths refer to the server, not this Mac.": ["輸入此伺服器輸出資料夾的絕對路徑。遠端路徑指的是伺服器上的位置，而非這台 Mac。", "输入此服务器输出文件夹的绝对路径。远程路径指的是服务器上的位置，而非这台 Mac。", "このサーバーの出力フォルダの絶対パスを入力します。リモートパスはこのMacではなくサーバー上の場所です。"],
-        "Servers": ["伺服器", "服务器", "サーバー"],
+        "Servers": ["主機總覽", "主机总览", "サーバー一覧"],
         "Remove server": ["移除伺服器", "移除服务器", "サーバーを削除"],
         "Server name": ["伺服器名稱", "服务器名称", "サーバー名"],
         "Save address": ["儲存位址", "保存地址", "アドレスを保存"],
@@ -304,6 +365,11 @@ final class QueueViewModel: ObservableObject {
     @Published private(set) var wakeMessages: [UUID: String] = [:]
     private var lastWakeAttempts: [UUID: Date] = [:]
     @Published private(set) var profiles: [ServerProfile] = []
+    @Published private(set) var monitoredServers: [MonitoredServer] = []
+    private let serverMonitor: MultiServerMonitor
+    @Published var notifyAvailability = false {
+        didSet { UserDefaults.standard.set(notifyAvailability, forKey: "notifyAvailability") }
+    }
     @Published private(set) var isClearingGPUTW = false
     @Published private(set) var observedStarts: [String: Date] = [:]
     @Published private(set) var permissionMessage: String?
@@ -341,8 +407,26 @@ final class QueueViewModel: ObservableObject {
     private var secondaryRefreshToken = UUID()
 
     var totalJobs: Int { running.count + pending.count }
+    var hasSelectedServer: Bool { !endpoint.isEmpty }
     var hasFreshQueue: Bool { monitoringState == .connected }
     var queueBadge: String { monitoringState.badge(count: totalJobs) }
+    var availableServerCount: Int { monitoredServers.filter(\.isAvailable).count }
+    var fleetBadge: String {
+        let available = availableServerCount
+        let total = monitoredServers.count
+        return "\(min(available, 99))\(available > 99 ? "+" : "")/\(min(total, 99))\(total > 99 ? "+" : "")"
+    }
+
+    private func configureServerMonitor() {
+        serverMonitor.configure(profiles: profiles)
+    }
+
+    func refreshServers() {
+        #if !DOCUMENTATION_SCREENSHOT
+        configureServerMonitor()
+        serverMonitor.refresh()
+        #endif
+    }
 
     private func updateMonitoringState() {
         let state = MonitoringState.resolve(connected: isConnected, loading: isLoading, needsSignIn: needsSignIn,
@@ -350,7 +434,8 @@ final class QueueViewModel: ObservableObject {
         if monitoringState != state { monitoringState = state }
     }
 
-    init() {
+    init(serverMonitor suppliedMonitor: MultiServerMonitor? = nil) {
+        self.serverMonitor = suppliedMonitor ?? MultiServerMonitor()
         #if DOCUMENTATION_SCREENSHOT
         endpoint = "http://127.0.0.1:8188"
         let graph: [String: Any] = ["12": ["_meta": ["title": "KSampler"], "class_type": "KSampler"]]
@@ -370,11 +455,39 @@ final class QueueViewModel: ObservableObject {
         }
         profiles = [ServerProfile(name: "Studio Mac", endpoint: endpoint), ServerProfile(name: "Render PC", endpoint: "http://192.0.2.10:8188")]
         observedStarts[running[0].id] = Date().addingTimeInterval(-124)
+        monitoredServers = [
+            MonitoredServer(endpoint: endpoint, name: "Studio Mac", state: .connected, runningCount: 1, pendingCount: 1,
+                currentJobTitle: running[0].title, checkedAt: Date()),
+            MonitoredServer(endpoint: profiles[1].endpoint, name: "Render PC", state: .connected, checkedAt: Date())
+        ]
+        if CommandLine.arguments.contains("--many-servers") {
+            monitoredServers += [
+                MonitoredServer(endpoint: "https://8080-demo-instance.gputw.ai", name: "GPUtw · Video", state: .connected, runningCount: 1, pendingCount: 8, checkedAt: Date()),
+                MonitoredServer(endpoint: "http://192.0.2.11:8188", name: "Animation Mac", state: .connected, checkedAt: Date(), becameAvailableAt: Date().addingTimeInterval(-180)),
+                MonitoredServer(endpoint: "http://192.0.2.12:8188", name: "Render workstation · West studio", state: .disconnected),
+                MonitoredServer(endpoint: "https://8090-demo-other.gputw.ai", name: "GPUtw · Overnight", state: .signInRequired),
+                MonitoredServer(endpoint: "http://192.0.2.13:8188", name: "Video PC", state: .connected, pendingCount: 3, checkedAt: Date()),
+                MonitoredServer(endpoint: "http://192.0.2.14:8188", name: "Studio backup", state: .checking)
+            ]
+        }
         #else
         endpoint = UserDefaults.standard.string(forKey: "comfyEndpoint") ?? "http://127.0.0.1:8188"
         if let data = UserDefaults.standard.data(forKey: "serverProfiles"), let saved = try? JSONDecoder().decode([ServerProfile].self, from: data) { profiles = saved }
         notificationMode = UserDefaults.standard.string(forKey: "notificationMode") ?? "off"
         notifyProblems = UserDefaults.standard.bool(forKey: "notifyProblems")
+        notifyAvailability = UserDefaults.standard.bool(forKey: "notifyAvailability")
+        serverMonitor.onUpdate = { [weak self] in self?.monitoredServers = $0 }
+        serverMonitor.onAvailable = { [weak self] server in
+            guard self?.notifyAvailability == true else { return }
+            NotificationService.shared.send(id: UUID().uuidString, title: L10n.text("Server available"),
+                body: server.name + " · " + L10n.text("Queue is empty. Ready for the next batch."))
+        }
+        serverMonitor.onDisconnected = { [weak self] server in
+            guard self?.notifyProblems == true else { return }
+            NotificationService.shared.send(id: UUID().uuidString, title: L10n.text("Server disconnected"), body: server.name)
+        }
+        rememberMonitoredServer(endpoint)
+        configureServerMonitor()
         let refreshTimer = Timer(timeInterval: Self.connectionRetryInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.refresh() }
         }
@@ -388,7 +501,7 @@ final class QueueViewModel: ObservableObject {
         agentIntegrationEnabled = UserDefaults.standard.bool(forKey: "agentIntegrationEnabled")
         configureAgentBridge()
         let agentTimer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.updateMonitoringState(); self?.tickAgentBridge() }
+            Task { @MainActor in self?.updateMonitoringState(); self?.serverMonitor.publish(); self?.tickAgentBridge() }
         }
         RunLoop.main.add(agentTimer, forMode: .common)
         self.agentTimer = agentTimer
@@ -506,6 +619,7 @@ final class QueueViewModel: ObservableObject {
         GPUTWLoginWindow.shared.close()
         ConnectionReviewWindow.shared.close()
         ComfyHTTPClient.shared.beginClearingAuthentication()
+        serverMonitor.clearGPUTWAuthentication()
         defer { ComfyHTTPClient.shared.finishClearingAuthentication() }
         let isGPUTW = URL(string: endpoint).flatMap { GPUTWAddress.serviceOrigin($0) } != nil
         if isGPUTW {
@@ -544,7 +658,34 @@ final class QueueViewModel: ObservableObject {
         connectionMessageIsError = false
         return true
     }
-    func deleteProfile(_ id: UUID) { profiles.removeAll { $0.id == id }; persistProfiles() }
+    /// Selection is independent of membership. Only this explicit action removes a monitor.
+    func deleteProfile(_ id: UUID) {
+        guard canChangeServer, !isClearingGPUTW,
+              let profile = profiles.first(where: { $0.id == id }) else { return }
+        profiles.removeAll { $0.id == id }
+        if MultiServerMonitor.key(endpoint) == MultiServerMonitor.key(profile.endpoint),
+           !profiles.contains(where: { MultiServerMonitor.key($0.endpoint) == MultiServerMonitor.key(endpoint) }) {
+            changeSelectedEndpoint(to: profiles.first?.endpoint ?? "")
+            Task { await refresh(forceHistory: true) }
+        }
+        persistProfiles()
+    }
+
+    /// Adopt the legacy/current connection and newly connected addresses into the
+    /// durable monitor list so selecting another server cannot discard them.
+    private func rememberMonitoredServer(_ address: String) {
+        #if !DOCUMENTATION_SCREENSHOT
+        guard let normalized = try? ConnectionAddress.normalize(address), let url = URL(string: normalized),
+              !GPUTWAddress.isDashboard(url),
+              !profiles.contains(where: { MultiServerMonitor.key($0.endpoint) == normalized }) else { return }
+        let localHosts = ["127.0.0.1", "localhost", "::1", "[::1]"]
+        let name = localHosts.contains(url.host?.lowercased() ?? "") ? L10n.text("This Mac")
+            : GPUTWAddress.serviceOrigin(url) != nil ? "GPUtw · " + ConnectionAddress.port(normalized)
+            : url.host ?? normalized
+        profiles.append(ServerProfile(name: name, endpoint: normalized))
+        persistProfiles()
+        #endif
+    }
 
     func saveWakeSettings(_ settings: WakeSettings, for id: UUID) {
         guard let index = profiles.firstIndex(where: { $0.id == id }) else { return }
@@ -598,6 +739,7 @@ final class QueueViewModel: ObservableObject {
     }
     private func persistProfiles() {
         if let data = try? JSONEncoder().encode(profiles) { UserDefaults.standard.set(data, forKey: "serverProfiles") }
+        refreshServers()
     }
     func authorizeNotifications() async {
         await NotificationService.shared.authorize()
@@ -645,6 +787,13 @@ final class QueueViewModel: ObservableObject {
             if GPUTWAddress.isDashboard(url) { signInToGPUTW(address: cleaned); return }
             if let origin = GPUTWAddress.serviceOrigin(url) { cleaned = origin.absoluteString }
         }
+        cleaned = (try? ConnectionAddress.normalize(cleaned)) ?? cleaned
+        changeSelectedEndpoint(to: cleaned)
+        rememberMonitoredServer(cleaned)
+        await refresh(forceHistory: true)
+    }
+
+    private func changeSelectedEndpoint(to cleaned: String) {
         if endpoint != cleaned {
             connectionGeneration = UUID()
             secondaryRefreshTask?.cancel()
@@ -653,6 +802,8 @@ final class QueueViewModel: ObservableObject {
             secondaryRefreshToken = UUID()
             clearPairedPortCheck(resetThrottle: true)
             completed = []; failures = []; running = []; pending = []; observedStarts = [:]
+            queueProgress = nil
+            progressBridgeStatus = .checking
             notificationTracker = NotificationTracker()
             isConnected = false
             needsSignIn = false
@@ -664,7 +815,6 @@ final class QueueViewModel: ObservableObject {
         }
         endpoint = cleaned
         UserDefaults.standard.set(cleaned, forKey: "comfyEndpoint")
-        await refresh(forceHistory: true)
     }
 
     private func clearConnectionFeedback() {
@@ -673,7 +823,8 @@ final class QueueViewModel: ObservableObject {
     }
 
     func refresh(forceHistory: Bool = false) async {
-        guard !isLoading, !isClearingGPUTW, movingJobID == nil, stoppingJobID == nil else { return }
+        refreshServers()
+        guard hasSelectedServer, !isLoading, !isClearingGPUTW, movingJobID == nil, stoppingJobID == nil else { return }
         isLoading = true
         updateMonitoringState()
         let generation = connectionGeneration
@@ -1106,9 +1257,6 @@ final class QueueViewModel: ObservableObject {
     }
 
     private func setDisconnected(_ message: String, requiresSignIn: Bool = false) {
-        if isConnected && notifyProblems {
-            NotificationService.shared.send(id: UUID().uuidString, title: L10n.text("Server disconnected"), body: serverName)
-        }
         isConnected = false
         historyUnavailable = true
         running = []
@@ -1340,27 +1488,33 @@ struct DocumentationCapture {
         app.setActivationPolicy(.accessory)
         let dark = CommandLine.arguments.contains("--dark")
         app.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        if CommandLine.arguments.contains("--interactive") {
+            let delegate = StatusBarController()
+            app.delegate = delegate
+            withExtendedLifetime(delegate) { app.run() }
+            return
+        }
         if CommandLine.arguments.contains("--menu-bar") {
-            let status = NSStatusBar.system.statusItem(withLength: 52)
+            let status = NSStatusBar.system.statusItem(withLength: 84)
             guard let button = status.button else { fatalError("No status button") }
             button.image = QueueBrand.menuBarIcon
             button.imagePosition = .imageLeading
-            button.title = " 2"
-            let panel = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 600), styleMask: [.borderless], backing: .buffered, defer: false)
+            button.title = " 1/2"
+            let panel = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 540), styleMask: [.borderless], backing: .buffered, defer: false)
             panel.isOpaque = false
             panel.backgroundColor = .clear
             panel.hasShadow = true
             panel.level = .popUpMenu
-            panel.contentView = NSHostingView(rootView: QueuePopover(queue: QueueViewModel()).frame(width: 360, height: 600).clipShape(RoundedRectangle(cornerRadius: 12)))
+            panel.contentView = NSHostingView(rootView: QueuePopover(queue: QueueViewModel()).frame(width: 420, height: 540).clipShape(RoundedRectangle(cornerRadius: 12)))
             RunLoop.main.run(until: Date(timeIntervalSinceNow: 1))
             let anchor = button.window!.convertToScreen(button.convert(button.bounds, to: nil))
-            panel.setFrameOrigin(NSPoint(x: anchor.midX - 180, y: anchor.minY - 608))
+            panel.setFrameOrigin(NSPoint(x: anchor.midX - 210, y: anchor.minY - 548))
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
             app.activate(ignoringOtherApps: true)
             panel.orderFrontRegardless()
             if let argument = CommandLine.arguments.firstIndex(of: "--desktop-output") {
                 RunLoop.main.run(until: Date(timeIntervalSinceNow: 2))
-                let region = "\(Int(panel.frame.minX)),\(Int(NSScreen.screens[0].frame.maxY - anchor.maxY)),360,\(Int(anchor.height) + 608)"
+                let region = "\(Int(panel.frame.minX)),\(Int(NSScreen.screens[0].frame.maxY - anchor.maxY)),420,\(Int(anchor.height) + 548)"
                 let capture = Process()
                 capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
                 capture.arguments = ["-x", "-R", region, CommandLine.arguments[argument + 1]]
@@ -1375,10 +1529,18 @@ struct DocumentationCapture {
         let queue = QueueViewModel()
         let settings = CommandLine.arguments.contains("--settings")
         let preview = CommandLine.arguments.contains("--preview")
-        let width: CGFloat = preview ? 440 : 360
-        let height: CGFloat = preview ? 460 : (settings ? 480 : 600)
+        let workspace = CommandLine.arguments.contains("--workspace")
+        let narrow = CommandLine.arguments.contains("--narrow")
+        let width: CGFloat = preview ? 440 : (workspace ? (narrow ? 780 : 940) : (settings ? 560 : 420))
+        let height: CGFloat = preview ? 460 : (workspace ? (narrow ? 540 : 680) : (settings ? 680 : 540))
         let previewModel = MediaPreviewModel()
-        let root = preview ? AnyView(MediaPreview(job: queue.completed[0], endpoint: queue.endpoint, model: previewModel).frame(width: 440, height: 460).background(.regularMaterial)) : settings ? AnyView(QueuePopover(queue: queue).settingsContent.frame(width: 360, height: 480, alignment: .top).background(.regularMaterial)) : AnyView(QueuePopover(queue: queue))
+        let panel = QueuePopoverState()
+        if CommandLine.arguments.contains("--history") { panel.section = .history }
+        if settings && workspace { panel.section = .settings }
+        if CommandLine.arguments.contains("--notifications") { panel.settingsSection = .notifications }
+        let interface = QueuePopover(queue: queue, panel: panel, expanded: workspace)
+        let root = preview ? AnyView(MediaPreview(job: queue.completed[0], endpoint: queue.endpoint, model: previewModel).frame(width: 440, height: 460).background(.regularMaterial))
+            : settings && !workspace ? AnyView(interface.settingsContent.background(.regularMaterial)) : AnyView(interface)
         let view = NSHostingView(rootView: root.frame(width: width, height: height))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: height), styleMask: [.borderless], backing: .buffered, defer: false)
         window.contentView = view
@@ -1407,11 +1569,28 @@ struct ComfyQueueBarApp {
 
 #endif
 
+enum WorkspaceSection: String, CaseIterable {
+    case queue, history, settings
+    var label: String {
+        switch self { case .queue: return L10n.text("Queue"); case .history: return L10n.text("History"); case .settings: return L10n.text("Settings") }
+    }
+}
+
+enum SettingsSection: String, CaseIterable {
+    case servers, notifications, agents, app
+    var label: String {
+        switch self { case .servers: return L10n.text("Connections"); case .notifications: return L10n.text("Notifications"); case .agents: return L10n.text("Agents"); case .app: return L10n.text("App") }
+    }
+}
+
 @MainActor
 final class QueuePopoverState: ObservableObject {
     @Published var urlInput = ""
     @Published var confirmation: QueueConfirmation?
-    @Published var showsSettings = false
+    @Published var section: WorkspaceSection = .queue
+    @Published var settingsSection: SettingsSection = .servers
+    @Published var serverSearch = ""
+    @Published var availableOnly = false
     @Published var profileName = ""
     @Published var historyRange: HistoryRange = .day
     @Published var historySearch = ""
@@ -1420,30 +1599,27 @@ final class QueuePopoverState: ObservableObject {
 
 struct QueuePopover: View {
     @ObservedObject var queue: QueueViewModel
-    @StateObject private var panel = QueuePopoverState()
+    @StateObject private var panel: QueuePopoverState
+    var expanded: Bool
+    var onOpenWorkspace: ((Bool) -> Void)?
+
+    init(queue: QueueViewModel, panel: QueuePopoverState? = nil, expanded: Bool = false, onOpenWorkspace: ((Bool) -> Void)? = nil) {
+        self.queue = queue
+        _panel = StateObject(wrappedValue: panel ?? QueuePopoverState())
+        self.expanded = expanded
+        self.onOpenWorkspace = onOpenWorkspace
+    }
     #if !DOCUMENTATION_SCREENSHOT
     @ObservedObject private var updater = AppUpdater.shared
     #endif
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    if !queue.isConnected { connectionSettings }
-                    actionFeedback
-                    runningSection
-                    pendingSection
-                    completedSection
-                    failureSection
-                }
-                .padding(.horizontal, 18)
-                .padding(.vertical, 16)
-            }
-            footer
+        Group {
+            if expanded { workspace }
+            else { compactOverview }
         }
-        .background(.regularMaterial)
-        .onAppear { panel.urlInput = queue.endpoint }
+        .background(Color(nsColor: .windowBackgroundColor))
+        .onAppear { if panel.urlInput.isEmpty { panel.urlInput = queue.endpoint } }
         .onChange(of: queue.endpoint) { panel.urlInput = $0 }
         .confirmationDialog(panel.confirmation?.title ?? L10n.text("Confirm action"), isPresented: Binding(
             get: { panel.confirmation.map { _ in true } ?? false },
@@ -1455,6 +1631,11 @@ struct QueuePopover: View {
                     Button(L10n.text("Prioritize and resubmit")) {
                         panel.confirmation = nil
                         Task { await queue.moveToFront(job) }
+                    }
+                case .removeServer(let profile):
+                    Button(L10n.text("Remove server"), role: .destructive) {
+                        panel.confirmation = nil
+                        queue.deleteProfile(profile.id)
                     }
                 case .stop(let job):
                     Button(L10n.text("Stop running job"), role: .destructive) {
@@ -1469,57 +1650,225 @@ struct QueuePopover: View {
         }
     }
 
+    private var renderingServerCount: Int {
+        queue.monitoredServers.filter { $0.state == .connected && $0.runningCount > 0 }.count
+    }
+
+    private var attentionServerCount: Int {
+        queue.monitoredServers.filter { $0.state != .connected || ($0.runningCount == 0 && $0.pendingCount > 0) }.count
+    }
+
+    private var visibleServers: [MonitoredServer] {
+        queue.monitoredServers.filter {
+            (!panel.availableOnly || $0.isAvailable) &&
+            (panel.serverSearch.isEmpty || ($0.name + " " + $0.endpoint).localizedCaseInsensitiveContains(panel.serverSearch))
+        }
+    }
+
+    private var compactOverview: some View {
+        VStack(spacing: 0) {
+            header
+            HStack(spacing: 0) {
+                summaryMetric(queue.availableServerCount, "Available", color: .green)
+                summaryMetric(renderingServerCount, "Rendering", color: .blue)
+                summaryMetric(attentionServerCount, "Needs attention", color: .orange)
+            }.padding(.horizontal, 18).padding(.bottom, 18)
+            Divider()
+            serverBrowser
+            footer
+        }
+    }
+
     private var header: some View {
         HStack(spacing: 10) {
-            QueueBrand.panelIcon
-                .resizable()
-                .scaledToFit()
-                .frame(width: 26, height: 26)
-                .accessibilityHidden(true)
+            QueueBrand.panelIcon.resizable().scaledToFit().frame(width: 28, height: 28).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
-                Text("ComfyQueueBar")
-                    .font(.system(size: 13, weight: .semibold))
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(queue.hasFreshQueue ? Color.green : Color.orange)
-                        .frame(width: 5, height: 5)
-                    Menu {
-                        ForEach(queue.profiles) { profile in
-                            Button(profile.name + " · " + ConnectionAddress.portLabel(profile.endpoint)) {
-                                panel.urlInput = profile.endpoint; panel.profileName = profile.name
-                                queue.reviewConnection(to: profile.endpoint)
-                            }
-                        }
-                    } label: {
-                        Text(queue.serverName)
-                            .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
-                    }
-                    .menuStyle(.borderlessButton)
-                    .disabled(queue.profiles.isEmpty || !queue.canChangeServer)
-                }
-                .accessibilityLabel(queue.serverName + " · " + queue.monitoringState.label)
-                Text(ConnectionAddress.portLabel(queue.endpoint) + " · " + (queue.hasFreshQueue ? L10n.text("ComfyUI job count") : queue.monitoringState.label))
-                    .font(.system(size: 10)).foregroundStyle(queue.hasFreshQueue ? Color.secondary : Color.orange)
-                    .help(queue.endpoint)
+                Text("ComfyQueueBar").font(.system(size: 14, weight: .semibold))
+                Text(L10n.text("Render overview")).font(.system(size: 11)).foregroundStyle(.secondary)
             }
             Spacer()
-            Button {
-                Task { await queue.refresh(forceHistory: true) }
-            } label: {
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 26, height: 26)
-                    .contentShape(Rectangle())
+            Button { queue.refreshServers() } label: {
+                Image(systemName: "arrow.clockwise").frame(width: 28, height: 28)
+            }.buttonStyle(.plain).foregroundStyle(.secondary)
+                .help(L10n.text("Refresh now")).accessibilityLabel(L10n.text("Refresh now"))
+        }.padding(18)
+    }
+
+    private func summaryMetric(_ count: Int, _ label: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(String(count)).font(.system(size: 28, weight: .semibold, design: .rounded)).monospacedDigit().foregroundStyle(color)
+            Text(L10n.text(label)).font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary)
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var workspace: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                QueueBrand.panelIcon.resizable().scaledToFit().frame(width: 25, height: 25).accessibilityHidden(true)
+                Text(L10n.text("Render workspace")).font(.system(size: 15, weight: .semibold))
+                Spacer()
+                Label(L10n.text("%@ available", String(queue.availableServerCount)), systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                Text(L10n.text("%@ rendering", String(renderingServerCount))).foregroundStyle(.secondary)
+                Text(L10n.text("%@ need attention", String(attentionServerCount))).foregroundStyle(attentionServerCount > 0 ? Color.orange : Color.secondary)
+            }.font(.system(size: 11)).padding(.horizontal, 22).padding(.vertical, 16)
+            Divider()
+            HSplitView {
+                VStack(spacing: 0) {
+                    serverBrowser
+                    Button { panel.settingsSection = .servers; panel.section = .settings } label: {
+                        Label(L10n.text("Manage servers"), systemImage: "plus.circle")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }.buttonStyle(.plain).font(.system(size: 12)).padding(16)
+                }
+                .frame(minWidth: 220, idealWidth: 250, maxWidth: 310)
+                .background(Color(nsColor: .underPageBackgroundColor).opacity(0.4))
+                workspaceDetail.frame(minWidth: 450, maxWidth: .infinity, maxHeight: .infinity)
             }
-            .buttonStyle(.plain)
-            .disabled(queue.isLoading || queue.movingJobID != nil || queue.stoppingJobID != nil)
-            .help(L10n.text("Refresh now"))
-            .accessibilityLabel(L10n.text("Refresh now"))
+        }.frame(minWidth: 780, minHeight: 540)
+    }
+
+    private var workspaceDetail: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if panel.section == .settings {
+                HStack {
+                    Text(L10n.text("Settings")).font(.system(size: 20, weight: .semibold))
+                    Spacer()
+                    Button(L10n.text("Back to queue")) { panel.section = .queue }.controlSize(.small)
+                }.padding(24)
+                Divider()
+                ScrollView { settingsContent }
+            } else if !queue.hasSelectedServer {
+                VStack(spacing: 14) {
+                    Image(systemName: "desktopcomputer").font(.system(size: 34)).foregroundStyle(.secondary)
+                    Text(L10n.text("No monitored servers")).font(.system(size: 18, weight: .semibold))
+                    Text(L10n.text("Add a server to start monitoring its queue.")).font(.system(size: 12)).foregroundStyle(.secondary)
+                    Button(L10n.text("Add a server")) { panel.settingsSection = .servers; panel.section = .settings }
+                        .buttonStyle(.borderedProminent)
+                }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                selectedServerHeader
+                HStack {
+                    Picker(L10n.text("View"), selection: $panel.section) {
+                        Text(L10n.text("Queue")).tag(WorkspaceSection.queue)
+                        Text(L10n.text("History")).tag(WorkspaceSection.history)
+                    }.pickerStyle(.segmented).labelsHidden().frame(width: 220)
+                    Spacer()
+                    Button { panel.section = .settings } label: { Image(systemName: "gearshape") }
+                        .buttonStyle(.plain).help(L10n.text("Settings")).accessibilityLabel(L10n.text("Settings"))
+                }.padding(.horizontal, 24).padding(.bottom, 18)
+                Divider()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        actionFeedback
+                        if panel.section == .history { completedSection; failureSection }
+                        else { runningSection; pendingSection }
+                    }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
+                }
+                HStack {
+                    Circle().fill(queue.hasFreshQueue ? Color.green : Color.orange).frame(width: 5, height: 5)
+                    Text(queue.monitoringState.label)
+                    Spacer()
+                    Text(queue.lastUpdated.map { L10n.text("Updated %@", $0.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(L10n.locale))) } ?? L10n.text("Refreshes every 4 seconds"))
+                }.font(.system(size: 10)).foregroundStyle(.secondary).padding(.horizontal, 24).padding(.vertical, 12)
+            }
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
-        .overlay(alignment: .bottom) { Divider() }
+    }
+
+    private var selectedServerHeader: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 7) {
+                Text(queue.serverName).font(.system(size: 22, weight: .semibold)).lineLimit(1)
+                Text(queue.endpoint).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+                    .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+            }
+            Spacer()
+            Button { queue.reviewConnection(to: queue.endpoint) } label: { Image(systemName: "network") }
+                .buttonStyle(.bordered).help(L10n.text("Review this connection")).accessibilityLabel(L10n.text("Review this connection"))
+                .disabled(!queue.canChangeServer)
+            Button { Task { await queue.refresh(forceHistory: true) } } label: { Image(systemName: "arrow.clockwise") }
+                .buttonStyle(.bordered).help(L10n.text("Refresh now")).accessibilityLabel(L10n.text("Refresh now"))
+                .disabled(queue.isLoading || !queue.canChangeServer)
+        }.padding(24)
+    }
+
+    private var serverBrowser: some View {
+        VStack(spacing: 0) {
+            VStack(spacing: 12) {
+                HStack(spacing: 7) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    TextField(L10n.text("Find a server"), text: $panel.serverSearch).textFieldStyle(.plain)
+                    if !panel.serverSearch.isEmpty {
+                        Button { panel.serverSearch = "" } label: { Image(systemName: "xmark.circle.fill") }
+                            .buttonStyle(.plain).foregroundStyle(.secondary).accessibilityLabel(L10n.text("Clear search"))
+                    }
+                }.font(.system(size: 12)).padding(9)
+                    .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 7))
+                Picker(L10n.text("Servers"), selection: $panel.availableOnly) {
+                    Text(L10n.text("All servers")).tag(false)
+                    Text(L10n.text("Available")).tag(true)
+                }.pickerStyle(.segmented).labelsHidden().controlSize(.small)
+            }.padding(14)
+            ScrollView {
+                LazyVStack(spacing: 4) {
+                    ForEach(visibleServers) { server in serverRow(server) }
+                    if visibleServers.isEmpty {
+                        VStack(spacing: 10) {
+                            Image(systemName: "line.3.horizontal.decrease.circle").font(.system(size: 23))
+                            Text(L10n.text(queue.monitoredServers.isEmpty ? "No monitored servers" : panel.availableOnly ? "No servers available" : "No matching servers"))
+                                .font(.system(size: 12))
+                            if queue.monitoredServers.isEmpty {
+                                Button(L10n.text("Add a server")) {
+                                    panel.settingsSection = .servers; panel.section = .settings
+                                    if !expanded { onOpenWorkspace?(true) }
+                                }.buttonStyle(.link).font(.system(size: 11))
+                            } else {
+                                Button(L10n.text("Show all servers")) { panel.serverSearch = ""; panel.availableOnly = false }
+                                    .buttonStyle(.link).font(.system(size: 11))
+                            }
+                        }.foregroundStyle(.secondary).padding(.vertical, 30).frame(maxWidth: .infinity)
+                    }
+                }.padding(.horizontal, 10).padding(.bottom, 10)
+            }
+        }
+    }
+
+    private func serverRow(_ server: MonitoredServer) -> some View {
+        let selected = MultiServerMonitor.key(queue.endpoint) == server.endpoint
+        return Button {
+            panel.profileName = server.name
+            panel.section = .queue
+            if !selected { Task { await queue.connect(to: server.endpoint) } }
+            if !expanded { onOpenWorkspace?(false) }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: server.endpoint.contains(".gputw.ai") ? "cloud" : "desktopcomputer")
+                    .font(.system(size: 16)).foregroundStyle(serverColor(server)).frame(width: 24)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Text(server.name).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                        Spacer(minLength: 4)
+                        Text(server.statusLabel).font(.system(size: 9, weight: .medium)).lineLimit(1)
+                            .foregroundStyle(serverColor(server)).padding(.horizontal, 6).padding(.vertical, 3)
+                            .background(serverColor(server).opacity(0.09), in: Capsule())
+                    }
+                    HStack(spacing: 3) {
+                        if server.isAvailable {
+                            if let date = server.becameAvailableAt {
+                                Text(L10n.text("Queue empty since")); Text(date, style: .time)
+                            } else { Text(L10n.text("Ready for next batch")) }
+                        } else if server.state == .connected {
+                            Text(L10n.text("%@ running · %@ waiting", String(server.runningCount), String(server.pendingCount)))
+                        } else { Text(L10n.text("Availability unknown")) }
+                    }.font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1)
+                }
+            }.padding(.horizontal, 10).padding(.vertical, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(selected && expanded ? Color.accentColor.opacity(0.09) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain).disabled(!queue.canChangeServer || queue.isClearingGPUTW)
+        .accessibilityHint(L10n.text("Select to view details. All servers keep monitoring."))
+        .help([server.endpoint, L10n.text("Select to view details. All servers keep monitoring."), server.error ?? server.currentJobTitle ?? ""].filter { !$0.isEmpty }.joined(separator: "\n"))
     }
 
     #if !DOCUMENTATION_SCREENSHOT
@@ -1537,6 +1886,8 @@ struct QueuePopover: View {
     private var serverSettings: some View {
         VStack(alignment: .leading, spacing: 9) {
             Text(L10n.text("Saved addresses")).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
+            Text(L10n.text("All saved servers are monitored continuously. Select a server to view its queue."))
+                .font(.caption).foregroundStyle(.secondary)
             ForEach(queue.profiles) { profile in
                 VStack(alignment: .leading, spacing: 7) {
                     HStack {
@@ -1554,8 +1905,10 @@ struct QueuePopover: View {
                         }.buttonStyle(.plain).disabled(!queue.canChangeServer)
                         if profile.endpoint == queue.endpoint { Image(systemName: "checkmark").font(.caption).foregroundStyle(.secondary) }
                         Spacer()
-                        Button { queue.deleteProfile(profile.id) } label: { Image(systemName: "minus.circle") }
-                            .buttonStyle(.plain).help(L10n.text("Remove server"))
+                        Button { panel.confirmation = .removeServer(profile) } label: {
+                            Label(L10n.text("Remove server"), systemImage: "minus.circle")
+                        }.buttonStyle(.borderless).foregroundStyle(.red).controlSize(.small)
+                            .disabled(!queue.canChangeServer || queue.isClearingGPUTW)
                     }
                     WakeSettingsView(queue: queue, profile: profile)
                 }
@@ -1588,6 +1941,8 @@ struct QueuePopover: View {
     }
     private var notificationSettings: some View {
         VStack(alignment: .leading, spacing: 9) {
+            Toggle(L10n.text("Notify when any server becomes available"), isOn: $queue.notifyAvailability).toggleStyle(.checkbox)
+                .onChange(of: queue.notifyAvailability) { enabled in if enabled { Task { await queue.authorizeNotifications() } } }
             Picker(L10n.text("Completion notifications"), selection: $queue.notificationMode) {
                 Text(L10n.text("Off")).tag("off")
                 Text(L10n.text("Every job")).tag("each")
@@ -1600,6 +1955,12 @@ struct QueuePopover: View {
                 .onChange(of: queue.notifyProblems) { enabled in if enabled { Task { await queue.authorizeNotifications() } } }
             if let message = queue.permissionMessage { Text(message).font(.caption).foregroundStyle(.secondary) }
         }.font(.system(size: 11))
+    }
+
+    private func serverColor(_ server: MonitoredServer) -> Color {
+        if server.isAvailable { return .green }
+        if server.state == .connected && server.runningCount > 0 { return .blue }
+        return .orange
     }
 
     private var connectionSettings: some View {
@@ -1639,6 +2000,11 @@ struct QueuePopover: View {
                 Text(message).font(.caption)
                     .foregroundStyle(queue.connectionMessageIsError ? Color.red : Color.secondary)
             }
+            LANDiscoveryView(queue: queue) { server in
+                panel.urlInput = server.endpoint
+                panel.profileName = server.name
+                queue.reviewConnection(to: server.endpoint)
+            }.padding(.top, 6)
             if !queue.profiles.isEmpty { serverSettings.padding(.top, 6) }
         }
     }
@@ -1904,50 +2270,58 @@ struct QueuePopover: View {
     }
 
     var settingsContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(L10n.text("Settings")).font(.headline)
-            connectionSettings
-            Divider()
-            progressExtensionSettings
-            Divider()
-            notificationSettings
-            Divider()
-            agentSettings
-            #if !DOCUMENTATION_SCREENSHOT
-            Divider()
-            updateSettings
-            #endif
+        VStack(alignment: .leading, spacing: 24) {
+            Picker(L10n.text("Settings"), selection: $panel.settingsSection) {
+                ForEach(SettingsSection.allCases, id: \.self) { section in Text(section.label).tag(section) }
+            }.pickerStyle(.segmented).labelsHidden()
+            switch panel.settingsSection {
+            case .servers:
+                connectionSettings
+                Divider()
+                progressExtensionSettings
+            case .notifications:
+                Text(L10n.text("Know when a server is ready for your next batch."))
+                    .font(.system(size: 14, weight: .medium))
+                notificationSettings
+            case .agents:
+                agentSettings
+            case .app:
+                HStack(spacing: 14) {
+                    QueueBrand.panelIcon.resizable().scaledToFit().frame(width: 48, height: 48)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("ComfyQueueBar").font(.headline)
+                        Text(L10n.text("Version %@", Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                #if !DOCUMENTATION_SCREENSHOT
+                updateSettings
+                #endif
+            }
         }
-        .padding(20)
+        .padding(24)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var footer: some View {
-        HStack(spacing: 12) {
-            Button { panel.showsSettings.toggle() } label: {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 12))
-                    .frame(width: 20, height: 20)
-            }
-            .buttonStyle(.plain)
-            .help(L10n.text("Settings"))
-            .accessibilityLabel(L10n.text("Settings"))
-            .popover(isPresented: $panel.showsSettings, arrowEdge: .bottom) {
-                ScrollView { settingsContent }
-                    .frame(width: 360, height: 480)
-            }
-            Text(queue.lastUpdated.map { L10n.text("Updated %@", $0.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(L10n.locale))) } ?? L10n.text("Refreshes every 4 seconds"))
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-            Spacer()
-            Button(L10n.text("Quit")) { NSApplication.shared.terminate(nil) }
-                .buttonStyle(.plain)
-                .font(.system(size: 11))
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: 12) {
+                Button { onOpenWorkspace?(false) } label: {
+                    Label(L10n.text("Open workspace"), systemImage: "rectangle.split.2x1")
+                        .font(.system(size: 12, weight: .medium))
+                }.buttonStyle(.plain)
+                Spacer()
+                Button { onOpenWorkspace?(true) } label: { Image(systemName: "gearshape").frame(width: 26, height: 26) }
+                    .buttonStyle(.plain).help(L10n.text("Settings")).accessibilityLabel(L10n.text("Settings"))
+                Menu {
+                    Text(L10n.text("Refreshes every 4 seconds"))
+                    Divider()
+                    Button(L10n.text("Quit")) { NSApplication.shared.terminate(nil) }
+                } label: { Image(systemName: "ellipsis").frame(width: 20) }
+                    .menuStyle(.borderlessButton).fixedSize().help(L10n.text("More options"))
+            }.padding(.horizontal, 18).padding(.vertical, 12)
         }
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 18)
-        .padding(.vertical, 9)
-        .overlay(alignment: .top) { Divider() }
     }
 
     private func sectionHeading(_ title: String, count: Int?, symbol: String) -> some View {
@@ -1984,11 +2358,13 @@ enum JobState {
 enum QueueConfirmation {
     case prioritize(QueueJob)
     case stop(QueueJob)
+    case removeServer(ServerProfile)
 
     var title: String {
         switch self {
         case .prioritize: return L10n.text("Prioritize this job?")
         case .stop: return L10n.text("Stop this job?")
+        case .removeServer: return L10n.text("Remove this server?")
         }
     }
 
@@ -1996,6 +2372,8 @@ enum QueueConfirmation {
         switch self {
         case .prioritize(let job):
             return L10n.text("Move \"%@\" to the front of the waiting queue. The running job continues. This resubmits the job and changes its prompt ID.", String(job.title))
+        case .removeServer(let profile):
+            return L10n.text("Stop monitoring %@? Jobs on this server will continue running.", profile.name)
         case .stop(let job):
             return L10n.text("Stop generation for \"%@\". Waiting jobs remain queued and the next job can run.", String(job.title))
         }

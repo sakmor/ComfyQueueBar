@@ -1,4 +1,3 @@
-#if !DOCUMENTATION_SCREENSHOT
 import AppKit
 import Combine
 import SwiftUI
@@ -7,6 +6,7 @@ import SwiftUI
 @MainActor
 final class StatusBarController: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSWindowDelegate {
     private let queue = QueueViewModel()
+    private let panelState = QueuePopoverState()
     private var item: NSStatusItem?
     private let popover = NSPopover()
     private var fallback: NSWindow?
@@ -14,12 +14,17 @@ final class StatusBarController: NSObject, NSApplicationDelegate, NSPopoverDeleg
     private var observers: [NSObjectProtocol] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        #if !DOCUMENTATION_SCREENSHOT
         _ = AppUpdater.shared
+        #endif
         installEditingMenu()
         popover.behavior = .transient
         popover.delegate = self
-        popover.contentSize = NSSize(width: 360, height: 600)
-        popover.contentViewController = NSHostingController(rootView: QueuePopover(queue: queue).frame(width: 360, height: 600))
+        popover.contentSize = NSSize(width: 420, height: 540)
+        popover.contentViewController = NSHostingController(rootView:
+            QueuePopover(queue: queue, panel: panelState, onOpenWorkspace: { [weak self] settings in
+                self?.showFallback(settings: settings)
+            }).frame(width: 420, height: 540))
         restoreItem()
         subscription = queue.objectWillChange.sink { [weak self] _ in
             DispatchQueue.main.async { self?.updateLabel() }
@@ -46,6 +51,13 @@ final class StatusBarController: NSObject, NSApplicationDelegate, NSPopoverDeleg
         }
         editItem.submenu = edit
         main.addItem(editItem)
+        let windowItem = NSMenuItem()
+        let windowMenu = NSMenu(title: L10n.text("Window"))
+        windowMenu.addItem(withTitle: L10n.text("Close window"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        windowMenu.addItem(withTitle: L10n.text("Minimize"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windowItem.submenu = windowMenu
+        main.addItem(windowItem)
+        NSApp.windowsMenu = windowMenu
         NSApp.mainMenu = main
     }
 
@@ -65,11 +77,22 @@ final class StatusBarController: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     private func updateLabel() {
-        // Bound width even for large queues; the full count is available in the tooltip.
-        item?.button?.title = " " + queue.queueBadge
+        let multiple = queue.monitoredServers.count > 1
+        item?.length = multiple ? 84 : 52
+        item?.button?.title = " " + (multiple ? queue.fleetBadge : queue.queueBadge)
         item?.button?.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         let status = queue.hasFreshQueue ? L10n.text("ComfyUI queue: %@ jobs", String(queue.totalJobs)) : queue.monitoringState.label
-        item?.button?.toolTip = queue.serverName + " · " + ConnectionAddress.portLabel(queue.endpoint) + " · " + status
+        if multiple {
+            let summary = L10n.text("%@ available / %@ servers", String(queue.availableServerCount), String(queue.monitoredServers.count))
+            let details = queue.monitoredServers.map { server in
+                let counts = server.state == .connected
+                    ? " · " + L10n.text("%@ running · %@ waiting", String(server.runningCount), String(server.pendingCount)) : ""
+                return server.name + " · " + server.statusLabel + counts
+            }
+            item?.button?.toolTip = ([summary] + details).joined(separator: "\n")
+        } else {
+            item?.button?.toolTip = queue.serverName + " · " + ConnectionAddress.portLabel(queue.endpoint) + " · " + status
+        }
         item?.button?.setAccessibilityLabel(item?.button?.toolTip)
     }
 
@@ -88,14 +111,16 @@ final class StatusBarController: NSObject, NSApplicationDelegate, NSPopoverDeleg
         return false
     }
 
-    private func showFallback() {
+    private func showFallback(settings: Bool = false) {
         popover.performClose(nil)
+        if settings { panelState.section = .settings }
         if fallback == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 600), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 940, height: 680), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
             window.title = "ComfyQueueBar"
+            window.contentMinSize = NSSize(width: 780, height: 540)
             window.isReleasedWhenClosed = false
             window.delegate = self
-            window.contentViewController = NSHostingController(rootView: QueuePopover(queue: queue).frame(width: 360, height: 600))
+            window.contentViewController = NSHostingController(rootView: QueuePopover(queue: queue, panel: panelState, expanded: true))
             window.center()
             fallback = window
         }
@@ -106,4 +131,3 @@ final class StatusBarController: NSObject, NSApplicationDelegate, NSPopoverDeleg
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func windowShouldClose(_ sender: NSWindow) -> Bool { sender.orderOut(nil); return false }
 }
-#endif

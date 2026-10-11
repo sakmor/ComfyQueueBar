@@ -58,6 +58,7 @@ cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
   <key>CFBundleDevelopmentRegion</key><string>en</string>
   <key>CFBundleLocalizations</key><array><string>en</string><string>zh-Hans</string><string>zh-Hant</string><string>ja</string></array>
   <key>LSUIElement</key><true/>
+  <key>NSLocalNetworkUsageDescription</key><string>Find and monitor ComfyUI servers on your local network.</string>
   <key>NSAppTransportSecurity</key>
   <dict><key>NSAllowsLocalNetworking</key><true/></dict>
 </dict>

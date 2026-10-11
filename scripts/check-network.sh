@@ -14,9 +14,11 @@ Path('build/network-check/Models.swift').write_text(
 )
 PY
 swiftc -parse-as-library build/network-check/Models.swift \
-  Sources/ComfyQueueBar/Features.swift Sources/ComfyQueueBar/WakeOnLAN.swift tests/check-network.swift \
+  Sources/ComfyQueueBar/Features.swift Sources/ComfyQueueBar/WakeOnLAN.swift tests/check-network.swift tests/check-multi-server.swift \
   Sources/ComfyQueueBar/GPUTWConnection.swift Sources/ComfyQueueBar/GPUTWLogin.swift \
   Sources/ComfyQueueBar/ConnectionReview.swift \
+  Sources/ComfyQueueBar/MultiServerMonitor.swift \
+  Sources/ComfyQueueBar/LANDiscovery.swift Sources/ComfyQueueBar/LANDiscoveryView.swift \
   Sources/ComfyQueueBar/AgentBridge.swift Sources/ComfyQueueBar/AgentSetup.swift \
   Sources/ComfyQueueBar/ProgressExtensionInstaller.swift \
   -framework AVKit -o build/network-check/check
