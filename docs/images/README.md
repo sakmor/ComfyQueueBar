@@ -10,13 +10,15 @@ Fixtures use a fictional ceramic-lamp production: one running turntable, one wai
 bash scripts/capture-screenshots.sh
 ```
 
+The redesigned development captures are `overview-light.png` and `overview-dark.png` at 420 × 540 points, plus `workspace-light.png`, `workspace-dark.png`, `workspace-history.png`, and `workspace-settings.png` at 940 × 680 points. They use the real native views with eight fictional servers, including busy, available, waiting, offline, sign-in, and initial-check states. `capture-screenshots.sh` now regenerates these files while preserving the original v1.4.1 captures. Run the compiled executable with `--interactive --many-servers` to exercise the actual status-item controller, shared navigation, and resizable workspace against documentation fixtures. `--narrow --workspace` renders the minimum workspace size.
+
 The compile-time DOCUMENTATION_SCREENSHOT build disables timers, networking, notification delivery, downloads, and preference reads. Native views are rendered in AppKit windows and exported as bitmaps. Production builds do not enable this flag.
 
 ## macOS desktop context
 
 `desktop-menubar.png` is a real macOS capture from 2026-10-02, cropped at capture time to the demonstration panel and the adjacent menu bar. `desktop-menubar-annotated.png` is retained as a compatibility filename for the same capture; the old annotation has been removed. No personal windows, filenames, or queue data appear. System wallpaper, macOS UI, and incidental third-party menu-bar marks belong to their respective owners and are not provided as standalone artwork.
 
-The demo uses the production template icon, a native 52-point NSStatusItem, and the same QueuePopover with a 600-point height. Its fixed queue count is two. The production app uses an NSPopover; the capture wrapper positions a documentation window beneath the status item.
+The original desktop capture used a native 52-point NSStatusItem and the 600-point queue panel. The current desktop capture wrapper uses an 84-point status item, a 420 × 540 overview, and a fixed availability count of 1/2. The production app uses an NSPopover; the capture wrapper positions a documentation window beneath the status item.
 
 ```sh
 bash scripts/capture-screenshots.sh --desktop-demo
@@ -24,7 +26,7 @@ bash scripts/capture-screenshots.sh --desktop-demo
 build/DocumentationCapture.app/Contents/MacOS/DocumentationCapture --menu-bar --dark --desktop-output /tmp/menu-bar.png
 ```
 
-Quit an existing production instance before a desktop capture to avoid duplicate icons, then restore it afterward. Review every image for private content before publication. The desktop-output option captures only a 360-point-wide region around the panel and exits; the regular desktop demo stays open until Quit.
+Quit an existing production instance before a desktop capture to avoid duplicate icons, then restore it afterward. Review every image for private content before publication. The desktop-output option captures only a 420-point-wide region around the panel and exits; the regular desktop demo stays open until Quit.
 
 ## Live GPUtw captures — 2026-10-05
 

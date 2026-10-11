@@ -22,9 +22,9 @@
   <a href="docs/TROUBLESHOOTING.md">Troubleshooting</a>
 </p>
 
-<p align="center"><strong>A macOS menu bar app — click its icon to open your queue.</strong></p>
+<p align="center"><strong>A quick menu bar overview, with a dedicated workspace for your render queues.</strong></p>
 
-<p align="center"><img src="docs/images/desktop-menubar.png" width="360" alt="ComfyQueueBar v1.4.1 on the real macOS menu bar, with a two-job queue and completed output thumbnails" /></p>
+<p align="center"><img src="docs/images/overview-light.png" width="360" alt="Compact fleet overview with availability counts, search, and server status rows" /></p>
 
 
 
@@ -33,14 +33,14 @@
 
 <table>
   <tr>
-    <td align="center"><img src="docs/images/queue-light.png" width="340" alt="Light mode: one running job at 70 percent node progress, a stop icon, a waiting job with a prioritize icon, and a completed clip" /><br /><strong>Light appearance</strong></td>
-    <td align="center"><img src="docs/images/queue-dark.png" width="340" alt="Dark mode: ComfyUI running and waiting queues with job controls" /><br /><strong>Dark appearance</strong></td>
+    <td align="center"><img src="docs/images/workspace-light.png" width="460" alt="Light workspace: independent server sidebar, selected queue, and live node progress" /><br /><strong>Light appearance</strong></td>
+    <td align="center"><img src="docs/images/workspace-dark.png" width="460" alt="Dark workspace: independent server sidebar and detailed queue controls" /><br /><strong>Dark appearance</strong></td>
   </tr>
 </table>
 
 </details>
 
-*Native captures of the v1.4.1 interface. Workflow names, addresses, history, timing, and output artwork are fictional demonstration fixtures; no private jobs or media are shown. Node progress is not whole-workflow progress.*
+*Native captures of the redesigned development interface. Workflow names, addresses, history, timing, and output artwork are fictional demonstration fixtures; no private jobs or media are shown. Node progress is not whole-workflow progress.*
 
 | Check progress | Choose the next job | Stop a running job |
 | --- | --- | --- |
@@ -51,7 +51,9 @@ A native macOS utility built with SwiftUI. Connect to local ComfyUI or a remote 
 ## Features
 
 - **Reduce agent progress-polling token use** with the included Claude Code/Codex skill and local MCP monitoring.
-- Menu bar icon with the total number of running and waiting jobs.
+- Monitor all saved servers at once, with independent running/waiting counts and availability.
+- Compact menu-bar overview with search and an Available filter; resizable workspace with a server sidebar, separate Queue/History views, and settings pages.
+- Menu bar shows available/total servers when monitoring several, or the job count for a single server.
 - Separate running and waiting lists, refreshed every **4 seconds**.
 - Completed history with **last hour / last 24 hours / today / loaded history** filters and search; refreshed every **15 seconds**, bounded to the newest **200 server records**.
 - Image and video thumbnails, native previews, and downloads to a location you choose.
@@ -116,7 +118,7 @@ Replace the placeholders with real IDs. The skill checks existing jobs and waits
 
 Click **Preview & download…** on a completed job to open its output. Images use a native preview; MP4, MOV, and M4V use macOS playback controls when their codec is supported. Choose an output if the job produced several files, then use **Download…** to save it. Other formats remain downloadable.
 
-Open the **gear** to save a named server address and choose completion notifications: **Off**, **Every job**, or **Whole batch**. Enable failure/disconnection alerts separately. Notifications start disabled and require macOS permission. Switch saved servers by clicking the server name in the header; one server is monitored at a time.
+Open the **gear** to save a named server address and choose completion notifications: **Off**, **Every job**, or **Whole batch**. Enable failure/disconnection alerts separately. Notifications start disabled and require macOS permission. All saved servers remain monitored. Select a row in the server overview to inspect its queue in the workspace, and enable **Notify when any server becomes available** to get an alert when an observed busy queue becomes empty.
 
 <details>
 <summary>See server and notification settings</summary>

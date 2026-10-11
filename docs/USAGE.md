@@ -2,13 +2,19 @@
 
 ## Reading the panel
 
-Click the stack icon in the menu bar. A fresh queue response shows the sum of running and waiting entries. `0` means the selected queue is empty; `—` means disconnected, invalid data, or no fresh queue response for 30 seconds; `!` means sign-in is required; `…` means the initial check is in progress. The panel identifies the selected server and port, running/waiting jobs, completion history, and the last successful queue refresh time. GPU utilization is a separate metric and is not measured by this app.
+Click the stack icon in the menu bar. With multiple monitored servers, the menu bar shows available/total servers (for example, `1/3`). The server overview identifies each server as Rendering, Waiting to run, Available, or unavailable/unknown. Only a fresh response with both running and waiting queues empty counts as Available. With a single server, a fresh queue response shows the sum of running and waiting entries. `0` means the selected queue is empty; `—` means disconnected, invalid data, or no fresh queue response for 30 seconds; `!` means sign-in is required; `…` means the initial check is in progress. The compact menu-bar panel shows fleet counts, searchable server rows, and an Available filter. Select a server or click Open workspace to open the resizable work window. Its sidebar keeps the server list visible while the right pane shows the selected server’s Queue or History tab. Settings has separate Connections, Notifications, Agents, and App pages. GPU utilization is a separate metric and is not measured by this app.
 
 Connection review, GPUtw login, status symbols, and Wake-on-LAN are included in v1.5.3. See the [multilingual remote setup tutorial](REMOTE_SETUP.md) for setup.
 
 Use the refresh icon to update immediately. Queue requests run every four seconds while the app is running, including when the panel is closed. Progress requests run every second when a job is running and the server is connected. The app uses an eight-second network timeout and prevents overlapping requests of the same type.
 
-The address is saved for the next launch. Only one server is monitored at a time. Switching addresses does not start or stop either ComfyUI server. History is held in memory while running; it is not saved to disk. Named server bookmarks are saved locally.
+The address is saved for the next launch. The monitoring list is saved independently of the selected detailed queue. The existing current address is adopted into this list on first launch, and newly connected addresses are retained automatically. Every listed server is monitored with independent requests every four seconds. Switching addresses does not start or stop either ComfyUI server. History is held in memory while running; it is not saved to disk. Named server bookmarks are saved locally.
+
+### Finding ComfyUI on the local network
+
+Open Settings (or the connection section while disconnected), expand **Scan local network**, and click **Scan**. The default HTTP ports are `8188` and `8000`; enter up to eight comma-separated ports for custom installations. Results appear as they are found. **Save address** adds a server to continuous monitoring; **Review this ComfyUI** opens the existing connection review before changing the detailed queue. **Stop scan** keeps results already found.
+
+Discovery checks `/system_stats` on loopback and active private IPv4 Wi-Fi/Ethernet subnets. ComfyUI must be reachable from this Mac; start a remote instance with `--listen 0.0.0.0`, allow its port through the firewall, and allow ComfyQueueBar in macOS Local Network privacy settings when prompted. The scanner shows the searched ranges. Subnets larger than /22 are limited to the /22 containing this Mac, with a total cap of 4096 LAN addresses plus loopback. IPv6, VPN point-to-point interfaces, HTTPS, authentication proxies, and URL base paths require manual address entry. Discovery uses isolated read-only requests and refuses redirects.
 
 ### Job labels
 
@@ -94,17 +100,19 @@ Expand **Failures & interruptions** below history. Each entry shows its workflow
 
 ## Saved servers
 
-1. Open the gear and enter a ComfyUI address.
+1. Open Settings → Connections and enter a ComfyUI address.
 2. Enter a **Server name**, then click **Save address**.
-3. Click the saved name, or choose it from the current server name in the panel header. Review the port, running/waiting counts, and three most recent successful jobs from up to 20 history records, then click **Monitor this server**. **Cancel** leaves your current connection unchanged. A failed queue check prevents switching; unavailable history is labeled unknown.
+3. Select a server row in the overview or workspace sidebar to view that server immediately. For a connection review, click the network button beside the selected server name in the workspace, or click its saved name in Settings → Connections. Review the port, running/waiting counts, and three most recent successful jobs from up to 20 history records, then click **Monitor this server**. **Cancel** leaves your current connection unchanged. A failed queue check prevents switching; unavailable history is labeled unknown.
 
-Only one server is monitored at a time. Switching does not launch or stop a server and is disabled during queue actions. Saving the same address updates its name. The minus button removes the bookmark while leaving the current connection active. Addresses must use HTTP or HTTPS; bookmarks do not accept embedded usernames/passwords. The app does not manage SSH tunnels or credentials.
+The monitoring list is saved independently of the selected detailed queue. The existing current address is adopted into this list on first launch, and newly connected addresses are retained automatically. Every listed server is monitored with independent requests every four seconds. Switching does not launch or stop a server and is disabled during queue actions. Saving the same address updates its name. The explicit Remove server button asks for confirmation and removes only that server from monitoring. If it was selected, the workspace selects another remaining server; removing the last server shows the add-server screen. Server jobs continue running. Addresses must use HTTP or HTTPS; bookmarks do not accept embedded usernames/passwords. The app does not manage SSH tunnels or credentials.
 
 For GPUtw, use **Sign in to GPUtw…** and open the correct service port in the app's browser before reviewing it. For a sleeping Mac, save the address first and expand **Wake Mac** to configure manual or optional automatic Wake-on-LAN. A sleeping candidate does not need to pass a connection review before you can send a manual wake packet. See the [remote setup tutorial](REMOTE_SETUP.md).
 
 ## Notifications
 
-Open the gear and choose **Completion notifications**:
+Enable **Notify when any server becomes available** for an alert naming whichever server changes from an observed busy queue to a freshly empty queue. It is off by default. An initially empty queue produces no alert; disconnection, sign-in failures, and stale data never count as empty. An empty queue means capacity is available, not that every job succeeded. A transition that happens entirely between polls cannot be observed.
+
+Open the gear and choose **Completion notifications** for history-based alerts on the selected detailed queue:
 
 | Mode | Behavior |
 | --- | --- |
@@ -112,7 +120,7 @@ Open the gear and choose **Completion notifications**:
 | Every job | One notification for each newly discovered successful job |
 | Whole batch | A summary of new successes/failures when the monitored queue is empty |
 
-**Notify failures and disconnections** is a separate switch, also off by default. Enabling either option requests macOS notification permission. Manage permission, banners, and sounds under System Settings → Notifications → ComfyQueueBar. Focus modes can suppress presentation. Notification contents may include workflow and server names; failure alerts also include server error text.
+**Notify failures and disconnections** reports failures in the selected history and disconnections for all monitored servers. It is a separate switch, also off by default. Enabling either option requests macOS notification permission. Manage permission, banners, and sounds under System Settings → Notifications → ComfyQueueBar. Focus modes can suppress presentation. Notification contents may include workflow and server names; failure alerts also include server error text.
 
 The first history snapshot after connecting establishes a baseline and produces no old-job alerts. New prompt IDs are deduplicated during the connection. Notifications rely on polling and bounded server history; jobs removed from history before discovery cannot be reported. A connection-loss alert is sent only after a previously working queue connection fails, avoiding repeated alerts during an outage. The app must be running; these are local macOS notifications, not remote push messages.
 
@@ -122,4 +130,4 @@ The first history snapshot after connecting establishes a baseline and produces 
 
 Estimated remaining time uses the median duration of up to ten recent successful jobs with the same graph/settings fingerprint and valid start/finish timestamps. At least three matches are required. The fingerprint retains graph topology and execution settings, while ignoring seed, prompt text, labels, and output prefixes. This is a practical approximation: cache hits, different prompt complexity, server load, and hardware changes can affect timing. An estimate that has elapsed is explicitly labeled; node percentage remains separate from whole-workflow timing.
 
-Use the gear button in the footer for connection, bookmark, notification, and update settings.
+Use the gear button to open Settings in the workspace. Connections contains saved servers, GPUtw login, LAN discovery, Wake-on-LAN, and the progress extension; Notifications contains availability and completion alerts; Agents contains MCP integration; App contains updates.

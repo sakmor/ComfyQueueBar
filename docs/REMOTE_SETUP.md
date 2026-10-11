@@ -2,7 +2,7 @@
 
 **English** · [简体中文](i18n/REMOTE_SETUP.zh-CN.md) · [繁體中文](i18n/REMOTE_SETUP.zh-TW.md) · [日本語](i18n/REMOTE_SETUP.ja.md)
 
-This guide covers GPUtw login, choosing the correct ComfyUI service, SSH connections, and waking a remote Mac. One server is monitored at a time; the number represents running plus waiting ComfyUI jobs.
+This guide covers GPUtw login, choosing the correct ComfyUI service, SSH connections, and waking a remote Mac. All saved servers are monitored concurrently. For multiple servers the menu bar shows available/total servers; for one server it shows running plus waiting ComfyUI jobs.
 
 **Availability:** GPUtw browser login, connection review, distinct connection badges, and Wake-on-LAN are included in v1.5.3. From v1.5.2, use **Check for updates…** in the app's settings.
 
@@ -29,7 +29,7 @@ Different ports on one GPU instance can run independent ComfyUI processes. For e
 4. Match the workflow title and completion time to your own job. An empty queue with unrelated history can indicate the wrong service; missing history is not proof of completion.
 5. If the correct service's queue is empty, check **Recently completed** and **Failures & interruptions**. A job may have finished between refreshes.
 
-GPU utilization and allocated VRAM are not ComfyUI job counts. This app does not currently read GPU utilization, discover every possible port, or aggregate multiple services; it checks only the selected queue every four seconds and checks the paired `8080`/`8090` port during a manual review of an empty GPUtw queue. Do not resubmit a job solely because this app shows 0.
+GPU utilization and allocated VRAM are not ComfyUI job counts. This app does not currently read GPU utilization, discover every possible port, or aggregate multiple services; it checks all saved queues every four seconds and checks the paired `8080`/`8090` port during a manual review of an empty GPUtw queue. Do not resubmit a job solely because this app shows 0.
 
 ### Read the menu-bar status
 
@@ -65,7 +65,7 @@ Wake-on-LAN is optional and configured per saved server. It sends a UDP magic pa
 5. A “packet sent” message only confirms that the local send succeeded. Wait for the target to wake and ComfyUI to become reachable, then select the bookmark, review the connection, and confirm **Monitor this server**.
 6. Optionally enable **Automatically wake when offline** and save again. While this server is selected, qualifying network failures can trigger a packet, at most once every two minutes per server. HTTP errors and login failures do not trigger waking. Clear the checkbox and save to disable automatic waking.
 
-The Mac running ComfyQueueBar must remain awake and the app must remain running. Manual **Wake now** can target any saved server; automatic waking applies only to the selected one. Other bookmarks are not polled.
+The Mac running ComfyQueueBar must remain awake and the app must remain running. Manual **Wake now** can target any saved server; automatic waking applies only to the selected one. Other saved servers are polled, but are not woken automatically.
 
 ### If the target stays asleep
 
