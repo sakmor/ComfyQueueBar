@@ -36,6 +36,10 @@
     <td align="center"><img src="docs/images/workspace-light.png" width="460" alt="Light workspace: independent server sidebar, selected queue, and live node progress" /><br /><strong>Light appearance</strong></td>
     <td align="center"><img src="docs/images/workspace-dark.png" width="460" alt="Dark workspace: independent server sidebar and detailed queue controls" /><br /><strong>Dark appearance</strong></td>
   </tr>
+  <tr>
+    <td align="center"><img src="docs/images/workspace-history.png" width="460" alt="Recent job history with time filter and search" /><br /><strong>History</strong></td>
+    <td align="center"><img src="docs/images/workspace-settings.png" width="460" alt="Current connection settings with saved servers and local network scan" /><br /><strong>Settings</strong></td>
+  </tr>
 </table>
 
 </details>
@@ -123,7 +127,7 @@ Open the **gear** to save a named server address and choose completion notificat
 <details>
 <summary>See server and notification settings</summary>
 
-<img src="docs/images/settings.png" width="360" alt="Native settings with a saved Studio Mac and Render PC servers and optional completion and failure notifications" />
+<img src="docs/images/workspace-settings.png" width="460" alt="Current workspace settings with server connections, local network scanning, saved servers, and Wake-on-LAN" />
 
 *English documentation fixture. Automatic update controls are omitted from this capture build.*
 

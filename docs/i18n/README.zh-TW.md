@@ -14,23 +14,29 @@ App 自行監控不會呼叫語言模型；Agent 處理結果仍會使用 token�
 
 [English](../../README.md) · [简体中文](README.zh-CN.md) · **繁體中文** · [日本語](README.ja.md)
 
-最新版介面使用虛構示範工作與自製範例圖片；桌面圖為原生 macOS 截圖。
-
-<img src="../images/queue-light.png" width="360" alt="ComfyQueueBar v1.4.1" />
+以下操作畫面更新至 v1.6.0，使用虛構伺服器、工作與範例圖片；不含私人資料或即時工作流程。
 
 ## 看看它怎麼用
 
-**點選 macOS 選單列圖示，就能展開佇列面板。**
+**點選選單列圖示查看所有已儲存伺服器；開啟工作區可查看個別佇列、歷史與設定。**
 
-![macOS 桌面上的 ComfyQueueBar 選單列圖示與佇列面板](../images/desktop-menubar.png)
+<p align="center"><img src="../images/overview-light.png" width="360" alt="v1.6.0 伺服器總覽，顯示搜尋、空閒篩選與各伺服器狀態" /></p>
 
-這是真實 macOS 桌面截圖，面板使用文件示範模式與固定範例工作；不含私人桌面內容或即時工作流程。App 支援英文、簡體中文、繁體中文與日文，依 macOS 偏好語言顯示。GitHub 截圖維持英文，以下按鈕名稱以英文對照說明。更改系統語言或 App 語言後，請重新啟動 App。
+App 支援英文、簡體中文、繁體中文與日文，依 macOS 偏好語言顯示。GitHub 截圖維持英文，以下按鈕名稱以英文對照說明。更改系統語言或 App 語言後，請重新啟動 App。
 
 <details>
-<summary>查看淺色與深色介面</summary>
+<summary>查看工作區、歷史與設定畫面</summary>
 
-![淺色介面](../images/queue-light.png)
-![深色介面](../images/queue-dark.png)
+<table>
+  <tr>
+    <td align="center"><img src="../images/workspace-light.png" width="460" alt="淺色工作區，包含伺服器清單、執行中和等待中的工作" /><br /><strong>淺色佇列</strong></td>
+    <td align="center"><img src="../images/workspace-dark.png" width="460" alt="深色工作區與詳細佇列" /><br /><strong>深色佇列</strong></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="../images/workspace-history.png" width="460" alt="最近完成的工作與歷史搜尋" /><br /><strong>工作歷史</strong></td>
+    <td align="center"><img src="../images/workspace-settings.png" width="460" alt="目前工作區設定與已儲存伺服器" /><br /><strong>連線設定</strong></td>
+  </tr>
+</table>
 
 </details>
 
@@ -40,12 +46,10 @@ App 自行監控不會呼叫語言模型；Agent 處理結果仍會使用 token�
 
 - **媒體預覽與下載**：點選縮圖或 Preview & download…，選擇輸出後原生預覽圖片／影片，再透過 Download… 選擇儲存位置。MP4、MOV、M4V 需 macOS 支援其編碼，其他格式仍可下載。
 - **通知**：齒輪設定可選關閉、每項完成或佇列完成通知，並另開失敗／斷線提醒。預設關閉，開啟需 macOS 授權；首次連線不通知舊歷史。
-- **區網掃描**：在齒輪設定展開「掃描區網」，搜尋 Wi-Fi／乙太網路與本機的 ComfyUI。預設檢查 8188、8000，可輸入自訂連接埠；找到後可儲存位址或先確認佇列。遠端 ComfyUI 需以 `--listen 0.0.0.0` 啟動，並開放防火牆與 macOS 區域網路權限。只掃描私人 IPv4 網段；大型網段限制於附近 /22 範圍，最多 4096 個區網位址。
+- **區網掃描**：在「設定 → 連線」展開「掃描區網」，搜尋 Wi-Fi／乙太網路與本機的 ComfyUI。預設檢查 8188、8000，可輸入自訂連接埠；找到後可儲存位址或先確認佇列。遠端 ComfyUI 需以 `--listen 0.0.0.0` 啟動，並開放防火牆與 macOS 區域網路權限。只掃描私人 IPv4 網段；大型網段限制於附近 /22 範圍，最多 1024 個位址，並限制為 48 個並行探測。
 - **多伺服器**：輸入位址與名稱，按 Save address；所有已儲存主機會同時持續監控；主機總覽顯示生成中、等待中、空閒或斷線狀態，點選卡片查看詳細佇列。可啟用「任一主機轉為空閒時通知」安排下一批工作。
 - **喚醒 Mac**：在已儲存位址設定目標網卡 MAC、廣播 IPv4 與 UDP 連接埠，可手動喚醒或為目前選用的伺服器啟用離線時自動喚醒。完整步驟與限制見[遠端設定教學](REMOTE_SETUP.zh-TW.md)。
 - **時間估算**：顯示 App 首次觀察後的執行時間；至少三筆設定相近且有起訖時間的成功工作才估算剩餘時間，負載與快取可能影響準確度。
-
-<img src="../images/settings.png" width="360" alt="英文伺服器與通知設定" />
 
 ## GPUtw 與遠端 Mac 教學
 
@@ -55,7 +59,7 @@ App 自行監控不會呼叫語言模型；Agent 處理結果仍會使用 token�
 
 學習 GPUtw 登入、辨認不同連接埠的服務、閱讀 `0`／`—`／`!`／`…`、切換前核對近期工作，以及 Wake-on-LAN 與 SSH 設定。
 
-上述功能自 v1.5.3 起提供。使用 v1.5.2 的使用者可在 App 設定中按「檢查更新…」。
+多伺服器監控、區域網路掃描與新版工作區自 v1.6.0 起提供。v1.5.x 使用者可在 App 設定中按「檢查更新…」升級。
 
 ## 功能與需求
 

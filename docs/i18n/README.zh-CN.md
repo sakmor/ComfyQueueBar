@@ -14,23 +14,29 @@ App 自行监控不会调用语言模型；Agent 处理结果仍会使用 token�
 
 [English](../../README.md) · **简体中文** · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md)
 
-最新版界面使用虚构示范任务与自制示例图片；桌面图为原生 macOS 截图。
-
-<img src="../images/queue-light.png" width="360" alt="ComfyQueueBar v1.4.1" />
+以下操作画面已更新至 v1.6.0，使用虚构服务器、任务与示例图片；不包含私人数据或实时工作流。
 
 ## 看看它怎么用
 
-**点击 macOS 菜单栏图标，即可展开队列面板。**
+**点击菜单栏图标查看所有已保存服务器；打开工作区可查看单个队列、历史记录与设置。**
 
-![macOS 桌面上的 ComfyQueueBar 菜单栏图标与队列面板](../images/desktop-menubar.png)
+<p align="center"><img src="../images/overview-light.png" width="360" alt="v1.6.0 服务器总览，显示搜索、空闲筛选和各服务器状态" /></p>
 
-这是真实 macOS 桌面截图，面板使用文档演示模式与固定示例任务；不包含私人桌面内容或实时工作流。App 支持英文、简体中文、繁体中文与日文，根据 macOS 首选语言显示。GitHub 截图保持英文，下方按钮名称用英文对应说明。更改系统语言或 App 语言后，请重新启动 App。
+App 支持英文、简体中文、繁体中文与日文，根据 macOS 首选语言显示。GitHub 截图保持英文，下方按钮名称用英文对应说明。更改系统语言或 App 语言后，请重新启动 App。
 
 <details>
-<summary>查看浅色与深色界面</summary>
+<summary>查看工作区、历史与设置画面</summary>
 
-![浅色界面](../images/queue-light.png)
-![深色界面](../images/queue-dark.png)
+<table>
+  <tr>
+    <td align="center"><img src="../images/workspace-light.png" width="460" alt="浅色工作区，包含服务器列表、运行中和等待中的任务" /><br /><strong>浅色队列</strong></td>
+    <td align="center"><img src="../images/workspace-dark.png" width="460" alt="深色工作区与详细队列" /><br /><strong>深色队列</strong></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="../images/workspace-history.png" width="460" alt="最近完成的任务与历史搜索" /><br /><strong>任务历史</strong></td>
+    <td align="center"><img src="../images/workspace-settings.png" width="460" alt="当前工作区设置与已保存服务器" /><br /><strong>连接设置</strong></td>
+  </tr>
+</table>
 
 </details>
 
@@ -42,10 +48,9 @@ App 自行监控不会调用语言模型；Agent 处理结果仍会使用 token�
 
 - **媒体预览与下载**：点击缩略图或 Preview & download…，选择输出后原生预览图片／视频，再通过 Download… 选择保存位置。MP4、MOV、M4V 需要 macOS 支持其编码，其他格式仍可下载。
 - **通知**：齿轮设置可选关闭、每项完成或队列完成通知，并单独开启失败／断线提醒。默认关闭，开启需要 macOS 授权；首次连接不通知旧历史。
+- **局域网扫描**：在“设置 → 连接”中扫描本机和附近 Wi-Fi／以太网设备上的 ComfyUI。默认检查 8188、8000，也可输入端口；扫描范围限制在附近的 /22 私有 IPv4 网段，最多 1024 个地址、48 个并发探测。
 - **多服务器**：输入地址和名称，点击 Save address；所有已保存主机会同时持续监控；主机总览显示生成中、等待中、空闲或断线状态，点击卡片查看详细队列。可启用“任一主机转为空闲时通知”安排下一批任务。
 - **时间估算**：显示 App 首次观察后的运行时间；至少三条设置相近且有起止时间的成功任务才估算剩余时间，负载与缓存可能影响准确度。
-
-<img src="../images/settings.png" width="360" alt="英文服务器与通知设置" />
 
 ## GPUtw 与远程 Mac 教程
 
@@ -53,7 +58,7 @@ App 自行监控不会调用语言模型；Agent 处理结果仍会使用 token�
 
 学习 GPUtw 登录、辨认不同端口的服务、理解 `0`／`—`／`!`／`…`、切换前核对近期任务，以及 Wake-on-LAN 和 SSH 设置。
 
-上述功能自 v1.5.3 起提供。使用 v1.5.2 的用户可在 App 设置中点击“检查更新…”。
+多服务器监控、局域网扫描与新版工作区自 v1.6.0 起提供。v1.5.x 用户可在 App 设置中点击“检查更新…”升级。
 
 ## 功能与要求
 

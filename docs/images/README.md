@@ -1,6 +1,6 @@
 # Interface screenshots
 
-The original demonstration screenshots show the v1.4.1 native interface in English. `queue-light.png` and `queue-dark.png` capture the shipping QueuePopover at 360 × 600 points. `settings.png` captures its server/notification settings at 360 × 480 points; the documentation build omits Sparkle controls. `preview.png` captures the shipping standalone MediaPreview content at 440 × 460 points.
+`queue-light.png`, `queue-dark.png`, and `settings.png` are retained historical captures of the v1.4.1 interface and are no longer used to illustrate the current README workflow. `preview.png` remains a useful close-up of the standalone output preview at 440 × 460 points; the documentation build omits Sparkle controls.
 
 Fixtures use a fictional ceramic-lamp production: one running turntable, one waiting lighting study, three successful still-image records with distinct filenames, and three four-minute timing samples. This demonstrates node progress, an estimate, history filtering, thumbnails, preview, and downloads. Times use a fixed illustrative 2:32 PM clock on the capture date. The observed timer starts two minutes before rendering. Server profiles are fictional: Studio Mac on loopback and Render PC on an RFC 5737 documentation address. No user preferences, private jobs, or server requests are included.
 
@@ -10,7 +10,7 @@ Fixtures use a fictional ceramic-lamp production: one running turntable, one wai
 bash scripts/capture-screenshots.sh
 ```
 
-The redesigned development captures are `overview-light.png` and `overview-dark.png` at 420 × 540 points, plus `workspace-light.png`, `workspace-dark.png`, `workspace-history.png`, and `workspace-settings.png` at 940 × 680 points. They use the real native views with eight fictional servers, including busy, available, waiting, offline, sign-in, and initial-check states. `capture-screenshots.sh` now regenerates these files while preserving the original v1.4.1 captures. Run the compiled executable with `--interactive --many-servers` to exercise the actual status-item controller, shared navigation, and resizable workspace against documentation fixtures. `--narrow --workspace` renders the minimum workspace size.
+The current v1.6.0 captures are `overview-light.png` and `overview-dark.png` at 420 × 540 points, plus `workspace-light.png`, `workspace-dark.png`, `workspace-history.png`, and `workspace-settings.png` at 940 × 680 points. They use the real native views with eight fictional servers, including busy, available, waiting, offline, sign-in, and initial-check states. The English and translated READMEs use these current captures. `capture-screenshots.sh` regenerates them while preserving the historical v1.4.1 files. Run the compiled executable with `--interactive --many-servers` to exercise the actual status-item controller, shared navigation, and resizable workspace against documentation fixtures. `--narrow --workspace` renders the minimum workspace size.
 
 The compile-time DOCUMENTATION_SCREENSHOT build disables timers, networking, notification delivery, downloads, and preference reads. Native views are rendered in AppKit windows and exported as bitmaps. Production builds do not enable this flag.
 
