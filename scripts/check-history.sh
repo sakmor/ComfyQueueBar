@@ -5,7 +5,7 @@ cd "$project_dir"
 mkdir -p build/history-check
 python3 - <<'PY'
 from pathlib import Path
-s=Path('Sources/ComfyQueueBar/main.swift').read_text()
+s=Path('Sources/ComfyQueueBar/QueueModels.swift').read_text()
 helper=s[s.index('struct CompletedJob:'):s.index('struct QueueJob:')]
 f=Path('Sources/ComfyQueueBar/Features.swift').read_text()
 models=f.split('// PURE_FEATURE_MODELS_BEGIN')[1].split('// PURE_FEATURE_MODELS_END')[0]

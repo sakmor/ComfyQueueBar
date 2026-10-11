@@ -5,8 +5,10 @@ cd "$project_dir"
 mkdir -p build/network-check
 python3 - <<'PY'
 from pathlib import Path
-source = Path('Sources/ComfyQueueBar/main.swift').read_text()
-models = source[source.index('enum L10n {'):source.index('enum QueueBrand {')]
+def body(name):
+    lines = Path('Sources/ComfyQueueBar/' + name).read_text().split('\n')
+    return '\n'.join(line for line in lines if not line.startswith('import ')) + '\n'
+models = ''.join(body(name) for name in ('Localization.swift', 'QueueViewModel.swift', 'QueueModels.swift'))
 # Exercise production request/action code, with preferences isolated from the app.
 models = models.replace('UserDefaults.standard', 'validationDefaults')
 Path('build/network-check/Models.swift').write_text(

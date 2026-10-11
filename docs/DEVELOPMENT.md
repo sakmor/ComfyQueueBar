@@ -4,7 +4,14 @@
 
 ```text
 Package.swift                              Swift executable package
-Sources/ComfyQueueBar/main.swift            View model, API client, localization, panel
+Sources/ComfyQueueBar/main.swift            App entry points and Sparkle updater
+Sources/ComfyQueueBar/Localization.swift    L10n language resolution and app-owned translations
+Sources/ComfyQueueBar/QueueViewModel.swift  Selected-server view model, API client, and actions
+Sources/ComfyQueueBar/QueueModels.swift     Queue, history, progress, and error models
+Sources/ComfyQueueBar/QueuePopover.swift    Menu-bar overview and workspace window UI
+Sources/ComfyQueueBar/JobCard.swift         Running/waiting job rows and confirmations
+Sources/ComfyQueueBar/WakeSettingsView.swift Per-server Wake-on-LAN settings form
+Sources/ComfyQueueBar/LANDiscovery.swift    Bounded local-network ComfyUI scanner
 Sources/ComfyQueueBar/Features.swift        History models, notifications, native media UI
 Sources/ComfyQueueBar/ConnectionReview.swift Candidate inspection and fresh/unknown queue states
 Sources/ComfyQueueBar/GPUTWConnection.swift Scoped WebKit-cookie HTTP transport and queue validation
@@ -14,7 +21,7 @@ Sources/ComfyQueueBar/AgentBridge.swift     Durable same-user subscription IPC
 Sources/ComfyQueueBar/AgentSetup.swift      User-triggered MCP registration, shared Skill installation, and backups
 agent_bridge/server.py                    Local stdio MCP / optional Claude channel adapter
 Sources/ComfyQueueBar/StatusBarController.swift Native status-item lifecycle and reopen window
-Sources/ComfyQueueBar/MultiServerMonitor.swift Independent per-endpoint queue polling and availability transitions
+Sources/ComfyQueueBar/MultiServerMonitor.swift Per-endpoint background polling, backoff, and availability transitions
 assets/                                    App icon and artwork provenance
 build-app.sh                               Release app bundle and icon builder
 install-comfyui-extension.sh               Non-overwriting extension installer
@@ -52,7 +59,7 @@ The GPUtw browser/port review and cancellation flow were manually verified again
 
 `LANDiscovery` builds a deduplicated search plan from active private IPv4 interfaces, excludes loopback/point-to-point interfaces, then adds localhost. It honors actual subnet masks; large subnets use the containing /22, capped at 4096 LAN hosts. Up to 48 isolated ephemeral HTTP probes run concurrently with two-second request and three-second resource timeouts. Only a valid ComfyUI `/system_stats` response is listed; redirects, cookies and shared credentials are disabled. Scan cancellation and revision tokens prevent old results from entering a new scan. Discovery does not change selection or persist servers until the user chooses a result. `bash scripts/check-lan.sh` covers masks and limits, port validation, bounded concurrency, cancellation/restart, and real loopback HTTP identification/redirect refusal. It does not scan a physical LAN.
 
-`MultiServerMonitor` independently polls every saved monitored endpoint every four seconds using the existing authenticated transport and queue validation. Each endpoint has its own in-flight guard and cancellation token; removed endpoints cannot publish late results after re-addition. Canonical addresses are deduplicated, but different ports are independent. A one-second freshness tick expires responses at 30 seconds. Availability requires a fresh empty running and pending queue; observed busy-to-empty transitions emit optional availability notifications without asserting successful completion. Initial idle responses do not notify. The legacy current endpoint is migrated into saved profiles on launch, and new connections are enrolled before polling. Monitor membership never depends on the selected endpoint. Explicit removal cancels the corresponding poll and, if necessary, selects a remaining server or clears the detail pane. Selection changes only the detailed queue; history, node progress, agent subscriptions, and automatic waking still follow that selection. Background queue monitoring does not need the progress extension.
+`MultiServerMonitor` independently polls every saved monitored endpoint except the selected one, using the existing authenticated transport and queue validation (`FleetPollPolicy`). Healthy background servers are polled every 12 seconds; after a failure, retries back off from 4 seconds, doubling up to 60 seconds, and the manual refresh button bypasses the schedule. The selected server is refreshed only by `QueueViewModel` every four seconds, which reports each result into the monitor with `record`/`recordFailure`, so no endpoint is requested twice per tick. Disconnection notices are limited to one per server every five minutes. Each endpoint has its own in-flight guard and cancellation token; removed endpoints cannot publish late results after re-addition. Canonical addresses are deduplicated, but different ports are independent. A one-second freshness tick expires responses at 30 seconds. Availability requires a fresh empty running and pending queue; observed busy-to-empty transitions emit optional availability notifications without asserting successful completion. Initial idle responses do not notify. The legacy current endpoint is migrated into saved profiles on launch, and new connections are enrolled before polling. Monitor membership never depends on the selected endpoint. Explicit removal cancels the corresponding poll and, if necessary, selects a remaining server or clears the detail pane. Selection changes only the detailed queue; history, node progress, agent subscriptions, and automatic waking still follow that selection. Background queue monitoring does not need the progress extension.
 
 `QueueViewModel` runs on the main actor. Two timers schedule asynchronous HTTP refreshes. The app polls `/queue` every four seconds; when connected with a running job, it polls the progress bridge every second. A missing progress route is retried during the ordinary queue refresh. Separate guards prevent overlapping queue and progress refreshes. Action guards serialize queue mutations inside this app, but cannot serialize other clients.
 
@@ -123,7 +130,7 @@ Run `bash scripts/capture-screenshots.sh` in a graphical macOS session to regene
 
 ## Localization
 
-`L10n` in `Sources/ComfyQueueBar/main.swift` holds app-owned strings for English, `zh-Hans`, `zh-Hant`, and Japanese. The app bundle declares these languages. Preferred language resolution respects explicit Chinese scripts before regional fallbacks. Dynamic values use `%@` placeholders; workflow and node names remain server-owned text. `bash scripts/check-localization.sh` checks language selection, translation completeness, placeholder parity, formatting, and fallback behavior.
+`L10n` in `Sources/ComfyQueueBar/Localization.swift` holds app-owned strings for English, `zh-Hans`, `zh-Hant`, and Japanese. The app bundle declares these languages. Preferred language resolution respects explicit Chinese scripts before regional fallbacks. Dynamic values use `%@` placeholders; workflow and node names remain server-owned text. `bash scripts/check-localization.sh` checks language selection, translation completeness, placeholder parity, formatting, and fallback behavior.
 
 Documentation builds default to English regardless of the system language. For local visual checks only, set `COMFYQUEUEBAR_PREVIEW_LANGUAGE=ja`, `zh-Hant`, or `zh-Hans` when running the documentation capture executable with a temporary output path. Production builds ignore this environment variable.
 
