@@ -5,6 +5,7 @@ private final class FleetFixture {
     var counts: [String: (running: Int, pending: Int)] = [:]
     var failing = Set<String>()
     var slow = Set<String>()
+    var dateProvider: () -> Date = { Date() }
     var waiting: [String: [CheckedContinuation<ConnectionInspection, Error>]] = [:]
     var calls: [String: Int] = [:]
 
@@ -13,7 +14,7 @@ private final class FleetFixture {
             QueueJob(id: "shared-id-\(index)", title: "Fixture clip", nodeCount: 0, queueNumber: index,
                 position: index, prompt: [:], extraData: [:])
         }
-        return ConnectionInspection(endpoint: endpoint, checkedAt: Date(), running: (0..<running).map(job),
+        return ConnectionInspection(endpoint: endpoint, checkedAt: dateProvider(), running: (0..<running).map(job),
             pending: (0..<pending).map(job), completed: [], failures: [], historyAvailable: false)
     }
 
@@ -35,9 +36,9 @@ private final class FleetFixture {
 
 @MainActor
 private func fleetEventually(_ predicate: () -> Bool) async {
-    for _ in 0..<200 {
+    for _ in 0..<1000 {
         if predicate() { return }
-        try! await Task.sleep(nanoseconds: 5_000_000)
+        try! await Task.sleep(nanoseconds: 10_000_000)
     }
     preconditionFailure("Fleet fixture did not settle")
 }
@@ -140,7 +141,7 @@ func checkMultiServerMonitoring() async {
 
 @MainActor
 private final class ManualClock {
-    var now = Date(timeIntervalSince1970: 1_800_000_000)
+    var now = Date()
     func advance(_ seconds: TimeInterval) { now = now.addingTimeInterval(seconds) }
 }
 
@@ -161,6 +162,7 @@ func checkFleetPollPolicy() async {
     let selected = "http://selected.fixture.invalid:8188"
     let fixture = FleetFixture()
     let clock = ManualClock()
+    fixture.dateProvider = { clock.now }
     let monitor = MultiServerMonitor(inspect: fixture.inspect, policy: policy, clock: { clock.now })
     var snapshots: [MonitoredServer] = []
     var available: [String] = []

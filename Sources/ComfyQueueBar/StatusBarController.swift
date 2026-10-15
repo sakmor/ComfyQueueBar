@@ -78,12 +78,14 @@ final class StatusBarController: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
     private func updateLabel() {
         let multiple = queue.monitoredServers.count > 1
-        item?.length = multiple ? 84 : 52
+        item?.length = multiple ? 154 : 82
         item?.button?.title = " " + (multiple ? queue.fleetBadge : queue.queueBadge)
         item?.button?.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+        let hasUnconfirmedServer = queue.serversWithoutFreshStatusCount > 0
+        item?.button?.contentTintColor = hasUnconfirmedServer || (!multiple && !queue.hasFreshQueue) ? .systemOrange : nil
         let status = queue.hasFreshQueue ? L10n.text("ComfyUI queue: %@ jobs", String(queue.totalJobs)) : queue.monitoringState.label
         if multiple {
-            let summary = L10n.text("%@ available / %@ servers", String(queue.availableServerCount), String(queue.monitoredServers.count))
+            let summary = L10n.text("%@ running · %@ waiting · %@ servers unavailable", String(queue.fleetRunningCount), String(queue.fleetWaitingCount), String(queue.serversWithoutFreshStatusCount))
             let details = queue.monitoredServers.map { server in
                 let counts = server.state == .connected
                     ? " · " + L10n.text("%@ running · %@ waiting", String(server.runningCount), String(server.pendingCount)) : ""

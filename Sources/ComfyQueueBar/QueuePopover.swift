@@ -116,8 +116,8 @@ struct QueuePopover: View {
         queue.monitoredServers.filter { $0.state == .connected && $0.runningCount > 0 }.count
     }
 
-    private var attentionServerCount: Int {
-        queue.monitoredServers.filter { $0.state != .connected || ($0.runningCount == 0 && $0.pendingCount > 0) }.count
+    private var waitingServerCount: Int {
+        queue.monitoredServers.filter { $0.state == .connected && $0.runningCount == 0 && $0.pendingCount > 0 }.count
     }
 
     private var visibleServers: [MonitoredServer] {
@@ -131,9 +131,10 @@ struct QueuePopover: View {
         VStack(spacing: 0) {
             header
             HStack(spacing: 0) {
-                summaryMetric(queue.availableServerCount, "Available", color: .green)
-                summaryMetric(renderingServerCount, "Rendering", color: .blue)
-                summaryMetric(attentionServerCount, "Needs attention", color: .orange)
+                summaryMetric(queue.availableServerCount, "Ready hosts", color: .green)
+                summaryMetric(renderingServerCount, "Rendering hosts", color: .blue)
+                summaryMetric(waitingServerCount, "Waiting servers", color: .orange)
+                summaryMetric(queue.serversWithoutFreshStatusCount, "Unknown hosts", color: .red)
             }.padding(.horizontal, 18).padding(.bottom, 18)
             Divider()
             serverBrowser
@@ -168,12 +169,12 @@ struct QueuePopover: View {
             HStack(spacing: 12) {
                 QueueBrand.panelIcon.resizable().scaledToFit().frame(width: 25, height: 25).accessibilityHidden(true)
                 Text(L10n.text("Render workspace")).font(.system(size: 15, weight: .semibold))
-                Spacer()
-                Label(L10n.text("%@ available", String(queue.availableServerCount)), systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text(L10n.text("%@ rendering", String(renderingServerCount))).foregroundStyle(.secondary)
-                Text(L10n.text("%@ need attention", String(attentionServerCount))).foregroundStyle(attentionServerCount > 0 ? Color.orange : Color.secondary)
-            }.font(.system(size: 11)).padding(.horizontal, 22).padding(.vertical, 16)
+                Spacer(minLength: 8)
+                summaryMetric(queue.availableServerCount, "Ready hosts", color: .green)
+                summaryMetric(renderingServerCount, "Rendering hosts", color: .blue)
+                summaryMetric(waitingServerCount, "Waiting servers", color: .orange)
+                summaryMetric(queue.serversWithoutFreshStatusCount, "Unknown hosts", color: .red)
+            }.padding(.horizontal, 22).padding(.vertical, 16)
             Divider()
             HSplitView {
                 VStack(spacing: 0) {
@@ -213,7 +214,7 @@ struct QueuePopover: View {
                 HStack {
                     Picker(L10n.text("View"), selection: $panel.section) {
                         Text(L10n.text("Queue")).tag(WorkspaceSection.queue)
-                        Text(L10n.text("History")).tag(WorkspaceSection.history)
+                        Text(historyTabTitle).tag(WorkspaceSection.history)
                     }.pickerStyle(.segmented).labelsHidden().frame(width: 220)
                     Spacer()
                     Button { panel.section = .settings } label: { Image(systemName: "gearshape") }
@@ -245,7 +246,7 @@ struct QueuePopover: View {
                     .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
             }
             Spacer()
-            Button { queue.reviewConnection(to: queue.endpoint) } label: { Image(systemName: "network") }
+            Button { queue.reviewConnection(to: queue.endpoint) } label: { Label(L10n.text("Connection"), systemImage: "network") }
                 .buttonStyle(.bordered).help(L10n.text("Review this connection")).accessibilityLabel(L10n.text("Review this connection"))
                 .disabled(!queue.canChangeServer)
             Button { Task { await queue.refresh(forceHistory: true) } } label: { Image(systemName: "arrow.clockwise") }
@@ -605,6 +606,9 @@ struct QueuePopover: View {
             panel.historyRange.includes(job.date) && (panel.historySearch.isEmpty || (job.title + " " + job.reason).localizedCaseInsensitiveContains(panel.historySearch))
         }
     }
+    private var historyTabTitle: String {
+        filteredFailures.isEmpty ? L10n.text("History") : L10n.text("History · %@ issues", String(filteredFailures.count))
+    }
     private var completedSection: some View {
         VStack(alignment: .leading, spacing: 9) {
             sectionHeading(L10n.text("Recently completed"), count: filteredCompleted.count, symbol: "checkmark")
@@ -702,7 +706,9 @@ struct QueuePopover: View {
             Toggle(L10n.text("AI agent integration"), isOn: $queue.agentIntegrationEnabled)
             Text(L10n.text("Let agents delegate monitoring to this app using the local MCP bridge."))
                 .font(.caption).foregroundStyle(.secondary)
-            Text(L10n.text("Shares queue IDs, output references, and errors with local agents. Desktop push requires host support."))
+            Text(L10n.text("Shares queue IDs, output references, and errors with local agents."))
+                .font(.caption).foregroundStyle(.secondary)
+            Text(L10n.text("App notifications alert you only. AI can wait for events while an MCP request is active; an idle chat cannot be woken by this app."))
                 .font(.caption).foregroundStyle(.secondary)
             if let script = Bundle.main.url(forResource: "server", withExtension: "py", subdirectory: "AgentBridge") {
                 Button(L10n.text("Set up Claude and Codex")) { Task { await queue.setupAgents() } }

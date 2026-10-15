@@ -6,6 +6,9 @@ struct AgentJobResult: Codable, Equatable {
     var status: String
     var outputs: [[String: String]] = []
     var error: String? = nil
+    var source: String? = nil
+    var last_verified_at: Double? = nil
+    var unknown_reason: String? = nil
     var terminal: Bool { ["completed", "failed", "interrupted"].contains(status) }
 }
 
@@ -39,6 +42,13 @@ struct AgentCommand: Codable {
     var prompt_ids: [String]?
     var label: String?
     var event_ids: [String]?
+    var prompt_id: String? = nil
+}
+
+struct AgentRefreshRequest: Codable {
+    let request_id: String
+    let endpoint: String
+    let prompt_id: String
 }
 
 final class AgentBridge {
@@ -70,6 +80,11 @@ final class AgentBridge {
         let history_available: Bool
         let running: [String]
         let pending: [String]
+        let notification_mode: String
+        let notify_problems: Bool
+        let notify_availability: Bool
+        let macos_notification_authorization: String
+        let app_version: String
     }
 
     static var defaultRoot: URL {
@@ -86,11 +101,12 @@ final class AgentBridge {
     private let encoder = JSONEncoder()
     private var lastSnapshotState: SnapshotState?
     private var lastSnapshotWrite: Date?
+    private var refreshRequests: [AgentRefreshRequest] = []
 
     init(root: URL = AgentBridge.defaultRoot) throws {
         self.root = root
         encoder.outputFormatting = [.sortedKeys]
-        for directory in [root, root.appendingPathComponent("commands"), root.appendingPathComponent("responses"), root.appendingPathComponent("rejected")] {
+        for directory in [root, root.appendingPathComponent("commands"), root.appendingPathComponent("responses"), root.appendingPathComponent("refresh-results"), root.appendingPathComponent("rejected")] {
             try fm.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
             try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
         }
@@ -210,6 +226,13 @@ final class AgentBridge {
                   ids.count <= 200, ids.allSatisfy({ id in subscription.events.contains { $0.id == id } }) else { throw BridgeError.invalidCommand }
             subscription.acknowledged = Array(Set(subscription.acknowledged).union(ids)).sorted()
             subscriptions[command.subscription_id] = subscription
+        case "refresh_job":
+            guard let prompt = command.prompt_id, validPrompt(prompt),
+                  command.endpoint == endpoint,
+                  subscriptions.values.contains(where: { !$0.cancelled && $0.endpoint == endpoint && $0.prompt_ids.contains(prompt) }) else {
+                throw BridgeError.invalidCommand
+            }
+            refreshRequests.append(AgentRefreshRequest(request_id: command.request_id, endpoint: endpoint, prompt_id: prompt))
         default: throw BridgeError.invalidCommand
         }
     }
@@ -260,7 +283,9 @@ final class AgentBridge {
         do { if subscriptions != previous { try persist() } } catch { subscriptions = previous; throw error }
     }
 
-    func tick(endpoint: String, connected: Bool, historyAvailable: Bool, lastUpdated: Date?, running: [String], pending: [String]) throws {
+    func tick(endpoint: String, connected: Bool, historyAvailable: Bool, lastUpdated: Date?, running: [String], pending: [String],
+              notificationMode: String = "off", notifyProblems: Bool = false, notifyAvailability: Bool = false,
+              notificationAuthorization: String = "unknown", appVersion: String = "unknown") throws {
         try processCommands(endpoint: endpoint)
         let previous = subscriptions
         _ = pruneSubscriptions(now: Date().timeIntervalSince1970)
@@ -273,7 +298,12 @@ final class AgentBridge {
             }
             if subscription.endpoint == endpoint && connected {
                 for prompt in subscription.prompt_ids where subscription.results[prompt]?.terminal != true {
-                    subscription.results[prompt] = AgentJobResult(status: running.contains(prompt) ? "running" : pending.contains(prompt) ? "queued" : "unknown")
+                    let state = running.contains(prompt) ? "running" : pending.contains(prompt) ? "queued" : "unknown"
+                    if subscription.results[prompt]?.status != state {
+                        subscription.results[prompt] = AgentJobResult(status: state, source: "queue_snapshot",
+                            last_verified_at: lastUpdated?.timeIntervalSince1970,
+                            unknown_reason: state == "unknown" ? "not_in_queue; awaiting_history_verification" : nil)
+                    }
                 }
             }
             subscriptions[id] = subscription
@@ -286,7 +316,10 @@ final class AgentBridge {
         if lastSnapshotState != state || lastSnapshotWrite.map({ now.timeIntervalSince($0) >= Self.snapshotHeartbeatInterval }) ?? true {
             try write(Snapshot(enabled: true, heartbeat_at: now.timeIntervalSince1970,
                 last_queue_update: state.lastQueueUpdate, endpoint: endpoint, connected: connected,
-                history_available: historyAvailable, running: running, pending: pending), to: "snapshot.json")
+                history_available: historyAvailable, running: running, pending: pending,
+                notification_mode: notificationMode, notify_problems: notifyProblems,
+                notify_availability: notifyAvailability, macos_notification_authorization: notificationAuthorization,
+                app_version: appVersion), to: "snapshot.json")
             lastSnapshotState = state
             lastSnapshotWrite = now
         }
@@ -300,6 +333,18 @@ final class AgentBridge {
         let result = (0..<count).map { ids[(historyCursor + $0) % ids.count] }
         historyCursor = (historyCursor + count) % ids.count
         return result
+    }
+
+    func takeRefreshRequests() -> [AgentRefreshRequest] {
+        defer { refreshRequests.removeAll() }
+        return refreshRequests
+    }
+
+    func completeRefreshJob(_ request: AgentRefreshRequest, result: [String: Any]) throws {
+        let file = root.appendingPathComponent("refresh-results/\(request.request_id).json")
+        let data = try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])
+        try data.write(to: file, options: .atomic)
+        try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
     }
 
     func stop() {

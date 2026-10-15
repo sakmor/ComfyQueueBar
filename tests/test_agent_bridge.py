@@ -63,9 +63,37 @@ class AgentBridgeTests(unittest.TestCase):
         result = subprocess.run([str(self.binary)], capture_output=True, text=True, check=True)
         self.assertIn('lifecycle checks passed', result.stdout)
 
+    def test_refresh_job_correlates_app_diagnostic(self):
+        self.subscribe(['three-little-pigs'])
+        output = {}
+        def refresh():
+            output.update(self.bridge.call('refresh_job', {'prompt_id': 'three-little-pigs'}, threading.Event()))
+        worker = threading.Thread(target=refresh)
+        worker.start()
+        self.wait_until(lambda: any((self.root / 'commands').glob('*.json')))
+        command_path = next((self.root / 'commands').glob('*.json'))
+        command = server.read_json(command_path)
+        command_path.unlink()
+        server.atomic_json(self.root / 'responses' / (command['request_id'] + '.json'), {
+            'status': 'accepted', 'subscription_id': command['subscription_id']})
+        server.atomic_json(self.root / 'refresh-results' / (command['request_id'] + '.json'), {
+            'request_id': command['request_id'], 'prompt_id': 'three-little-pigs', 'status': 'completed',
+            'source': 'queue_and_history', 'last_verified_at': time.time(), 'unknown_reason': None,
+            'queue_result': {'checked': True, 'running': False, 'queued': False},
+            'history_result': {'checked': True, 'found': True}, 'app_version': 'test', 'bridge_version': '0.2.0'})
+        worker.join(5)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(output['status'], 'completed')
+        self.assertEqual(output['history_result'], {'checked': True, 'found': True})
+        self.assertFalse(output['delivery']['idle_conversation_wakeup'])
+
     def test_delegation_wait_failure_completion_ack_restart(self):
         sid = self.subscribe()
         self.assertFalse(self.bridge.results(sid)['delivery']['idle_conversation_wakeup'])
+        status = self.bridge.status()
+        self.assertFalse(status['delivery']['idle_conversation_wakeup'])
+        self.assertFalse(status['app_notifications']['wakes_ai'])
+        self.assertIn('macos_authorization', status['app_notifications'])
         self.assertIn('Do not repeatedly', self.bridge.status()['guidance'])
         result = {}
         def wait():
@@ -142,6 +170,8 @@ class AgentBridgeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             channel.call('confirm_channel', {'nonce': 'wrong'}, threading.Event())
         channel.call('confirm_channel', {'nonce': channel.nonce}, threading.Event())
+        self.assertTrue(channel.delivery()['host_channel_transport_verified'])
+        self.assertFalse(channel.delivery()['idle_conversation_wakeup'])
         events = channel.pending_channel_events()
         self.assertEqual([x['subscription_id'] for x in events], [sid])
         self.assertNotEqual(sid, other)
@@ -168,7 +198,9 @@ class AgentBridgeTests(unittest.TestCase):
             self.assertIn('Delegate', init['instructions'])
             send({'jsonrpc': '2.0', 'method': 'notifications/initialized'})
             send({'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list'})
-            self.assertIn('subscribe_jobs', [x['name'] for x in receive()['result']['tools']])
+            tool_names = [x['name'] for x in receive()['result']['tools']]
+            self.assertIn('subscribe_jobs', tool_names)
+            self.assertIn('refresh_job', tool_names)
             send({'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call', 'params': {'name': 'subscribe_jobs', 'arguments': {'endpoint': 'http://127.0.0.1:8188', 'prompt_ids': ['wire']}}})
             result = receive()['result']
             self.assertFalse(result['isError'])

@@ -76,25 +76,21 @@ struct JobCard: View {
                 Spacer(minLength: 4)
                 if case .pending = state {
                     Button(action: { onPrioritize?() }) {
-                        Image(systemName: "arrow.up.to.line")
-                            .font(.system(size: 11, weight: .medium))
-                            .frame(width: 22, height: 22)
-                            .contentShape(Rectangle())
+                        Label(L10n.text("Run next"), systemImage: "arrow.up.to.line")
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 10, weight: .medium))
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                     .disabled(!isActionEnabled || isMoving)
                     .help(L10n.text("Run next after the current job"))
                     .accessibilityLabel(isMoving ? L10n.text("Working") : L10n.text("Prioritize"))
                 } else {
                     Button(action: { onStop?() }) {
-                        Image(systemName: "stop.circle")
-                            .font(.system(size: 18, weight: .regular))
-                            .frame(width: 24, height: 24)
-                            .contentShape(Rectangle())
+                        Label(L10n.text("Stop"), systemImage: "stop.circle")
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 10, weight: .medium))
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                     .disabled(!isActionEnabled || isStopping)
                     .help(L10n.text("Stop this job while keeping waiting jobs"))
                     .accessibilityLabel(isStopping ? L10n.text("Stopping") : L10n.text("Stop"))

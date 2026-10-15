@@ -34,6 +34,8 @@ final class ServerFixture {
     var queueBody: [String: Any]?
     var historyStatus = 200
     var historyBody: [String: Any] = [:]
+    var historyDetails: [String: [String: Any]] = [:]
+    var historyDetailsStatus = 200
     var progressStatus = 200
     var progressID = "running-original"
     var submitted = false
@@ -45,6 +47,10 @@ final class ServerFixture {
         precondition(url.host == "fixture.invalid", "Unexpected external request")
         paths.append(url.path)
         let route = url.lastPathComponent
+        if let historyIndex = url.pathComponents.lastIndex(of: "history"), historyIndex + 1 < url.pathComponents.count {
+            let promptID = url.pathComponents[historyIndex + 1]
+            return (historyDetailsStatus, historyDetails[promptID].map { [promptID: $0] } ?? [:])
+        }
         if request.httpMethod == "POST" {
             var data = request.httpBody ?? Data()
             if let stream = request.httpBodyStream {
@@ -126,6 +132,7 @@ struct NetworkChecks {
         precondition(PairedPortIssue.classify(URLError(.cannotConnectToHost)) == .unavailable)
         print("PASS: four-second connection retries; checking, fresh, stale and sign-in states; service-port labels and safe review addresses")
         validationDefaults.set("http://fixture.invalid/base", forKey: "comfyEndpoint")
+        validationDefaults.set(true, forKey: "agentIntegrationEnabled")
         defer { validationDefaults.removePersistentDomain(forName: validationSuite) }
         URLProtocol.registerClass(FixtureProtocol.self)
         defer { URLProtocol.unregisterClass(FixtureProtocol.self) }
@@ -145,7 +152,7 @@ struct NetworkChecks {
             try! await Task.sleep(nanoseconds: 10_000_000)
         }
         precondition(model.isConnected && !model.isLoading)
-        precondition(model.monitoringState == .connected && model.queueBadge == "3")
+        precondition(model.monitoringState == .connected && model.queueBadge == L10n.text("Queue %@", "3"))
         precondition(model.totalJobs == 3 && model.pending[0].title == "Disposable test")
         precondition(model.queueProgress?.percent == 30 && model.progressBridgeStatus == .available)
         precondition(server.paths.allSatisfy { $0.hasPrefix("/base/") })
@@ -170,7 +177,47 @@ struct NetworkChecks {
         precondition(model.historyUnavailable && model.isConnected && model.progressBridgeStatus == .available)
         print("PASS: mismatched/missing progress, bridge retry and independent history failure")
 
+        let acceptancePromptID = "three-little-pigs-prompt"
+        let acceptanceSubscriptionID = UUID().uuidString
+        let agentRoot = AgentBridge.defaultRoot
+        let commandID = UUID().uuidString
+        let command = AgentCommand(request_id: commandID, action: "subscribe", subscription_id: acceptanceSubscriptionID,
+            endpoint: model.endpoint, prompt_ids: [acceptancePromptID], label: "三隻小豬")
+        try! JSONEncoder().encode(command).write(to: agentRoot.appendingPathComponent("commands/\(commandID).json"), options: .atomic)
+        for _ in 0..<300 {
+            if FileManager.default.fileExists(atPath: agentRoot.appendingPathComponent("responses/\(commandID).json").path) { break }
+            try! await Task.sleep(nanoseconds: 10_000_000)
+        }
+        precondition(FileManager.default.fileExists(atPath: agentRoot.appendingPathComponent("responses/\(commandID).json").path), "agent subscription accepted")
+        server.historyDetails[acceptancePromptID] = [
+            "status": ["completed": true, "status_str": "success", "messages": [["execution_success", ["timestamp": Date().timeIntervalSince1970 * 1000]]]],
+            "outputs": ["video": [["filename": "three-little-pigs.mp4", "subfolder": "", "type": "output"]]]
+        ]
+        server.historyStatus = 500
+        server.running = []; server.pending = []
+        await model.refresh(forceHistory: true)
+        for _ in 0..<300 {
+            let stateData = try? Data(contentsOf: agentRoot.appendingPathComponent("subscriptions.json"))
+            let state = stateData.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+            let subscription = state?[acceptanceSubscriptionID] as? [String: Any]
+            let results = subscription?["results"] as? [String: Any]
+            if (results?[acceptancePromptID] as? [String: Any])?["status"] as? String == "completed" { break }
+            try! await Task.sleep(nanoseconds: 10_000_000)
+        }
+        let state = try! JSONSerialization.jsonObject(with: Data(contentsOf: agentRoot.appendingPathComponent("subscriptions.json"))) as! [String: Any]
+        let subscription = state[acceptanceSubscriptionID] as! [String: Any]
+        let results = subscription["results"] as! [String: Any]
+        let pigResult = results[acceptancePromptID] as! [String: Any]
+        precondition(pigResult["status"] as? String == "completed", "per-ID history recovers success even when bulk history fails")
+        precondition(pigResult["outputs"].debugDescription.contains("three-little-pigs.mp4"))
+        precondition(server.paths.contains("/base/history/\(acceptancePromptID)"))
+        precondition(model.historyUnavailable, "bulk history failure remains accurately visible")
+        print("PASS: 三隻小豬 acceptance — targeted history reconciles success while bulk history is unavailable")
+
         server.historyStatus = 200
+        server.running = ["running-original"]
+        server.pending = ["pending-original", "pending-other"]
+        await model.refresh()
         await model.moveToFront(model.pending[0])
         precondition(!model.actionIsError && server.pending == ["replacement-new", "pending-other"])
         precondition(server.mutations.map { $0.0 } == ["prompt", "queue"])
@@ -228,27 +275,27 @@ struct NetworkChecks {
         server.running = []; server.pending = []
         await model.refresh(forceHistory: true)
         precondition(model.isConnected && model.totalJobs == 0 && model.queueProgress == nil)
-        precondition(model.queueBadge == "0", "Only a healthy empty queue should display zero")
+        precondition(model.queueBadge == L10n.text("Queue %@", "0"), "Only a healthy empty queue should display zero")
         server.queueBody = ["login_required": true]
         await model.refresh()
         precondition(!model.isConnected, "Unrelated JSON must not be accepted as an empty ComfyUI queue")
-        precondition(model.queueBadge == "—")
+        precondition(model.queueBadge == L10n.text("Queue %@", "—"))
         server.queueBody = ["queue_running": [[1, 42]], "queue_pending": []]
         await model.refresh()
-        precondition(model.queueBadge == "—", "Malformed jobs must not silently become an empty queue")
+        precondition(model.queueBadge == L10n.text("Queue %@", "—"), "Malformed jobs must not silently become an empty queue")
         server.queueBody = nil
         server.queueStatus = 503
         await model.refresh()
         precondition(!model.isConnected && model.totalJobs == 0 && model.errorMessage != nil)
-        precondition(model.monitoringState == .disconnected && model.queueBadge == "—")
+        precondition(model.monitoringState == .disconnected && model.queueBadge == L10n.text("Queue %@", "—"))
         for code in [401, 403] {
             server.queueStatus = code
             await model.refresh()
-            precondition(model.monitoringState == .signInRequired && model.queueBadge == "!")
+            precondition(model.monitoringState == .signInRequired && model.queueBadge == L10n.text("Queue %@", "!"))
         }
         server.queueStatus = 200
         await model.refresh()
-        precondition(model.monitoringState == .connected && model.queueBadge == "0")
+        precondition(model.monitoringState == .connected && model.queueBadge == L10n.text("Queue %@", "0"))
 
         let originalEndpoint = model.endpoint
         let originalSavedEndpoint = validationDefaults.string(forKey: "comfyEndpoint")
@@ -266,7 +313,7 @@ struct NetworkChecks {
         precondition(inspection.completed.map(\.id) == ["success-0", "success-1", "success-2"])
         precondition(inspection.failures.first?.id == "interrupted")
         precondition(server.paths == ["/candidate/queue", "/candidate/history"] && server.mutations.isEmpty)
-        precondition(model.endpoint == originalEndpoint && model.profiles == originalProfiles && model.queueBadge == "0")
+        precondition(model.endpoint == originalEndpoint && model.profiles == originalProfiles && model.queueBadge == L10n.text("Queue %@", "0"))
         precondition(validationDefaults.string(forKey: "comfyEndpoint") == originalSavedEndpoint)
         server.historyStatus = 503
         let unavailable = try! await ConnectionInspector.inspect(candidate)

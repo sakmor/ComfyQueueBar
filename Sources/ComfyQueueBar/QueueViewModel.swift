@@ -83,12 +83,17 @@ final class QueueViewModel: ObservableObject {
     var totalJobs: Int { running.count + pending.count }
     var hasSelectedServer: Bool { !endpoint.isEmpty }
     var hasFreshQueue: Bool { monitoringState == .connected }
-    var queueBadge: String { monitoringState.badge(count: totalJobs) }
+    var queueBadge: String { L10n.text("Queue %@", monitoringState.badge(count: totalJobs)) }
     var availableServerCount: Int { monitoredServers.filter(\.isAvailable).count }
+    var freshMonitoredServers: [MonitoredServer] { monitoredServers.filter { $0.state == .connected } }
+    var serversWithoutFreshStatusCount: Int { monitoredServers.count - freshMonitoredServers.count }
+    var fleetRunningCount: Int { freshMonitoredServers.reduce(0) { $0 + $1.runningCount } }
+    var fleetWaitingCount: Int { freshMonitoredServers.reduce(0) { $0 + $1.pendingCount } }
     var fleetBadge: String {
-        let available = availableServerCount
-        let total = monitoredServers.count
-        return "\(min(available, 99))\(available > 99 ? "+" : "")/\(min(total, 99))\(total > 99 ? "+" : "")"
+        if freshMonitoredServers.isEmpty && serversWithoutFreshStatusCount > 0 {
+            return L10n.text("%@ servers unavailable", String(serversWithoutFreshStatusCount))
+        }
+        return L10n.text("Running %@ · Waiting %@", String(fleetRunningCount), String(fleetWaitingCount))
     }
 
     private func configureServerMonitor() {
@@ -176,6 +181,7 @@ final class QueueViewModel: ObservableObject {
         RunLoop.main.add(progressTimer, forMode: .common)
         self.progressTimer = progressTimer
         agentIntegrationEnabled = UserDefaults.standard.bool(forKey: "agentIntegrationEnabled")
+        Task { await NotificationService.shared.refreshAuthorizationStatus() }
         configureAgentBridge()
         let agentTimer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.updateMonitoringState(); self?.serverMonitor.publish(); self?.tickAgentBridge() }
@@ -224,8 +230,13 @@ final class QueueViewModel: ObservableObject {
         guard let bridge = agentBridge else { return }
         do {
             try bridge.tick(endpoint: endpoint, connected: isConnected, historyAvailable: !historyUnavailable,
-                lastUpdated: lastUpdated, running: running.map(\.id), pending: pending.map(\.id))
+                lastUpdated: lastUpdated, running: running.map(\.id), pending: pending.map(\.id),
+                notificationMode: notificationMode, notifyProblems: notifyProblems, notifyAvailability: notifyAvailability,
+                notificationAuthorization: NotificationService.shared.authorizationStatus,
+                appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown")
             agentBridgeError = nil
+            let requests = bridge.takeRefreshRequests()
+            for request in requests { Task { await performRefreshJob(request) } }
         } catch { agentBridgeError = error.localizedDescription }
     }
 
@@ -236,13 +247,82 @@ final class QueueViewModel: ObservableObject {
             results[job.id] = AgentJobResult(status: "completed", outputs: job.outputs.map {
                 ["filename": $0.filename, "subfolder": $0.subfolder, "type": $0.type,
                  "url": $0.url(endpoint: source)?.absoluteString ?? ""]
-            })
+            }, source: "history_list", last_verified_at: Date().timeIntervalSince1970)
         }
         for job in HistoryDetails.failures(history, title: Self.jobTitle) {
-            results[job.id] = AgentJobResult(status: job.interrupted ? "interrupted" : "failed", error: job.reason)
+            results[job.id] = AgentJobResult(status: job.interrupted ? "interrupted" : "failed", error: job.reason,
+                source: "history_list", last_verified_at: Date().timeIntervalSince1970)
         }
         do { try bridge.ingest(endpoint: source, results: results) }
         catch { agentBridgeError = error.localizedDescription }
+    }
+
+    private func performRefreshJob(_ refresh: AgentRefreshRequest) async {
+        guard refresh.endpoint == endpoint, let bridge = agentBridge else { return }
+        let generation = connectionGeneration
+        var queueResult: [String: Any] = ["checked": false]
+        var historyResult: [String: Any] = ["checked": false]
+        var status = "unknown"
+        var reason = "history_entry_missing"
+        var outputs: [[String: String]] = []
+
+        do {
+            let data = try await requestData(path: "queue")
+            guard refresh.endpoint == endpoint, generation == connectionGeneration else { return }
+            let queue = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            let isRunning = Self.parseJobs(queue["queue_running"]).contains { $0.id == refresh.prompt_id }
+            let isPending = Self.parseJobs(queue["queue_pending"]).contains { $0.id == refresh.prompt_id }
+            queueResult = ["checked": true, "running": isRunning, "queued": isPending]
+            if isRunning { status = "running"; reason = "" }
+            else if isPending { status = "queued"; reason = "" }
+        } catch {
+            queueResult = ["checked": true, "error": error.localizedDescription]
+        }
+
+        do {
+            let data = try await requestData(path: "history/" + refresh.prompt_id)
+            guard refresh.endpoint == endpoint, generation == connectionGeneration else { return }
+            guard let dictionary = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                throw QueueError.invalidResponse
+            }
+            guard let entry = dictionary[refresh.prompt_id] as? [String: Any] else {
+                historyResult = ["checked": true, "found": false]
+                if status == "unknown" { reason = "history_entry_missing" }
+                try bridge.completeRefreshJob(refresh, result: refreshDiagnostic(refresh, status: status, reason: reason,
+                    queue: queueResult, history: historyResult, outputs: outputs))
+                return
+            }
+            historyResult = ["checked": true, "found": true]
+            let one = [refresh.prompt_id: entry]
+            if let completed = CompletionHistory.parse(one, now: Date(), maxAge: nil, limit: 1, title: Self.jobTitle).first {
+                status = "completed"
+                outputs = completed.outputs.map { ["filename": $0.filename, "subfolder": $0.subfolder, "type": $0.type,
+                    "url": $0.url(endpoint: refresh.endpoint)?.absoluteString ?? ""] }
+                reason = ""
+                ingestAgentHistory(one, endpoint: refresh.endpoint)
+            } else if let failed = HistoryDetails.failures(one, title: Self.jobTitle).first {
+                status = failed.interrupted ? "interrupted" : "failed"
+                reason = failed.reason
+                ingestAgentHistory(one, endpoint: refresh.endpoint)
+            } else if status == "unknown" {
+                reason = "history_status_unrecognized"
+            }
+        } catch {
+            historyResult = ["checked": true, "error": error.localizedDescription]
+            if status == "unknown" { reason = "history_query_failed: " + error.localizedDescription }
+        }
+        try? bridge.completeRefreshJob(refresh, result: refreshDiagnostic(refresh, status: status, reason: reason,
+            queue: queueResult, history: historyResult, outputs: outputs))
+    }
+
+    private func refreshDiagnostic(_ request: AgentRefreshRequest, status: String, reason: String,
+                                   queue: [String: Any], history: [String: Any], outputs: [[String: String]]) -> [String: Any] {
+        ["request_id": request.request_id, "prompt_id": request.prompt_id, "status": status,
+         "source": "queue_and_history", "last_verified_at": Date().timeIntervalSince1970,
+         "unknown_reason": reason.isEmpty ? NSNull() : reason as NSString,
+         "queue_result": queue, "history_result": history, "endpoint": request.endpoint,
+         "server_name": serverName, "app_version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown",
+         "bridge_version": "0.2.0", "outputs": outputs]
     }
 
     var serverName: String { profiles.first { $0.endpoint == endpoint }?.name ?? (URLComponents(string: endpoint)?.host ?? endpoint) }
@@ -632,34 +712,43 @@ final class QueueViewModel: ObservableObject {
         lastHistoryPoll = Date()
         let source = endpoint
         let generation = connectionGeneration
+        var bulkHistoryIDs: Set<String> = []
         do {
             let data = try await requestData(path: "history", queryItems: [URLQueryItem(name: "max_items", value: "200")])
             guard let history = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw QueueError.invalidResponse }
             guard source == endpoint, generation == connectionGeneration else { return }
+            bulkHistoryIDs = Set(history.keys)
             completed = CompletionHistory.parse(history, now: Date(), maxAge: nil, limit: 200, title: Self.jobTitle)
             failures = HistoryDetails.failures(history, title: Self.jobTitle)
             processHistoryNotifications(ids: Set(history.keys))
             historyUnavailable = false
             ingestAgentHistory(history, endpoint: source)
-            // Individual history queries recover subscribed jobs outside the UI's 200-entry window.
-            let ids = agentBridge?.historyCandidates(endpoint: source, queued: Set((running + pending).map(\.id))) ?? []
-            await withTaskGroup(of: Data?.self) { group in
-                for id in ids where history[id] == nil {
-                    group.addTask { [weak self] in
-                        guard let self else { return nil }
-                        return try? await self.requestData(path: "history/" + id)
-                    }
-                }
-                for await data in group {
-                    guard source == endpoint, generation == connectionGeneration, let data,
-                          let entry = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { continue }
-                    ingestAgentHistory(entry, endpoint: source)
-                }
-            }
         } catch {
             guard source == endpoint, generation == connectionGeneration else { return }
             // History errors never disconnect a working queue or imply that jobs completed.
             historyUnavailable = true
+        }
+        // Targeted lookups recover subscribed jobs even when the bulk endpoint
+        // is unavailable or omits them from its bounded result set.
+        await refreshSubscribedHistory(source: source, generation: generation, knownHistoryIDs: bulkHistoryIDs)
+    }
+
+    private func refreshSubscribedHistory(source: String, generation: UUID, knownHistoryIDs: Set<String>) async {
+        guard let bridge = agentBridge else { return }
+        let queued = Set((running + pending).map(\.id))
+        let ids = bridge.historyCandidates(endpoint: source, queued: queued)
+        await withTaskGroup(of: (String, Data?).self) { group in
+            for id in ids where !knownHistoryIDs.contains(id) {
+                group.addTask { [weak self] in
+                    guard let self else { return (id, nil) }
+                    return (id, try? await self.requestData(path: "history/" + id))
+                }
+            }
+            for await (id, data) in group {
+                guard source == endpoint, generation == connectionGeneration, let data,
+                      let entry = try? JSONSerialization.jsonObject(with: data) as? [String: Any], entry[id] != nil else { continue }
+                ingestAgentHistory(entry, endpoint: source)
+            }
         }
     }
 

@@ -28,13 +28,18 @@ struct AgentBridgeCheck {
         let sid = UUID().uuidString
         let request = try command(root, "subscribe", sid, ids: ["job-a", "job-b"])
         let unchangedAt = Date()
-        try bridge.tick(endpoint: endpoint, connected: true, historyAvailable: true, lastUpdated: unchangedAt, running: ["job-a"], pending: ["job-b"])
+        try bridge.tick(endpoint: endpoint, connected: true, historyAvailable: true, lastUpdated: unchangedAt, running: ["job-a"], pending: ["job-b"],
+            notificationMode: "batch", notifyProblems: true, notificationAuthorization: "authorized", appVersion: "test")
         let accepted = try response(root, request)
         require(accepted["status"] == "accepted", "subscribe acknowledged")
         let rejected = try fm.contentsOfDirectory(at: root.appendingPathComponent("rejected"), includingPropertiesForKeys: nil)
         require(rejected.count >= 33, "invalid and oversized command files are quarantined before the batch limit")
         require(!fm.fileExists(atPath: symlink.path), "symlink command is removed without being followed")
         require(bridge.subscriptions[sid]?.results["job-a"]?.status == "running", "running state")
+        let initialSnapshot = try JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("snapshot.json"))) as! [String: Any]
+        require(initialSnapshot["notification_mode"] as? String == "batch" && initialSnapshot["notify_problems"] as? Bool == true
+            && initialSnapshot["macos_notification_authorization"] as? String == "authorized" && initialSnapshot["app_version"] as? String == "test",
+            "snapshot separates app notification settings and app version")
         require(bridge.subscriptions[sid]?.events.isEmpty == true, "no initial monitoring event spam")
         let firstSnapshot = try Data(contentsOf: root.appendingPathComponent("snapshot.json"))
         try bridge.tick(endpoint: endpoint, connected: true, historyAvailable: true, lastUpdated: unchangedAt, running: ["job-a"], pending: ["job-b"])
@@ -44,6 +49,22 @@ struct AgentBridgeCheck {
         require(bridge.subscriptions[sid]?.results["job-a"]?.status == "running", "server isolation")
         try bridge.tick(endpoint: endpoint, connected: true, historyAvailable: true, lastUpdated: Date(), running: [], pending: [])
         require(bridge.subscriptions[sid]?.results["job-a"]?.status == "unknown", "missing queue entry is not completion")
+        require(bridge.subscriptions[sid]?.results["job-a"]?.unknown_reason == "not_in_queue; awaiting_history_verification"
+            && bridge.subscriptions[sid]?.results["job-a"]?.source == "queue_snapshot",
+            "unknown queue state includes diagnostic source and reason")
+        let refreshID = UUID().uuidString
+        let refresh = AgentCommand(request_id: refreshID, action: "refresh_job", subscription_id: UUID().uuidString,
+            endpoint: endpoint, prompt_id: "job-a")
+        try JSONEncoder().encode(refresh).write(to: root.appendingPathComponent("commands/\(refreshID).json"), options: .atomic)
+        try bridge.tick(endpoint: endpoint, connected: true, historyAvailable: true, lastUpdated: Date(), running: [], pending: [])
+        let refreshResponse = try response(root, refreshID)
+        require(refreshResponse["status"] == "accepted", "one-shot refresh command accepted for a tracked prompt")
+        let requests = bridge.takeRefreshRequests()
+        require(requests.count == 1 && requests[0].prompt_id == "job-a", "one-shot request reaches the app poller")
+        try bridge.completeRefreshJob(requests[0], result: ["prompt_id": "job-a", "status": "completed", "source": "queue_and_history"])
+        let diagnostic = try JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("refresh-results/\(refreshID).json"))) as! [String: Any]
+        require(diagnostic["status"] as? String == "completed" && diagnostic["source"] as? String == "queue_and_history",
+            "app returns correlated one-shot refresh diagnosis")
         try bridge.ingest(endpoint: endpoint, results: ["job-a": AgentJobResult(status: "failed", error: "GPU error")])
         require(bridge.subscriptions[sid]?.events.filter { $0.kind == "job_failed" }.count == 1, "early failure once")
         require(bridge.subscriptions[sid]?.finished == false, "batch unfinished with unknown remaining job")

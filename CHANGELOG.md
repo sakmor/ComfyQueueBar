@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.1 — 2026-10-15
+
+- Reconcile subscribed job states with individual ComfyUI history records even when the batch history endpoint fails, and add an exact-job refresh command with verification source, timestamp, and diagnostic details.
+- Report App notifications, active MCP event delivery, transport verification, and idle wake-up as separate capabilities so agents do not mistake user alerts for automatic chat wake-up.
+- Clarify notification behavior in the agent settings and status views, and refine the menu-bar status display and queue controls.
+- Add regressions for individual-history recovery, exact-job refresh, and notification capability reporting.
+
 ## 1.6.0 — 2026-10-11
 
 - Monitor every saved server at once, with independent running/waiting counts, availability, and an optional notification when any server's queue becomes empty and ready for the next batch.

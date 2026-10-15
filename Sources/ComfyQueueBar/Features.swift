@@ -163,6 +163,24 @@ struct NotificationTracker {
 final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationService()
     @Published var permissionMessage: String?
+    @Published private(set) var authorizationStatus = "unknown"
+    func refreshAuthorizationStatus() async {
+        #if !DOCUMENTATION_SCREENSHOT
+        guard Bundle.main.bundleURL.pathExtension == "app" else {
+            authorizationStatus = "unavailable"
+            return
+        }
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        switch settings.authorizationStatus {
+        case .notDetermined: authorizationStatus = "not_determined"
+        case .denied: authorizationStatus = "denied"
+        case .authorized: authorizationStatus = "authorized"
+        case .provisional: authorizationStatus = "provisional"
+        case .ephemeral: authorizationStatus = "ephemeral"
+        @unknown default: authorizationStatus = "unknown"
+        }
+        #endif
+    }
     func authorize() async {
         #if !DOCUMENTATION_SCREENSHOT
         do {
@@ -170,6 +188,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             permissionMessage = allowed ? nil : L10n.text("Allow notifications in macOS System Settings.")
             UNUserNotificationCenter.current().delegate = self
         } catch { permissionMessage = error.localizedDescription }
+        await refreshAuthorizationStatus()
         #endif
     }
     func send(id: String, title: String, body: String) {
