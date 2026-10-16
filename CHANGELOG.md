@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.6 — 2026-10-16
+
+- Draw both the menu-bar icon and label with the same explicit appearance-aware color, including when a server is unavailable, so neither can render dark against a dark menu bar.
+
 ## 1.6.5 — 2026-10-16
 
 - Draw the menu-bar queue count in a custom hit-test-transparent view so explicit white/black text colors render correctly in dark/light appearances.

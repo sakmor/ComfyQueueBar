@@ -17,8 +17,21 @@ final class StatusBarTitleView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         let attributes: [NSAttributedString.Key: Any] = [.font: labelFont, .foregroundColor: labelColor]
         let size = (label as NSString).size(withAttributes: attributes)
+        labelColor.setFill()
+        // Draw the menu-bar glyph here too. NSStatusBarButton's native image
+        // tint can be ignored by some menu-bar appearances, leaving a black icon
+        // beside the explicitly colored label.
+        for y in [bounds.midY - 5, bounds.midY, bounds.midY + 5] {
+            NSBezierPath(roundedRect: NSRect(x: 2, y: y - 1, width: 10, height: 2), xRadius: 1, yRadius: 1).fill()
+        }
+        let play = NSBezierPath()
+        play.move(to: NSPoint(x: 14, y: bounds.midY - 4))
+        play.line(to: NSPoint(x: 14, y: bounds.midY + 4))
+        play.line(to: NSPoint(x: 19, y: bounds.midY))
+        play.close()
+        play.fill()
         (label as NSString).draw(
-            at: NSPoint(x: 0, y: (bounds.height - size.height) / 2),
+            at: NSPoint(x: 26, y: (bounds.height - size.height) / 2),
             withAttributes: attributes
         )
     }
@@ -28,18 +41,21 @@ final class StatusBarTitleView: NSView {
 
 @MainActor
 enum StatusBarLabelStyle {
-    static func apply(_ title: String, to button: NSStatusBarButton, warning: Bool) {
+    static func apply(_ title: String, to button: NSStatusBarButton, warning _: Bool) {
         let appearance = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua])
         let normalColor: NSColor = appearance == .darkAqua ? .white : .black
-        let color = warning ? NSColor.systemOrange : normalColor
+        // Keep the whole status item high-contrast; warnings remain available
+        // in the tooltip and server details instead of darkening the menu-bar text.
+        let color = normalColor
         button.contentTintColor = color
         button.title = ""
+        button.image = nil
         let labelView = button.subviews.compactMap { $0 as? StatusBarTitleView }.first ?? {
             let view = StatusBarTitleView()
             button.addSubview(view)
             return view
         }()
-        labelView.frame = NSRect(x: 54, y: 0, width: max(0, button.bounds.width - 57), height: button.bounds.height)
+        labelView.frame = button.bounds
         labelView.update(label: title.trimmingCharacters(in: .whitespaces), color: color)
     }
 }
@@ -110,8 +126,6 @@ final class StatusBarController: NSObject, NSApplicationDelegate, NSPopoverDeleg
             status.behavior = []
             status.button?.target = self
             status.button?.action = #selector(togglePanel)
-            status.button?.image = QueueBrand.menuBarIcon
-            status.button?.imagePosition = .imageLeading
             item = status
         }
         item?.isVisible = true
