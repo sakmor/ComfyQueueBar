@@ -80,8 +80,10 @@ final class StatusBarController: NSObject, NSApplicationDelegate, NSPopoverDeleg
         let multiple = queue.monitoredServers.count > 1
         item?.length = multiple ? 154 : 82
         let hasUnconfirmedServer = queue.serversWithoutFreshStatusCount > 0
-        let labelColor: NSColor = hasUnconfirmedServer || (!multiple && !queue.hasFreshQueue)
-            ? .systemOrange : .labelColor
+        let menuBarAppearance = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua])
+        let normalLabelColor: NSColor = menuBarAppearance == .darkAqua ? .white : .black
+        let labelColor = hasUnconfirmedServer || (!multiple && !queue.hasFreshQueue)
+            ? NSColor.systemOrange : normalLabelColor
         if let button = item?.button {
             button.contentTintColor = labelColor
             button.attributedTitle = NSAttributedString(

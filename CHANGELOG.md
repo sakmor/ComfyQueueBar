@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.4 — 2026-10-16
+
+- Resolve the menu-bar label to explicit white or black from the effective macOS appearance so dark-mode counts stay visible.
+
 ## 1.6.3 — 2026-10-16
 
 - Apply the adaptive foreground color directly to the menu-bar title, so queue counts remain visible in dark and light appearances.
