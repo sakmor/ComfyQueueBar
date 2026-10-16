@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.5 — 2026-10-16
+
+- Draw the menu-bar queue count in a custom hit-test-transparent view so explicit white/black text colors render correctly in dark/light appearances.
+
 ## 1.6.4 — 2026-10-16
 
 - Resolve the menu-bar label to explicit white or black from the effective macOS appearance so dark-mode counts stay visible.

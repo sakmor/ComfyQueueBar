@@ -46,7 +46,7 @@ struct DocumentationCapture {
             guard let button = status.button else { fatalError("No status button") }
             button.image = QueueBrand.menuBarIcon
             button.imagePosition = .imageLeading
-            button.title = " 1/2"
+            StatusBarLabelStyle.apply(" 1/2", to: button, warning: false)
             let panel = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 540), styleMask: [.borderless], backing: .buffered, defer: false)
             panel.isOpaque = false
             panel.backgroundColor = .clear

@@ -2,6 +2,48 @@ import AppKit
 import Combine
 import SwiftUI
 
+@MainActor
+final class StatusBarTitleView: NSView {
+    private var label = ""
+    private var labelColor: NSColor = .white
+    private let labelFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+
+    func update(label: String, color: NSColor) {
+        self.label = label
+        labelColor = color
+        needsDisplay = true
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let attributes: [NSAttributedString.Key: Any] = [.font: labelFont, .foregroundColor: labelColor]
+        let size = (label as NSString).size(withAttributes: attributes)
+        (label as NSString).draw(
+            at: NSPoint(x: 0, y: (bounds.height - size.height) / 2),
+            withAttributes: attributes
+        )
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
+@MainActor
+enum StatusBarLabelStyle {
+    static func apply(_ title: String, to button: NSStatusBarButton, warning: Bool) {
+        let appearance = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua])
+        let normalColor: NSColor = appearance == .darkAqua ? .white : .black
+        let color = warning ? NSColor.systemOrange : normalColor
+        button.contentTintColor = color
+        button.title = ""
+        let labelView = button.subviews.compactMap { $0 as? StatusBarTitleView }.first ?? {
+            let view = StatusBarTitleView()
+            button.addSubview(view)
+            return view
+        }()
+        labelView.frame = NSRect(x: 54, y: 0, width: max(0, button.bounds.width - 57), height: button.bounds.height)
+        labelView.update(label: title.trimmingCharacters(in: .whitespaces), color: color)
+    }
+}
+
 /// Own the status item independently of SwiftUI scene visibility.
 @MainActor
 final class StatusBarController: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSWindowDelegate {
@@ -80,18 +122,11 @@ final class StatusBarController: NSObject, NSApplicationDelegate, NSPopoverDeleg
         let multiple = queue.monitoredServers.count > 1
         item?.length = multiple ? 154 : 82
         let hasUnconfirmedServer = queue.serversWithoutFreshStatusCount > 0
-        let menuBarAppearance = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua])
-        let normalLabelColor: NSColor = menuBarAppearance == .darkAqua ? .white : .black
-        let labelColor = hasUnconfirmedServer || (!multiple && !queue.hasFreshQueue)
-            ? NSColor.systemOrange : normalLabelColor
         if let button = item?.button {
-            button.contentTintColor = labelColor
-            button.attributedTitle = NSAttributedString(
-                string: " " + (multiple ? queue.fleetBadge : queue.queueBadge),
-                attributes: [
-                    .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular),
-                    .foregroundColor: labelColor
-                ]
+            StatusBarLabelStyle.apply(
+                " " + (multiple ? queue.fleetBadge : queue.queueBadge),
+                to: button,
+                warning: hasUnconfirmedServer || (!multiple && !queue.hasFreshQueue)
             )
         }
         let status = queue.hasFreshQueue ? L10n.text("ComfyUI queue: %@ jobs", String(queue.totalJobs)) : queue.monitoringState.label
