@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.3 — 2026-10-16
+
+- Apply the adaptive foreground color directly to the menu-bar title, so queue counts remain visible in dark and light appearances.
+
 ## 1.6.2 — 2026-10-16
 
 - Keep the menu-bar queue label readable by using the system-adaptive text color in normal states, while retaining orange for unavailable or unconfirmed status.
