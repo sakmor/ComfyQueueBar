@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.2 — 2026-10-16
+
+- Keep the menu-bar queue label readable by using the system-adaptive text color in normal states, while retaining orange for unavailable or unconfirmed status.
+
 ## 1.6.1 — 2026-10-15
 
 - Reconcile subscribed job states with individual ComfyUI history records even when the batch history endpoint fails, and add an exact-job refresh command with verification source, timestamp, and diagnostic details.

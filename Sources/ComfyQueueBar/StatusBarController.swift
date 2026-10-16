@@ -82,7 +82,9 @@ final class StatusBarController: NSObject, NSApplicationDelegate, NSPopoverDeleg
         item?.button?.title = " " + (multiple ? queue.fleetBadge : queue.queueBadge)
         item?.button?.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         let hasUnconfirmedServer = queue.serversWithoutFreshStatusCount > 0
-        item?.button?.contentTintColor = hasUnconfirmedServer || (!multiple && !queue.hasFreshQueue) ? .systemOrange : nil
+        item?.button?.contentTintColor = hasUnconfirmedServer || (!multiple && !queue.hasFreshQueue)
+            ? .systemOrange
+            : .labelColor
         let status = queue.hasFreshQueue ? L10n.text("ComfyUI queue: %@ jobs", String(queue.totalJobs)) : queue.monitoringState.label
         if multiple {
             let summary = L10n.text("%@ running · %@ waiting · %@ servers unavailable", String(queue.fleetRunningCount), String(queue.fleetWaitingCount), String(queue.serversWithoutFreshStatusCount))
