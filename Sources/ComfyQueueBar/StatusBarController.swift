@@ -5,19 +5,25 @@ import SwiftUI
 @MainActor
 final class StatusBarTitleView: NSView {
     private var label = ""
-    private var labelColor: NSColor = .white
     private let labelFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
 
-    func update(label: String, color: NSColor) {
+    func update(label: String) {
         self.label = label
-        labelColor = color
+        needsDisplay = true
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
         needsDisplay = true
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        let attributes: [NSAttributedString.Key: Any] = [.font: labelFont, .foregroundColor: labelColor]
+        // Resolve the semantic color while AppKit is drawing this status-bar
+        // view, so it follows the appearance macOS assigned to this location.
+        let color = NSColor.labelColor
+        let attributes: [NSAttributedString.Key: Any] = [.font: labelFont, .foregroundColor: color]
         let size = (label as NSString).size(withAttributes: attributes)
-        labelColor.setFill()
+        color.setFill()
         // Draw the menu-bar glyph here too. NSStatusBarButton's native image
         // tint can be ignored by some menu-bar appearances, leaving a black icon
         // beside the explicitly colored label.
@@ -41,13 +47,8 @@ final class StatusBarTitleView: NSView {
 
 @MainActor
 enum StatusBarLabelStyle {
-    static func apply(_ title: String, to button: NSStatusBarButton, warning _: Bool) {
-        let appearance = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua])
-        let normalColor: NSColor = appearance == .darkAqua ? .white : .black
-        // Keep the whole status item high-contrast; warnings remain available
-        // in the tooltip and server details instead of darkening the menu-bar text.
-        let color = normalColor
-        button.contentTintColor = color
+    static func apply(_ title: String, to button: NSStatusBarButton) {
+        button.contentTintColor = .labelColor
         button.title = ""
         button.image = nil
         let labelView = button.subviews.compactMap { $0 as? StatusBarTitleView }.first ?? {
@@ -56,7 +57,7 @@ enum StatusBarLabelStyle {
             return view
         }()
         labelView.frame = button.bounds
-        labelView.update(label: title.trimmingCharacters(in: .whitespaces), color: color)
+        labelView.update(label: title.trimmingCharacters(in: .whitespaces))
     }
 }
 
@@ -135,12 +136,10 @@ final class StatusBarController: NSObject, NSApplicationDelegate, NSPopoverDeleg
     private func updateLabel() {
         let multiple = queue.monitoredServers.count > 1
         item?.length = multiple ? 154 : 82
-        let hasUnconfirmedServer = queue.serversWithoutFreshStatusCount > 0
         if let button = item?.button {
             StatusBarLabelStyle.apply(
                 " " + (multiple ? queue.fleetBadge : queue.queueBadge),
-                to: button,
-                warning: hasUnconfirmedServer || (!multiple && !queue.hasFreshQueue)
+                to: button
             )
         }
         let status = queue.hasFreshQueue ? L10n.text("ComfyUI queue: %@ jobs", String(queue.totalJobs)) : queue.monitoringState.label

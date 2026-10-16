@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.7 — 2026-10-16
+
+- Resolve menu-bar icon and label colors from AppKit's semantic label color at draw time, so they follow the status item's effective appearance instead of the app-wide light/dark mode.
+
 ## 1.6.6 — 2026-10-16
 
 - Draw both the menu-bar icon and label with the same explicit appearance-aware color, including when a server is unavailable, so neither can render dark against a dark menu bar.
