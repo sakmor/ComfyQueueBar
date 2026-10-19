@@ -237,7 +237,28 @@ final class QueueViewModel: ObservableObject {
             agentBridgeError = nil
             let requests = bridge.takeRefreshRequests()
             for request in requests { Task { await performRefreshJob(request) } }
+            resumeBatchRunnerIfNeeded(root: bridge.root)
         } catch { agentBridgeError = error.localizedDescription }
+    }
+
+    private var lastBatchRunnerLaunch: Date?
+    /// Restart the detached agent batch runner after an app/Mac restart. The runner holds a
+    /// lock, so extra launches exit immediately; it idles out on its own when nothing is active.
+    private func resumeBatchRunnerIfNeeded(root: URL, now: Date = Date()) {
+        guard lastBatchRunnerLaunch.map({ now.timeIntervalSince($0) >= 60 }) ?? true else { return }
+        lastBatchRunnerLaunch = now
+        let batches = root.appendingPathComponent("batches")
+        guard let files = try? FileManager.default.contentsOfDirectory(atPath: batches.path),
+              files.contains(where: { $0.hasSuffix(".json") && !$0.hasPrefix(".") }),
+              let runner = Bundle.main.url(forResource: "batch_runner", withExtension: "py", subdirectory: "AgentBridge"),
+              let python = AgentSetup.python() else { return }
+        let process = Process()
+        process.executableURL = python
+        process.arguments = [runner.path, "--state-dir", root.path]
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
     }
 
     private func ingestAgentHistory(_ history: [String: Any], endpoint source: String) {

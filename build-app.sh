@@ -27,6 +27,7 @@ iconutil -c icns "$iconset_dir" -o "$APP_DIR/Contents/Resources/AppIcon.icns"
 cp "$SCRIPT_DIR/assets/app-icon.png" "$APP_DIR/Contents/Resources/AppIconPreview.png"
 mkdir -p "$APP_DIR/Contents/Resources/AgentBridge"
 cp "$SCRIPT_DIR/agent_bridge/server.py" "$APP_DIR/Contents/Resources/AgentBridge/server.py"
+cp "$SCRIPT_DIR/agent_bridge/batch_runner.py" "$APP_DIR/Contents/Resources/AgentBridge/batch_runner.py"
 cp "$SCRIPT_DIR/docs/AGENT_INTEGRATION.md" "$APP_DIR/Contents/Resources/AgentBridge/README.md"
 mkdir -p "$APP_DIR/Contents/Resources/AgentBridge/skills/comfyqueuebar"
 cp "$SCRIPT_DIR/.agents/skills/comfyqueuebar/SKILL.md" "$APP_DIR/Contents/Resources/AgentBridge/skills/comfyqueuebar/SKILL.md"
@@ -43,8 +44,8 @@ cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleName</key><string>ComfyUI Queue</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.6.7</string>
-  <key>CFBundleVersion</key><string>1.6.7</string>
+  <key>CFBundleShortVersionString</key><string>1.7.0</string>
+  <key>CFBundleVersion</key><string>1.7.0</string>
   <key>SUFeedURL</key><string>https://raw.githubusercontent.com/sakmor/ComfyQueueBar/main/appcast.xml</string>
   <key>SUPublicEDKey</key><string>xIDXTXpij8/7ugU8GpxCgk27FI9+oLthBJ4XEKr4VGs=</string>
   <key>SUEnableAutomaticChecks</key><true/>

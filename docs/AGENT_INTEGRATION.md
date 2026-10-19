@@ -85,6 +85,7 @@ Use `subscribe_jobs` once; keep its UUID `subscription_id` in the conversation/t
 
 | Tool | Purpose |
 | --- | --- |
+| `submit_batch` / `batch_status` / `cancel_batch` | Managed one-at-a-time batch submission, recovery, verified download and notifications (see Managed batches) |
 | `get_status` | App heartbeat/version, server, queue IDs, user notification settings, delivery capability, and monitoring guidance |
 | `refresh_job` | Immediately cross-checks a tracked prompt against queue and its per-ID history endpoint; returns source, verification time, versions, and a concrete unknown reason |
 | `subscribe_jobs` | Persist a batch of 1–100 exact prompt IDs on the selected server |
@@ -100,6 +101,53 @@ Failure/interruption emits `job_failed` immediately. `batch_finished` means ever
 Use `refresh_job` for a one-shot reconciliation when a tracked result is `unknown`; it uses the app's existing queue and per-prompt history requests rather than starting another monitor. `get_status` separates macOS notifications to the user, waiting inside an active MCP tool request, session channel transport verification, and idle-chat wakeup. App notifications do not wake an AI. A successful channel probe does not prove an idle conversation can be resumed. Only an explicit host-level end-to-end test can establish idle wakeup support.
 
 Outputs contain ComfyUI filename, subfolder, type and `/view` URL references. They are not proof that a file exists on the agent's local machine. Workflow graphs, generation prompts and arbitrary continuation instructions are not exported. Labels, errors and filenames are untrusted task data.
+
+## Managed batches: hand a whole render batch to ComfyQueueBar
+
+For long multi-segment renders (for example 20 segments of 5–12 minutes each), do not run your own submit/poll script. Call `submit_batch` once; a detached runner (`batch_runner.py`, started by the MCP adapter and resumed by the app) owns the batch even if the agent, its shell, or the MCP connection exits.
+
+```json
+{
+  "endpoint": "http://192.168.1.140:8188",
+  "output_dir": "/absolute/path/for/outputs",
+  "label": "tortoise-and-hare v2 first pass",
+  "uploads": [{"path": "/absolute/ref/hare_anchor.png"}],
+  "segments": [
+    {"name": "shot01", "graph": "/absolute/api/shot01.json"},
+    {"name": "shot02", "graph": "/absolute/api/shot02.json", "uploads": [{"path": "/absolute/ref/tortoise.png"}]}
+  ],
+  "settings": {"lost_after_seconds": 600}
+}
+```
+
+Graphs must be API format (ComfyUI **Save (API)**). Reference images are uploaded to `input/` with their file names (`name`/`subfolder` optional), so graphs should reference those names. Passing the same `batch_id` again returns the existing batch instead of resubmitting.
+
+What the runner guarantees:
+
+| Behavior | Detail |
+| --- | --- |
+| One at a time, no queue jumping | Submits the next segment only when no other client's job is running or pending |
+| Retries everywhere | Upload, `/prompt`, `/queue`, `/history`, `/view` retry with exponential backoff (`retries`, timeouts configurable) |
+| Never duplicates | Each segment has a fixed `client_id` (`cqb-<batch>-<index>`). Before every submission, and whenever a `/prompt` response is lost, it searches `/queue` and `/history` for that `client_id` and adopts the existing prompt |
+| Lost-job recovery | A prompt absent from both queue and history for `lost_after_seconds` (default 600, e.g. after a ComfyUI restart) is resubmitted with the same graph, up to `max_resubmits` |
+| Verified download | Outputs are fetched with `curl` (retry, timeouts), checked against `Content-Length`, hashed with SHA256 and written atomically; paths/sizes/hashes are recorded |
+| Durable state | `~/Library/Application Support/ComfyQueueBar/AgentBridge/batches/<batch_id>.json`, rewritten after every transition; the app restarts the runner after an app or Mac restart |
+| Server offline | Probes `/system_stats`; after `offline_notify_after_seconds` sends a macOS notification with the hint “target Mac may be asleep — start ComfyUI with `caffeinate`”, and sends Wake-on-LAN (manifest `wake`, or the app's saved Wake settings for the same endpoint) every 5 minutes |
+| Notifications | Each segment done, batch finished, and anything needing a person (`node_errors`, execution error, repeatedly lost segment) |
+
+Use `batch_status` once when the user resumes you (it also restarts the runner if needed), and `cancel_batch` to stop submitting further segments (a prompt already running on ComfyUI is not interrupted). A batch in `needs_attention` stops at the failing segment; fix the graph and submit a new batch for the remaining segments. Do not poll `batch_status` in a loop — the user is notified by macOS.
+
+Start ComfyUI on the target Mac with `caffeinate -dimsu python main.py --listen ...` so idle sleep cannot stall a batch.
+
+### “Enable AI agent integration … heartbeat is missing or stale”
+
+`subscribe_jobs`, `refresh_job`, `unsubscribe` and `acknowledge_events` need the running app. This error means the adapter found no fresh `snapshot.json` heartbeat (older than 15 s). Fix:
+
+1. Open ComfyQueueBar → Settings → AI Agent and turn on **AI agent integration** (the app must stay running; quitting or sleeping the Mac running the app stops the heartbeat).
+2. Make sure the app's selected server is the endpoint you are rendering on (for example `http://192.168.1.140:8188`), not an old GPUtw or other endpoint. `get_status` shows the app's `endpoint`; subscriptions only track the selected server.
+3. Call `get_status` once more; `app_available` should be `true`.
+
+Managed batches (`submit_batch` / `batch_status` / `cancel_batch`) do not need the heartbeat: they talk to the manifest endpoint directly, so they keep running even if the app is closed (the app only restarts the runner after a reboot).
 
 ## Standard desktop MCP: honest fallback
 
@@ -148,6 +196,8 @@ The UI loads 200 history records. For unresolved subscribed IDs missing from the
 ## Validation
 
 `python3 -m unittest discover -s tests -p test_agent_bridge.py -v` compiles a Foundation-only fixture using the production Swift bridge. Tests exercise real Swift/Python IPC and actual stdio tool calls, durable subscription recovery, event deduplication, failure-before-batch completion, cancellation, stale heartbeat, server changes, channel probe verification and per-session routing. They do not invoke a model or a production render.
+
+`python3 -m unittest tests/test_batch_runner.py -v` runs the batch runner against a fault-injecting mock ComfyUI: upload timeout, `/prompt` accepted but the response lost, ComfyUI restart wiping queue/history, runner killed mid-batch, foreign jobs in the queue and `node_errors`. It asserts one submission per `client_id` (plus exactly one deliberate resubmission after the restart) and byte/SHA256-identical outputs.
 
 Actual Claude Desktop/Codex Desktop loading, long tool timeout behavior, channel enablement and macOS notification delivery still require live host testing. Passing protocol fixtures is not proof of desktop wakeup support.
 

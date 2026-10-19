@@ -100,6 +100,13 @@ enum AgentSetup {
             try FileManager.default.createDirectory(at: adapter.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
             try Data(contentsOf: script).write(to: adapter, options: .atomic)
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: adapter.path)
+            // The detached batch runner is launched by the adapter from its own directory.
+            let runner = script.deletingLastPathComponent().appendingPathComponent("batch_runner.py")
+            if FileManager.default.fileExists(atPath: runner.path) {
+                let installed = adapter.deletingLastPathComponent().appendingPathComponent("batch_runner.py")
+                try Data(contentsOf: runner).write(to: installed, options: .atomic)
+                try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: installed.path)
+            }
             do {
                 try configureClaude(home.appendingPathComponent("Library/Application Support/Claude/claude_desktop_config.json"), python: interpreter, adapter: adapter)
                 report.configured.append("Claude")

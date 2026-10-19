@@ -5,6 +5,7 @@ import concurrent.futures
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 import threading
 import time
@@ -56,6 +57,35 @@ def schema(properties=None, required=None):
     return {'type': 'object', 'properties': properties or {}, 'required': required or [], 'additionalProperties': False}
 
 
+BATCH_DEFAULTS = {'lost_after_seconds': 600, 'poll_seconds': 5, 'http_timeout_seconds': 30, 'upload_timeout_seconds': 300,
+                  'download_timeout_seconds': 1800, 'retries': 6, 'max_resubmits': 3, 'offline_notify_after_seconds': 60}
+RUNNER = Path(__file__).resolve().with_name('batch_runner.py')
+SETTING_KEYS = ('lost_after_seconds', 'poll_seconds', 'http_timeout_seconds', 'upload_timeout_seconds',
+                'download_timeout_seconds', 'retries', 'max_resubmits', 'offline_notify_after_seconds')
+
+
+def ensure_runner(root):
+    """Start the detached batch runner unless one already holds the lock."""
+    if not RUNNER.exists():
+        raise ValueError('batch_runner.py is missing next to server.py; reinstall the MCP adapter from the app')
+    process = subprocess.Popen([sys.executable, str(RUNNER), '--state-dir', str(root)], stdin=subprocess.DEVNULL,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True)
+    # Reap the child if it exits while this bridge lives; it survives the bridge otherwise.
+    threading.Thread(target=process.wait, daemon=True).start()
+
+
+def batch_summary(batch):
+    counts = {}
+    for segment in batch['segments']:
+        counts[segment['state']] = counts.get(segment['state'], 0) + 1
+    return {key: batch.get(key) for key in ('batch_id', 'label', 'status', 'endpoint', 'output_dir', 'server_hint',
+                                            'offline_since', 'last_error', 'created_at', 'updated_at')} | {
+        'segment_states': counts,
+        'segments': [{key: segment.get(key) for key in ('name', 'state', 'client_id', 'prompt_id', 'prompt_ids', 'submit_attempts',
+                                                          'resubmits', 'outputs', 'error')} for segment in batch['segments']],
+        'recent_events': batch.get('events', [])[-15:]}
+
+
 SID = {'type': 'string', 'description': 'UUID returned by subscribe_jobs; retain for reconnects.'}
 EVENT_IDS = {'type': 'array', 'items': {'type': 'string'}, 'minItems': 1, 'maxItems': 200}
 TOOLS = [
@@ -70,6 +100,18 @@ TOOLS = [
         'subscription_id': SID, 'timeout_seconds': {'type': 'integer', 'minimum': 1, 'maximum': 3600}}, ['subscription_id'])),
     ('acknowledge_events', 'Confirm that you received/processed event IDs; prevents replay after reconnect.', schema({'subscription_id': SID, 'event_ids': EVENT_IDS}, ['subscription_id', 'event_ids'])),
     ('unsubscribe', 'Stop monitoring one subscription; preserves its results.', schema({'subscription_id': SID}, ['subscription_id'])),
+    ('submit_batch', 'Hand a whole batch of ComfyUI API graphs to the detached ComfyQueueBar batch runner. It submits one segment at a time, waits behind other users, retries every HTTP call, never resubmits a client_id it can find in /queue or /history, resubmits lost prompts, downloads and SHA256-verifies outputs, and notifies the user. Returns immediately; do not poll.', schema({
+        'endpoint': {'type': 'string'}, 'output_dir': {'type': 'string', 'description': 'Absolute local folder for downloaded outputs'},
+        'label': {'type': 'string', 'maxLength': 200},
+        'segments': {'type': 'array', 'minItems': 1, 'maxItems': 500, 'items': {'type': 'object', 'properties': {
+            'name': {'type': 'string'}, 'graph': {'type': 'string', 'description': 'Absolute path of API-format graph JSON'},
+            'uploads': {'type': 'array', 'items': {'type': 'object'}}, 'output_dir': {'type': 'string'}}, 'required': ['graph']}},
+        'uploads': {'type': 'array', 'description': 'Reference images uploaded once before the first segment: {path, name?, subfolder?, type?}', 'items': {'type': 'object'}},
+        'settings': {'type': 'object', 'description': 'Optional overrides: lost_after_seconds, poll_seconds, http_timeout_seconds, upload_timeout_seconds, download_timeout_seconds, retries, max_resubmits, offline_notify_after_seconds'},
+        'wake': {'type': 'object', 'description': 'Optional Wake-on-LAN {macAddress, broadcastAddress, port}; defaults to the app profile for this endpoint'},
+        'batch_id': {'type': 'string', 'description': 'Optional UUID; resubmitting the same batch_id is idempotent'}}, ['endpoint', 'output_dir', 'segments'])),
+    ('batch_status', 'Read one managed batch (or list all when batch_id is omitted) once. Do not poll; the user gets macOS notifications.', schema({'batch_id': {'type': 'string'}})),
+    ('cancel_batch', 'Stop submitting further segments of a managed batch. Does not interrupt a prompt already running on ComfyUI.', schema({'batch_id': {'type': 'string'}}, ['batch_id'])),
 ]
 CHANNEL_TOOL = ('confirm_channel', 'Call only with the nonce received in the channel_probe event to verify inbound channel delivery in this session.', schema({'nonce': {'type': 'string'}}, ['nonce']))
 
@@ -91,7 +133,7 @@ class Bridge:
             snapshot = {}
         fresh = time.time() - snapshot.get('heartbeat_at', 0) < 15
         queue_fresh = time.time() - (snapshot.get('last_queue_update') or 0) < 30
-        return {**snapshot, 'bridge_version': '0.2.0', 'app_available': bool(snapshot.get('enabled') and fresh),
+        return {**snapshot, 'bridge_version': '0.3.0', 'app_available': bool(snapshot.get('enabled') and fresh),
                 'queue_fresh': bool(queue_fresh), 'delivery': self.delivery(),
                 'app_notifications': {
                     'completion_mode': snapshot.get('notification_mode', 'unknown'),
@@ -154,6 +196,81 @@ class Bridge:
         app = {key: status.get(key) for key in ('app_available', 'queue_fresh', 'endpoint', 'connected', 'history_available', 'last_queue_update')}
         return {'subscription': subscription, 'app': app, 'delivery': self.delivery()}
 
+    def batch_path(self, batch_id):
+        return self.root / 'batches' / (identifier(batch_id) + '.json')
+
+    def batch_call(self, name, args):
+        directory = self.root / 'batches'
+        if name == 'batch_status':
+            if 'batch_id' not in args:
+                items = []
+                for path in sorted(directory.glob('*.json')):
+                    try:
+                        batch = read_json(path)
+                    except (OSError, ValueError):
+                        continue
+                    items.append({key: batch.get(key) for key in ('batch_id', 'label', 'status', 'updated_at')})
+                return {'batches': items}
+            path = self.batch_path(args['batch_id'])
+            if not path.exists():
+                raise ValueError('Batch not found')
+            batch = read_json(path)
+            if batch['status'] not in ('completed', 'cancelled', 'needs_attention'):
+                ensure_runner(self.root)  # resume after reboot/crash
+            return batch_summary(batch)
+        if name == 'cancel_batch':
+            path = self.batch_path(args['batch_id'])
+            batch = read_json(path)
+            batch['cancel_requested'] = True
+            if batch['status'] == 'needs_attention':
+                batch['status'] = 'cancelled'
+            atomic_json(path, batch)
+            return batch_summary(batch)
+        batch_id = identifier(args.get('batch_id', str(uuid.uuid4())))
+        path = self.batch_path(batch_id)
+        if path.exists():
+            return {**batch_summary(read_json(path)), 'note': 'batch_id already exists; returned existing batch without resubmitting'}
+        endpoint = args['endpoint']
+        if not isinstance(endpoint, str) or not endpoint.startswith(('http://', 'https://')):
+            raise ValueError('endpoint must be an http(s) URL')
+        output_dir = Path(args['output_dir'])
+        if not output_dir.is_absolute():
+            raise ValueError('output_dir must be absolute')
+
+        def check_upload(item):
+            if not isinstance(item, dict) or not isinstance(item.get('path'), str) or not Path(item['path']).is_file():
+                raise ValueError('upload entries need an existing absolute file path: %r' % (item,))
+            return {key: item[key] for key in ('path', 'name', 'subfolder', 'type') if key in item}
+        segments = []
+        for index, item in enumerate(args['segments']):
+            if not isinstance(item, dict) or not isinstance(item.get('graph'), str):
+                raise ValueError('segment %d needs a graph path' % index)
+            graph = Path(item['graph'])
+            if not graph.is_absolute() or not graph.is_file():
+                raise ValueError('segment %d graph must be an existing absolute path' % index)
+            try:
+                parsed = json.loads(graph.read_text())
+            except ValueError:
+                raise ValueError('segment %d graph is not valid JSON' % index) from None
+            if not isinstance(parsed, dict) or 'nodes' in parsed:
+                raise ValueError('segment %d graph must be API format (Save (API)), not a UI workflow' % index)
+            segments.append({'name': str(item.get('name') or graph.stem), 'graph': str(graph),
+                             'uploads': [check_upload(u) for u in item.get('uploads', [])],
+                             'output_dir': item.get('output_dir'), 'state': 'pending',
+                             'client_id': 'cqb-%s-%03d' % (batch_id[:8], index), 'prompt_ids': []})
+        settings = dict(BATCH_DEFAULTS)
+        for key, value in (args.get('settings') or {}).items():
+            if key not in SETTING_KEYS or type(value) not in (int, float) or value < 0:
+                raise ValueError('invalid setting ' + str(key))
+            settings[key] = value
+        batch = {'batch_id': batch_id, 'label': args.get('label', ''), 'endpoint': endpoint.rstrip('/'),
+                 'output_dir': str(output_dir), 'uploads': [check_upload(u) for u in args.get('uploads', [])],
+                 'wake': args.get('wake'), 'settings': settings, 'segments': segments, 'status': 'queued',
+                 'created_at': time.time(), 'updated_at': time.time(), 'events': []}
+        atomic_json(path, batch)
+        ensure_runner(self.root)
+        return {**batch_summary(batch), 'next_step': 'The detached runner now owns this batch. Do not poll; the user receives macOS notifications. Call batch_status once when resumed.'}
+
     def call(self, name, args, cancel):
         specs = TOOLS + ([CHANNEL_TOOL] if self.channel else [])
         specification = next((item[2] for item in specs if item[0] == name), None)
@@ -182,6 +299,8 @@ class Bridge:
                 if cancel.wait(0.1):
                     raise ValueError('Refresh cancelled; app may still finish the one-shot check. Retry refresh_job for prompt_id ' + prompt)
             raise ValueError('App did not return a refresh result within 30 seconds; current state remains unknown. Check that the app is connected and enabled.')
+        if name in ('submit_batch', 'batch_status', 'cancel_batch'):
+            return self.batch_call(name, args)
         if name == 'confirm_channel':
             if args['nonce'] != self.nonce:
                 raise ValueError('Invalid channel probe nonce')
@@ -334,7 +453,7 @@ class Server:
             requested = params.get('protocolVersion')
             version = requested if requested in ('2024-11-05', '2025-03-26', '2025-06-18') else '2025-06-18'
             result = {'protocolVersion': version, 'capabilities': capabilities,
-                      'serverInfo': {'name': 'comfyqueuebar', 'version': '0.2.0'}, 'instructions': INSTRUCTIONS}
+                      'serverInfo': {'name': 'comfyqueuebar', 'version': '0.3.0'}, 'instructions': INSTRUCTIONS}
         elif method == 'ping':
             result = {}
         elif method == 'tools/list':

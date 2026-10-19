@@ -116,6 +116,10 @@ Include macOS version, processor architecture, Swift version (for build problems
 - **Missing older jobs:** Loaded history contains at most the newest 200 server records. Select Loaded history to include unknown timestamps; clear the search field and inspect ComfyUI for older records.
 - **Cannot switch servers:** Wait for the active prioritize/stop action to finish. Switching while a mutation is in flight is disabled.
 
+## Agent error: “heartbeat is missing or stale”
+
+Turn on AI agent integration in the app's Settings and keep the app running, then confirm the app's selected server is the endpoint the agent renders on (not an old GPUtw endpoint). See [AGENT_INTEGRATION.md](AGENT_INTEGRATION.md#enable-ai-agent-integration--heartbeat-is-missing-or-stale). Managed batches do not depend on the heartbeat.
+
 ## Menu bar icon disappears / camera notch
 
 First reopen ComfyQueueBar from Applications or Spotlight. Starting with v1.4.1, reopening a running app restores its status item and opens a normal queue window; quitting/restarting is not required. Closing that window keeps monitoring running.

@@ -107,6 +107,10 @@ Enable **Settings → AI agent integration** to let Claude Code or Codex delegat
 
 Standard MCP cannot wake an idle desktop conversation. It provides a bounded programmatic wait; experimental Claude Channels support verifies inbound delivery before claiming push capability. Claude Desktop Code-tab channel activation and Codex Desktop push are not established. See [setup, delivery modes, and limitations](docs/AGENT_INTEGRATION.md).
 
+### Hand a whole batch to the app
+
+Agents can call `submit_batch` with a manifest of API graphs, reference images and an output folder. A detached runner submits one segment at a time without jumping other users' jobs, retries every request, never resubmits a `client_id` it can find in the queue or history, resubmits prompts lost to a ComfyUI restart, downloads outputs with SHA256 verification, survives agent/app restarts, and sends macOS notifications (including a sleep/`caffeinate` hint and Wake-on-LAN when the server goes offline). See [Managed batches](docs/AGENT_INTEGRATION.md#managed-batches-hand-a-whole-render-batch-to-comfyqueuebar).
+
 ### Use the included skill
 
 Detailed token-saving tutorial: [English](docs/AGENT_TOKEN_GUIDE.md) · [简体中文](docs/i18n/AGENT_TOKEN_GUIDE.zh-CN.md) · [繁體中文](docs/i18n/AGENT_TOKEN_GUIDE.zh-TW.md) · [日本語](docs/i18n/AGENT_TOKEN_GUIDE.ja.md). Covers installation, exact job IDs, subscriptions, resuming checks, outputs, and troubleshooting.
