@@ -109,7 +109,7 @@ Standard MCP cannot wake an idle desktop conversation. It provides a bounded pro
 
 ### Hand a whole batch to the app
 
-Agents can call `submit_batch` with a manifest of API graphs, reference images and an output folder. A detached runner submits one segment at a time without jumping other users' jobs, retries every request, never resubmits a `client_id` it can find in the queue or history, resubmits prompts lost to a ComfyUI restart, downloads outputs with SHA256 verification, survives agent/app restarts, and sends macOS notifications (including a sleep/`caffeinate` hint and Wake-on-LAN when the server goes offline). See [Managed batches](docs/AGENT_INTEGRATION.md#managed-batches-hand-a-whole-render-batch-to-comfyqueuebar).
+Agents can call `submit_batch` with a manifest of API graphs, reference images and an output folder. A detached runner keeps one segment running and the next one queued (without jumping other users' jobs), downloads outputs in the background with stall detection, reports GPU idle time between segments, retries every request, never resubmits a `client_id` it can find in the queue or history, resubmits prompts lost to a ComfyUI restart, downloads outputs with SHA256 verification, survives agent/app restarts, and sends macOS notifications (including a sleep/`caffeinate` hint and Wake-on-LAN when the server goes offline). See [Managed batches](docs/AGENT_INTEGRATION.md#managed-batches-hand-a-whole-render-batch-to-comfyqueuebar).
 
 ### Use the included skill
 

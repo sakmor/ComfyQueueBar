@@ -126,11 +126,13 @@ What the runner guarantees:
 
 | Behavior | Detail |
 | --- | --- |
-| One at a time, no queue jumping | Submits the next segment only when no other client's job is running or pending |
+| Pipelined, no queue jumping | Keeps one own segment running plus `pipeline_depth` (default 1) own segments queued, so the GPU starts the next segment the moment one finishes. Output download/verification and the next segment's uploads run while the GPU works. A new segment is submitted only when no other client's job is running or pending; the depth counts only this batch's own jobs |
 | Retries everywhere | Upload, `/prompt`, `/queue`, `/history`, `/view` retry with exponential backoff (`retries`, timeouts configurable) |
 | Never duplicates | Each segment has a fixed `client_id` (`cqb-<batch>-<index>`). Before every submission, and whenever a `/prompt` response is lost, it searches `/queue` and `/history` for that `client_id` and adopts the existing prompt |
 | Lost-job recovery | A prompt absent from both queue and history for `lost_after_seconds` (default 600, e.g. after a ComfyUI restart) is resubmitted with the same graph, up to `max_resubmits` |
-| Verified download | Outputs are fetched with `curl` (retry, timeouts), checked against `Content-Length`, hashed with SHA256 and written atomically; paths/sizes/hashes are recorded |
+| Verified download | Outputs are fetched with `curl` into a `.part` file, checked against `Content-Length`, hashed with SHA256 and only then renamed; paths/sizes/hashes are recorded |
+| Stall detection | Uploads and downloads abort and retry when slower than `stall_bytes_per_second` (default 51200 = 50 KB/s) for `stall_seconds` (default 20), instead of waiting for the total timeout |
+| GPU idle measurement | `batch_status.gpu` lists each segment's GPU execution interval (ComfyUI `execution_start`/`execution_success` timestamps), the gaps between consecutive own segments and `idle_total_seconds`; segment and batch notifications include the running idle total. Gaps also include time when other users' jobs ran |
 | Durable state | `~/Library/Application Support/ComfyQueueBar/AgentBridge/batches/<batch_id>.json`, rewritten after every transition; the app restarts the runner after an app or Mac restart |
 | Server offline | Probes `/system_stats`; after `offline_notify_after_seconds` sends a macOS notification with the hint “target Mac may be asleep — start ComfyUI with `caffeinate`”, and sends Wake-on-LAN (manifest `wake`, or the app's saved Wake settings for the same endpoint) every 5 minutes |
 | Notifications | Each segment done, batch finished, and anything needing a person (`node_errors`, execution error, repeatedly lost segment) |

@@ -35,7 +35,13 @@ class MockComfy:
         self.uploads = []
         self.counter = 0
         self.offline_until = 0
-        self.faults = {'upload_hang': 0, 'prompt_drop': set(), 'restart_after_submit': set(), 'reject': set()}
+        self.faults = {'upload_hang': 0, 'prompt_drop': set(), 'restart_after_submit': set(), 'reject': set(),
+                       'view_stall': 0, 'view_delay': 0.0, 'upload_delay': 0.0}
+        self.view_requests = 0
+        self.live_duplicates = []
+        self.execution_order = []
+        self.run_seconds = 0.6
+        self.on_finish = None
         self.outputs = {}
         mock = self
 
@@ -76,8 +82,27 @@ class MockComfy:
                         return self.reply(200, {pid: mock.history[pid]} if pid in mock.history else {})
                     if url.path == '/view':
                         name = urllib.parse.parse_qs(url.query)['filename'][0]
-                        return self.reply(200, mock.outputs[name], 'application/octet-stream')
-                self.reply(404, {})
+                        data = mock.outputs[name]
+                        mock.view_requests += 1
+                        stall = mock.faults['view_stall'] > 0 and self.command == 'GET'
+                        if stall:
+                            mock.faults['view_stall'] -= 1
+                        delay = mock.faults['view_delay']
+                    else:
+                        data = None
+                if data is None:
+                    return self.reply(404, {})
+                if stall:
+                    # Send headers and part of the body, then go silent (the C06 symptom).
+                    self.send_response(200)
+                    self.send_header('Content-Length', str(len(data)))
+                    self.end_headers()
+                    self.wfile.write(data[:len(data) // 3])
+                    self.wfile.flush()
+                    time.sleep(30)
+                    return
+                time.sleep(delay)
+                return self.reply(200, data, 'application/octet-stream')
 
             do_HEAD = do_GET
 
@@ -92,6 +117,7 @@ class MockComfy:
                     if hang:
                         time.sleep(2.5)  # longer than the runner's upload timeout
                         return
+                    time.sleep(mock.faults['upload_delay'])
                     mock.uploads.append(len(body))
                     return self.reply(200, {'name': 'ref.png', 'subfolder': '', 'type': 'input'})
                 if self.path == '/prompt':
@@ -100,6 +126,9 @@ class MockComfy:
                     if client in mock.faults['reject']:
                         return self.reply(400, {'error': 'invalid prompt', 'node_errors': {'3': 'bad'}})
                     with mock.lock:
+                        live = [i[3].get('client_id') for i in mock.queue] + [r['prompt'][3].get('client_id') for r in mock.history.values()]
+                        if client in live:
+                            mock.live_duplicates.append(client)
                         mock.counter += 1
                         pid = str(uuid.uuid4())
                         mock.queue.append([mock.counter, pid, payload['prompt'], {'client_id': client}, []])
@@ -127,17 +156,24 @@ class MockComfy:
             if not self.queue:
                 return
             head = self.queue[0]
+            if not head[4]:
+                self.execution_order.append(head[3].get('client_id'))
             started = head[4] or [time.time()]
             head[4] = started
-            if time.time() - started[0] < 0.6:
+            if time.time() - started[0] < self.run_seconds:
                 return
             self.queue.pop(0)
+            finished = time.time()
             name = 'seg_%s.mp4' % head[1][:8]
             content = os.urandom(200_000)
             self.outputs[name] = content
             self.history[head[1]] = {'prompt': [head[0], head[1], head[2], head[3], []],
                                      'outputs': {'9': {'gifs': [{'filename': name, 'subfolder': '', 'type': 'output'}]}},
-                                     'status': {'status_str': 'success', 'completed': True, 'messages': []}}
+                                     'status': {'status_str': 'success', 'completed': True, 'messages': [
+                                         ['execution_start', {'prompt_id': head[1], 'timestamp': int(started[0] * 1000)}],
+                                         ['execution_success', {'prompt_id': head[1], 'timestamp': int(finished * 1000)}]]}}
+            if self.on_finish:
+                self.on_finish(head)
 
     def restart(self):
         with self.lock:
@@ -164,6 +200,7 @@ class BatchRunnerTests(unittest.TestCase):
 
     def tearDown(self):
         self.mock.close()
+        self.assertEqual(self.mock.live_duplicates, [], 'a client_id was submitted while its prompt was still live')
         # stop any detached runner by cancelling everything, then let it idle out
         for path in (self.root / 'batches').glob('*.json'):
             batch = json.loads(path.read_text())
@@ -214,8 +251,9 @@ class BatchRunnerTests(unittest.TestCase):
 
         per_client = {c: [p for cc, p in self.mock.accepted if cc == c] for c in clients}
         self.assertEqual(len(per_client[clients[0]]), 1, 'upload timeout must not duplicate')
-        self.assertEqual(len(per_client[clients[1]]), 1, 'unknown submit must be adopted, not resubmitted')
-        # Restart wiped the first prompt; exactly one deliberate resubmission, never more.
+        self.assertLessEqual(len(per_client[clients[1]]), 2)
+        # The restart wiped every prompt still queued (seg2, and seg1 when prefetched): each is resubmitted
+        # exactly once, and only after it vanished (live duplicates are asserted in tearDown).
         self.assertEqual(len(per_client[clients[2]]), 2, 'lost prompt resubmitted exactly once')
         self.assertEqual(len(self.mock.uploads), 1, 'shared reference uploaded once')
 
@@ -276,6 +314,75 @@ class BatchRunnerTests(unittest.TestCase):
         self.assertEqual(status['status'], 'completed')
         clients = [s['client_id'] for s in result['segments']]
         self.assertEqual(sorted(c for c, _ in self.mock.accepted), sorted(clients))
+
+    def test_stalled_download_is_aborted_and_retried_without_resubmit(self):
+        self.mock.faults['view_stall'] = 1
+        started = time.time()
+        result = self.submit(self.graphs(3), stall_seconds=1, stall_bytes_per_second=51200, download_timeout_seconds=600)
+        status = self.wait(result['batch_id'])
+        self.assertEqual(status['status'], 'completed', json.dumps(status, indent=1))
+        self.assertLess(time.time() - started, 25, 'stall must be cut by the low-speed limit, not the 600s total timeout')
+        self.assertEqual(len(self.mock.accepted), 3, 'a download retry never resubmits')
+        attempts = [s['outputs'][0]['attempts'] for s in status['segments']]
+        self.assertIn(2, attempts)
+        for segment in status['segments']:
+            output = segment['outputs'][0]
+            self.assertEqual(Path(output['path']).read_bytes(), self.mock.outputs[output['filename']])
+            self.assertFalse(Path(output['path'] + '.part').exists())
+        self.assertFalse(list((self.work / 'out').glob('*.part')))
+
+    def test_pipeline_prefetch_respects_foreign_jobs(self):
+        self.mock.run_seconds = 1.0
+        foreign_added = threading.Event()
+
+        def add_foreign(head):
+            # When our first segment finishes, someone else queues a job before our next submit can land.
+            if not foreign_added.is_set() and head[3].get('client_id', '').endswith('-000'):
+                foreign_added.set()
+                self.mock.queue.append([999, 'foreign-b', {}, {'client_id': 'someone-else'}, []])
+        result = self.submit(self.graphs(3), pipeline_depth=1)
+        clients = [s['client_id'] for s in result['segments']]
+        # Before segment 0 starts, a foreign job is also waiting: no prefetch may be queued while it waits.
+        self.mock.on_finish = add_foreign
+        status = self.wait(result['batch_id'])
+        self.assertEqual(status['status'], 'completed', json.dumps(status, indent=1))
+        per_client = [c for c, _ in self.mock.accepted]
+        self.assertEqual(sorted(per_client), sorted(clients), 'no duplicate submissions')
+        order = [item for item in self.mock.execution_order]
+        foreign_index = order.index('someone-else')
+        self.assertEqual(order[0], clients[0])
+        # Segment 1 was prefetched while segment 0 ran (before the foreign job arrived), so it may run before
+        # the foreign job; segment 2 must not have been submitted while the foreign job was pending.
+        self.assertLess(foreign_index, order.index(clients[2]))
+        self.assertIn('gpu', status)
+        self.assertEqual(len(status['gpu']['segments']), 3)
+
+    def test_pipeline_reduces_gpu_idle(self):
+        self.mock.faults['view_delay'] = 1.5    # slow output download (C06-like)
+        self.mock.faults['upload_delay'] = 1.2  # per-segment reference/audio upload
+        self.mock.run_seconds = 2.0
+        idle = {}
+        for depth in (0, 1):
+            self.mock.accepted.clear()
+            graphs = self.graphs(3)
+            refs = []
+            for index in range(3):
+                ref = self.work / ('ref_%d_%d.png' % (depth, index))
+                ref.write_bytes(os.urandom(500))
+                refs.append(str(ref))
+            result = self.bridge.call('submit_batch', {
+                'endpoint': self.mock.url, 'output_dir': str(self.work / ('out%d' % depth)),
+                'segments': [{'graph': g, 'uploads': [{'path': r}]} for g, r in zip(graphs, refs)],
+                'settings': {'poll_seconds': 0.2, 'pipeline_depth': depth, 'http_timeout_seconds': 3, 'upload_timeout_seconds': 5}}, threading.Event())
+            status = self.wait(result['batch_id'])
+            self.assertEqual(status['status'], 'completed')
+            self.assertEqual(len(self.mock.accepted), 3)
+            idle[depth] = status['gpu']['idle_total_seconds']
+            self.assertEqual(len(status['gpu']['gaps']), 2)
+        print("GPU idle by depth:", idle)
+        self.assertGreater(idle[0], 2.0, idle)        # depth 0: each gap waits for upload + submit
+        self.assertLess(idle[1], 0.8, idle)           # depth 1: next segment already queued; download is in background
+        self.assertLess(idle[1], idle[0] / 3, idle)
 
     def test_rejects_ui_workflow_graphs(self):
         path = self.work / 'ui.json'

@@ -58,10 +58,12 @@ def schema(properties=None, required=None):
 
 
 BATCH_DEFAULTS = {'lost_after_seconds': 600, 'poll_seconds': 5, 'http_timeout_seconds': 30, 'upload_timeout_seconds': 300,
-                  'download_timeout_seconds': 1800, 'retries': 6, 'max_resubmits': 3, 'offline_notify_after_seconds': 60}
+                  'download_timeout_seconds': 1800, 'retries': 6, 'max_resubmits': 3, 'offline_notify_after_seconds': 60,
+                  'pipeline_depth': 1, 'stall_bytes_per_second': 51200, 'stall_seconds': 20}
 RUNNER = Path(__file__).resolve().with_name('batch_runner.py')
 SETTING_KEYS = ('lost_after_seconds', 'poll_seconds', 'http_timeout_seconds', 'upload_timeout_seconds',
-                'download_timeout_seconds', 'retries', 'max_resubmits', 'offline_notify_after_seconds')
+                'download_timeout_seconds', 'retries', 'max_resubmits', 'offline_notify_after_seconds',
+                'pipeline_depth', 'stall_bytes_per_second', 'stall_seconds')
 
 
 def ensure_runner(root):
@@ -79,7 +81,7 @@ def batch_summary(batch):
     for segment in batch['segments']:
         counts[segment['state']] = counts.get(segment['state'], 0) + 1
     return {key: batch.get(key) for key in ('batch_id', 'label', 'status', 'endpoint', 'output_dir', 'server_hint',
-                                            'offline_since', 'last_error', 'created_at', 'updated_at')} | {
+                                            'offline_since', 'last_error', 'created_at', 'updated_at', 'gpu')} | {
         'segment_states': counts,
         'segments': [{key: segment.get(key) for key in ('name', 'state', 'client_id', 'prompt_id', 'prompt_ids', 'submit_attempts',
                                                           'resubmits', 'outputs', 'error')} for segment in batch['segments']],
@@ -107,7 +109,7 @@ TOOLS = [
             'name': {'type': 'string'}, 'graph': {'type': 'string', 'description': 'Absolute path of API-format graph JSON'},
             'uploads': {'type': 'array', 'items': {'type': 'object'}}, 'output_dir': {'type': 'string'}}, 'required': ['graph']}},
         'uploads': {'type': 'array', 'description': 'Reference images uploaded once before the first segment: {path, name?, subfolder?, type?}', 'items': {'type': 'object'}},
-        'settings': {'type': 'object', 'description': 'Optional overrides: lost_after_seconds, poll_seconds, http_timeout_seconds, upload_timeout_seconds, download_timeout_seconds, retries, max_resubmits, offline_notify_after_seconds'},
+        'settings': {'type': 'object', 'description': 'Optional overrides: lost_after_seconds, poll_seconds, http_timeout_seconds, upload_timeout_seconds, download_timeout_seconds, retries, max_resubmits, offline_notify_after_seconds, pipeline_depth (own segments queued behind the running one, default 1), stall_bytes_per_second, stall_seconds'},
         'wake': {'type': 'object', 'description': 'Optional Wake-on-LAN {macAddress, broadcastAddress, port}; defaults to the app profile for this endpoint'},
         'batch_id': {'type': 'string', 'description': 'Optional UUID; resubmitting the same batch_id is idempotent'}}, ['endpoint', 'output_dir', 'segments'])),
     ('batch_status', 'Read one managed batch (or list all when batch_id is omitted) once. Do not poll; the user gets macOS notifications.', schema({'batch_id': {'type': 'string'}})),

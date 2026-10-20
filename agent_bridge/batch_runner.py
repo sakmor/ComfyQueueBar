@@ -11,6 +11,7 @@ Duplicate-submission rule: every segment has a fixed client_id. Before any
 adopts an existing prompt instead of submitting again.
 """
 import argparse
+import concurrent.futures
 import fcntl
 import hashlib
 import json
@@ -37,6 +38,9 @@ DEFAULTS = {
     'retries': 6,
     'max_resubmits': 3,
     'offline_notify_after_seconds': 60,
+    'pipeline_depth': 1,            # own segments queued behind the running one
+    'stall_bytes_per_second': 51200,  # abort a transfer slower than this ...
+    'stall_seconds': 20,            # ... for this long, then retry
 }
 
 
@@ -149,11 +153,25 @@ def send_wake(wake):
         udp.sendto(packet, (wake.get('broadcastAddress') or '255.255.255.255', int(wake.get('port') or 9)))
 
 
+def gpu_metrics(batch):
+    """Per-segment GPU execution intervals and the idle gaps between consecutive own segments."""
+    spans = sorted((s['gpu_started_at'], s['gpu_finished_at'], s['name']) for s in batch['segments']
+                   if s.get('gpu_started_at') and s.get('gpu_finished_at'))
+    gaps = []
+    for (_, previous_end, previous), (start, _, name) in zip(spans, spans[1:]):
+        gaps.append({'after': previous, 'before': name, 'seconds': round(max(0.0, start - previous_end), 3)})
+    return {'segments': [{'name': name, 'started_at': start, 'finished_at': end, 'seconds': round(end - start, 3)} for start, end, name in spans],
+            'gaps': gaps, 'idle_total_seconds': round(sum(g['seconds'] for g in gaps), 3),
+            'note': 'Gaps include time other users\' jobs ran between own segments.'}
+
+
 class BatchRunner:
     def __init__(self, root, sleep=time.sleep):
         self.root = Path(root)
         self.dir = self.root / 'batches'
         self.sleep = sleep
+        self.downloads = {}
+        self.pool = concurrent.futures.ThreadPoolExecutor(max_workers=2)
 
     # ---------- state ----------
     def load(self, path):
@@ -239,19 +257,37 @@ class BatchRunner:
 
     # ---------- segment steps ----------
     def upload(self, http, batch, segment):
+        """Upload references with curl: retries, total timeout, and a low-speed stall abort."""
+        settings = batch['settings']
         for item in segment.get('uploads', []) + batch.get('uploads', []):
             key = item['path']
             if key in batch.setdefault('uploaded', {}):
                 continue
-            content = Path(item['path']).read_bytes()
             name = item.get('name') or Path(item['path']).name
-            body, ctype = multipart({'overwrite': 'true', 'type': item.get('type', 'input'), 'subfolder': item.get('subfolder', '')}, 'image', name, content)
-            status, data = http.request('POST', '/upload/image', body=body, headers={'Content-Type': ctype},
-                                        timeout=batch['settings']['upload_timeout_seconds'])
-            if status != 200:
-                raise ValueError('upload %s returned HTTP %d: %s' % (name, status, data[:300]))
-            batch['uploaded'][key] = json.loads(data or b'{}').get('name', name)
-            self.save(batch)
+            last = None
+            for attempt in range(settings['retries'] + 1):
+                command = ['curl', '-fsS', '--connect-timeout', '15', '--max-time', str(settings['upload_timeout_seconds']),
+                           '--speed-limit', str(int(settings['stall_bytes_per_second'])),
+                           '--speed-time', str(max(1, int(settings['stall_seconds']))),
+                           '-F', 'image=@%s;filename=%s' % (item['path'], name), '-F', 'overwrite=true',
+                           '-F', 'type=' + item.get('type', 'input'), '-F', 'subfolder=' + item.get('subfolder', ''),
+                           http.endpoint + '/upload/image']
+                try:
+                    result = subprocess.run(command, capture_output=True, timeout=settings['upload_timeout_seconds'] + 60)
+                except subprocess.SubprocessError as error:
+                    result, last = None, error
+                if result is not None and result.returncode == 0:
+                    batch['uploaded'][key] = json.loads(result.stdout or b'{}').get('name', name)
+                    self.save(batch)
+                    break
+                if result is not None:
+                    if result.returncode == 22 and b'error: 4' in result.stderr:
+                        raise ValueError('upload %s rejected: %s' % (name, result.stderr[:300]))
+                    last = 'curl exit %d %s' % (result.returncode, result.stderr.decode('utf-8', 'replace')[:200])
+                if attempt < settings['retries']:
+                    self.sleep(min(2 ** attempt, 30))
+            else:
+                raise Unreachable('upload %s failed: %s' % (name, last))
 
     def submit(self, http, batch, segment):
         graph = json.loads(Path(segment['graph']).read_text())
@@ -274,7 +310,7 @@ class BatchRunner:
                 detail = {'raw': data[:500].decode('utf-8', 'replace')}
             segment['state'] = 'failed'
             segment['error'] = detail
-            batch['status'] = 'needs_attention'
+            batch['halt'] = True
             self.event(batch, 'node_errors', 'Segment %s rejected by ComfyUI (HTTP %d); needs attention.' % (segment['name'], status), segment['name'], notify_user=True)
             return
         segment['prompt_id'] = json.loads(data)['prompt_id']
@@ -303,7 +339,7 @@ class BatchRunner:
         if now() - segment['missing_since'] >= batch['settings']['lost_after_seconds']:
             if segment.get('resubmits', 0) >= batch['settings']['max_resubmits']:
                 segment['state'] = 'failed'
-                batch['status'] = 'needs_attention'
+                batch['halt'] = True
                 self.event(batch, 'lost', 'Segment %s lost repeatedly; needs attention.' % segment['name'], segment['name'], notify_user=True)
                 return
             segment['resubmits'] = segment.get('resubmits', 0) + 1
@@ -312,6 +348,7 @@ class BatchRunner:
             self.event(batch, 'lost', 'Segment %s missing from queue and history; resubmitting the same graph.' % segment['name'], segment['name'], notify_user=True)
 
     def collect(self, http, batch, segment):
+        """Read the finished record, record GPU timing, and start a background download."""
         record = http.json('/history/' + urllib.parse.quote(segment['prompt_id'])).get(segment['prompt_id'])
         if not record:
             segment['state'] = 'queued'
@@ -320,43 +357,93 @@ class BatchRunner:
         if status.get('status_str') == 'error':
             segment['state'] = 'failed'
             segment['error'] = status.get('messages', [])[-3:]
-            batch['status'] = 'needs_attention'
+            batch['halt'] = True
             self.event(batch, 'execution_error', 'Segment %s failed in ComfyUI; needs attention.' % segment['name'], segment['name'], notify_user=True)
             return
         if not status.get('completed', True) and status:
             return
-        out_dir = Path(segment.get('output_dir') or batch['output_dir'])
-        out_dir.mkdir(parents=True, exist_ok=True)
+        # Prefer ComfyUI's own execution timestamps; fall back to what the runner observed.
+        for message in status.get('messages', []) or []:
+            if isinstance(message, list) and len(message) == 2 and isinstance(message[1], dict) and 'timestamp' in message[1]:
+                if message[0] == 'execution_start':
+                    segment['gpu_started_at'] = message[1]['timestamp'] / 1000
+                elif message[0] in ('execution_success', 'execution_error', 'execution_interrupted'):
+                    segment['gpu_finished_at'] = message[1]['timestamp'] / 1000
+        segment['gpu_finished_at'] = segment.get('gpu_finished_at') or segment.get('seen_finished_at') or now()
+        segment['gpu_started_at'] = segment.get('gpu_started_at') or segment.get('seen_running_at') or segment['gpu_finished_at']
         files = []
         for node_output in record.get('outputs', {}).values():
             for kind in ('images', 'gifs', 'videos', 'audio'):
                 for item in node_output.get(kind, []) or []:
                     if isinstance(item, dict) and 'filename' in item and item.get('type', 'output') == 'output':
                         files.append(item)
-        segment['outputs'] = []
-        for item in files:
-            segment['outputs'].append(self.download(http, batch, item, out_dir))
+        segment['state'] = 'downloading'
+        segment['download_files'] = files
+        self.start_download(http, batch, segment)
+
+    def start_download(self, http, batch, segment):
+        key = (batch['batch_id'], segment['client_id'])
+        if key in self.downloads:
+            return
+        out_dir = Path(segment.get('output_dir') or batch['output_dir'])
+        settings = dict(batch['settings'])
+        files = list(segment.get('download_files') or [])
+
+        def work():
+            out_dir.mkdir(parents=True, exist_ok=True)
+            return [self.download(http.endpoint, settings, item, out_dir) for item in files]
+        self.downloads[key] = self.pool.submit(work)
+
+    def finish_download(self, batch, segment):
+        key = (batch['batch_id'], segment['client_id'])
+        future = self.downloads.get(key)
+        if future is None:
+            # Runner restarted mid-download: start again from the recorded file list.
+            self.start_download(Http(batch['endpoint'], batch['settings'], self.sleep), batch, segment)
+            return
+        if not future.done():
+            return
+        del self.downloads[key]
+        try:
+            segment['outputs'] = future.result()
+        except Exception as error:  # download exhausted its retries
+            segment['download_failures'] = segment.get('download_failures', 0) + 1
+            self.event(batch, 'download_retry', 'Download for %s failed (%s); retrying.' % (segment['name'], error), segment['name'])
+            if segment['download_failures'] >= 3:
+                segment['state'] = 'failed'
+                segment['error'] = str(error)
+                batch['halt'] = True
+                self.event(batch, 'needs_attention', 'Segment %s output could not be downloaded; needs attention.' % segment['name'], segment['name'], notify_user=True)
+            return
         segment['state'] = 'completed'
         segment['completed_at'] = now()
+        segment.pop('download_files', None)
         done = sum(1 for s in batch['segments'] if s['state'] == 'completed')
-        self.event(batch, 'segment_completed', 'Segment %s done (%d/%d), %d file(s) saved.' % (segment['name'], done, len(batch['segments']), len(files)), segment['name'], notify_user=True)
+        metrics = gpu_metrics(batch)
+        self.event(batch, 'segment_completed', 'Segment %s done (%d/%d), %d file(s) saved. GPU idle between segments so far: %.0fs.'
+                   % (segment['name'], done, len(batch['segments']), len(segment['outputs']), metrics['idle_total_seconds']),
+                   segment['name'], notify_user=True)
 
-    def download(self, http, batch, item, out_dir):
+    def download(self, endpoint, settings, item, out_dir):
+        """curl with a low-speed stall abort; write to .part, verify size+SHA256, then rename."""
         query = urllib.parse.urlencode({'filename': item['filename'], 'subfolder': item.get('subfolder', ''), 'type': item.get('type', 'output')})
-        url = http.endpoint + '/view?' + query
+        url = endpoint + '/view?' + query
         target = out_dir / item['filename']
         partial = target.with_name(target.name + '.part')
         headers_path = target.with_name(target.name + '.headers')
         last = None
-        for attempt in range(batch['settings']['retries'] + 1):
+        for attempt in range(settings['retries'] + 1):
             try:
                 partial.unlink(missing_ok=True)
-                command = ['curl', '-fsS', '--retry', '3', '--retry-all-errors', '--connect-timeout', '15',
-                           '--max-time', str(batch['settings']['download_timeout_seconds']),
+                command = ['curl', '-fsS', '--connect-timeout', '15',
+                           '--speed-limit', str(int(settings['stall_bytes_per_second'])),
+                           '--speed-time', str(max(1, int(settings['stall_seconds']))),
+                           '--max-time', str(settings['download_timeout_seconds']),
                            '-D', str(headers_path), '-o', str(partial), url]
-                result = subprocess.run(command, capture_output=True, timeout=batch['settings']['download_timeout_seconds'] + 60)
+                result = subprocess.run(command, capture_output=True, timeout=settings['download_timeout_seconds'] + 60)
                 if result.returncode != 0:
-                    raise OSError('curl exit %d: %s' % (result.returncode, result.stderr.decode('utf-8', 'replace')[:200]))
+                    reason = 'stalled below %d B/s for %ds' % (settings['stall_bytes_per_second'], settings['stall_seconds']) if result.returncode == 28 else 'curl exit %d' % result.returncode
+                    raise OSError('%s: %s' % (reason, result.stderr.decode('utf-8', 'replace')[:200]))
                 expected = None
                 for line in headers_path.read_text('latin-1').lower().splitlines():
                     if line.startswith('http/'):
@@ -374,10 +461,10 @@ class BatchRunner:
                     raise OSError('sha256 changed after rename')
                 headers_path.unlink(missing_ok=True)
                 return {'filename': item['filename'], 'path': str(target), 'bytes': size, 'sha256': digest,
-                        'size_verified_against_server': expected is not None}
+                        'size_verified_against_server': expected is not None, 'attempts': attempt + 1}
             except (OSError, subprocess.SubprocessError, ValueError) as error:
                 last = error
-                if attempt < batch['settings']['retries']:
+                if attempt < settings['retries']:
                     self.sleep(min(2 ** attempt, 30))
         partial.unlink(missing_ok=True)
         headers_path.unlink(missing_ok=True)
@@ -385,54 +472,79 @@ class BatchRunner:
 
     # ---------- main loop ----------
     def step(self, batch):
-        """Advance one batch by one action. Returns True when it is still active."""
+        """Advance one batch. Keeps 1 running + pipeline_depth queued own segments, never ahead of foreign jobs.
+        Returns True while the batch is still active."""
         if batch.get('cancel_requested'):
             batch['status'] = 'cancelled'
             self.event(batch, 'cancelled', 'Batch cancelled by request; already-queued prompts were not interrupted.')
             self.save(batch)
             return False
+        batch['settings'] = {**DEFAULTS, **batch['settings']}  # batches saved by older runners
         http = Http(batch['endpoint'], batch['settings'], self.sleep)
+        segments = batch['segments']
+        waiting = False
+        # Downloads run in the background and do not need the server to stay reachable.
+        for segment in segments:
+            if segment['state'] == 'downloading':
+                self.finish_download(batch, segment)
         if not self.server_ok(http, batch):
             batch['status'] = 'waiting_for_server'
+            batch['gpu'] = gpu_metrics(batch)
             self.save(batch)
             return True
-        batch['status'] = 'running'
-        segment = next((s for s in batch['segments'] if s['state'] not in ('completed',)), None)
-        if segment is None:
-            batch['status'] = 'completed'
-            self.event(batch, 'batch_completed', 'Batch finished: %d segment(s) collected into %s' % (len(batch['segments']), batch['output_dir']), notify_user=True)
-            self.save(batch)
-            return False
-        if segment['state'] == 'failed':
-            batch['status'] = 'needs_attention'
-            self.save(batch)
-            return False
+        current = None
         try:
-            if segment['state'] == 'pending':
-                # Before any submission, look for an earlier attempt with this client_id.
-                prompt_id, where = self.find_client(http, segment['client_id'])
-                if prompt_id:
-                    self.reconcile(http, batch, segment)
-                elif self.others_in_queue(http, {s['client_id'] for s in batch['segments']}):
-                    batch['status'] = 'waiting_for_queue'
-                else:
-                    self.upload(http, batch, segment)
-                    self.submit(http, batch, segment)
-            elif segment['state'] in ('queued', 'submit_unknown', 'submitting'):
+            queue = http.json('/queue')
+            running_clients = {item[3].get('client_id') for item in queue.get('queue_running', []) if len(item) > 3 and isinstance(item[3], dict)}
+            for segment in segments:
+                current = segment
                 if segment['state'] == 'submitting':
                     segment['state'] = 'submit_unknown'
                     segment['unknown_since'] = segment.get('unknown_since') or now()
-                self.reconcile(http, batch, segment)
-            if segment['state'] == 'history':
-                self.collect(http, batch, segment)
+                if segment['state'] in ('queued', 'submit_unknown'):
+                    self.reconcile(http, batch, segment)
+                if segment['state'] == 'queued' and segment['client_id'] in running_clients and not segment.get('seen_running_at'):
+                    segment['seen_running_at'] = now()
+                if segment['state'] == 'history':
+                    segment['seen_finished_at'] = segment.get('seen_finished_at') or now()
+                    self.collect(http, batch, segment)
+            current = None
+            in_flight = [s for s in segments if s['state'] in ('queued', 'submit_unknown')]
+            depth = 1 + int(batch['settings']['pipeline_depth'])
+            if not batch.get('halt') and len(in_flight) < depth and not any(s['state'] == 'submit_unknown' for s in in_flight):
+                segment = next((s for s in segments if s['state'] == 'pending'), None)
+                if segment is not None:
+                    current = segment
+                    prompt_id, where = self.find_client(http, segment['client_id'])
+                    if prompt_id:
+                        self.reconcile(http, batch, segment)
+                    elif self.others_in_queue(http, {s['client_id'] for s in segments}):
+                        waiting = True  # never jump ahead of other users' jobs
+                    else:
+                        self.upload(http, batch, segment)
+                        self.submit(http, batch, segment)
         except Unreachable as error:
             batch['last_error'] = str(error)
-            self.event(batch, 'transient_error', str(error), segment['name'])
+            self.event(batch, 'transient_error', str(error), current['name'] if current else None)
         except (OSError, ValueError, KeyError) as error:
-            segment['state'] = 'failed'
-            segment['error'] = str(error)
+            if current is not None:
+                current['state'] = 'failed'
+                current['error'] = str(error)
+            batch['halt'] = True
+            self.event(batch, 'needs_attention', 'Segment %s: %s' % (current['name'] if current else '?', error),
+                       current['name'] if current else None, notify_user=True)
+        batch['gpu'] = gpu_metrics(batch)
+        busy = [s for s in segments if s['state'] in ('queued', 'submit_unknown', 'submitting', 'history', 'downloading')]
+        if all(s['state'] == 'completed' for s in segments):
+            batch['status'] = 'completed'
+            self.event(batch, 'batch_completed', 'Batch finished: %d segment(s) collected into %s. GPU idle between segments: %.0fs total.'
+                       % (len(segments), batch['output_dir'], batch['gpu']['idle_total_seconds']), notify_user=True)
+        elif batch.get('halt') and not busy:
             batch['status'] = 'needs_attention'
-            self.event(batch, 'needs_attention', 'Segment %s: %s' % (segment['name'], error), segment['name'], notify_user=True)
+        elif batch.get('halt'):
+            batch['status'] = 'finishing_before_attention'
+        else:
+            batch['status'] = 'waiting_for_queue' if waiting and not busy else 'running'
         self.save(batch)
         return batch['status'] not in TERMINAL + ('needs_attention',)
 
@@ -450,8 +562,17 @@ class BatchRunner:
             for batch in batches:
                 # re-read so cancel requests from the bridge are seen
                 path = self.dir / (batch['batch_id'] + '.json')
-                self.step(self.load(path))
+                try:
+                    self.step(self.load(path))
+                except Exception as error:  # keep the runner alive; record and retry next cycle
+                    try:
+                        crashed = self.load(path)
+                        self.event(crashed, 'runner_error', 'Internal runner error: %r' % error)
+                        self.save(crashed)
+                    except (OSError, ValueError):
+                        pass
             self.sleep(min(b['settings']['poll_seconds'] for b in batches))
+
 
 
 def main():

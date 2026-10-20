@@ -4,6 +4,9 @@
 
 - Add managed agent batches: MCP tools `submit_batch`, `batch_status` and `cancel_batch` hand a manifest of ComfyUI API graphs to a detached runner (`batch_runner.py`) that outlives the agent. It submits one segment at a time behind other users' jobs, retries every HTTP call with backoff, uses a fixed `client_id` per segment and reconciles `/queue` and `/history` before any (re)submission so a lost `/prompt` response never duplicates work, resubmits prompts missing after a ComfyUI restart, downloads outputs with curl plus size and SHA256 verification, and persists state in `AgentBridge/batches/` so the app resumes it after a restart.
 - Notify on server loss with a sleep/`caffeinate` hint and send Wake-on-LAN from the manifest or the app's saved Wake settings; notify on each finished segment, the finished batch, and anything that needs a person (`node_errors`, execution errors, repeatedly lost segments).
+- Pipeline managed batches: keep one own segment running plus a configurable `pipeline_depth` (default 1) queued, download/verify outputs in the background, and never queue ahead of other users' jobs.
+- Abort uploads and downloads that stay below `stall_bytes_per_second` (default 50 KB/s) for `stall_seconds` (default 20) and retry; downloads land in `.part` files and are renamed only after size and SHA256 checks.
+- Record per-segment GPU execution intervals, gaps between segments and the total GPU idle time in `batch_status` and notifications.
 - Document the batch workflow and how to resolve the “AI agent integration heartbeat is missing or stale” error; bump the MCP adapter to 0.3.0.
 
 ## 1.6.7 — 2026-10-16
