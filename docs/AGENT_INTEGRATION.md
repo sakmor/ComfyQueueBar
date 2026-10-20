@@ -86,6 +86,7 @@ Use `subscribe_jobs` once; keep its UUID `subscription_id` in the conversation/t
 | Tool | Purpose |
 | --- | --- |
 | `submit_batch` / `batch_status` / `cancel_batch` | Managed one-at-a-time batch submission, recovery, verified download and notifications (see Managed batches) |
+| `expect_work` / `heartbeat` / `watch_status` | Watchdog for idle queues and silent scripts; `queue_drained` events (see Watchdog) |
 | `get_status` | App heartbeat/version, server, queue IDs, user notification settings, delivery capability, and monitoring guidance |
 | `refresh_job` | Immediately cross-checks a tracked prompt against queue and its per-ID history endpoint; returns source, verification time, versions, and a concrete unknown reason |
 | `subscribe_jobs` | Persist a batch of 1–100 exact prompt IDs on the selected server |
@@ -150,6 +151,24 @@ Start ComfyUI on the target Mac with `caffeinate -dimsu python main.py --listen 
 3. Call `get_status` once more; `app_available` should be `true`.
 
 Managed batches (`submit_batch` / `batch_status` / `cancel_batch`) do not need the heartbeat: they talk to the manifest endpoint directly, so they keep running even if the app is closed (the app only restarts the runner after a reboot).
+
+## Watchdog: catch a stuck agent while the GPU sits idle
+
+The batch runner also runs a watchdog (no model inference) so a silently stuck agent script is noticed:
+
+| Tool | Use |
+| --- | --- |
+| `expect_work(endpoint, label, until_seconds, idle_after_seconds=180)` | Declare that work is expected on an endpoint. When the queue stays empty for `idle_after_seconds` (counted from the busy→empty transition or the declaration), the user gets a macOS notification and every subscription on that endpoint gets a `queue_idle_unexpected` event. `until_seconds: 0` clears it. Running managed batches imply this automatically (3 minutes). |
+| `heartbeat(label, ttl_seconds, message?, endpoint?)` | A long-running script reports progress. If no heartbeat arrives within `ttl_seconds`, the user is told the script may be stuck or crashed and subscriptions receive `heartbeat_missed` with the last message. `ttl_seconds: 0` stops watching. |
+| `watch_status()` | One read of expectations, heartbeats, per-endpoint queue observations and recent watchdog events. |
+
+Scripts that are not MCP clients can beat from the shell:
+
+```bash
+python3 "$HOME/Library/Application Support/ComfyQueueBar/MCP/server.py" --heartbeat "h3 batch.py" --ttl 300 --message "submitted C05" --endpoint http://192.168.1.140:8188
+```
+
+When a subscribed endpoint's queue goes from busy to empty and the last prompt succeeded, subscriptions on that endpoint receive `queue_drained` with `last_prompt_id` and the output list, so `wait_for_events` returns at once. Watchdog event IDs start with `watch-`; acknowledge them with `acknowledge_events` like any other event. Each idle period and each missed heartbeat alerts once. The watchdog polls every 5 seconds and runs inside the detached runner, which the MCP adapter starts on `subscribe_jobs`, `expect_work`, `heartbeat` or `submit_batch` and the app restarts after a reboot while expectations, heartbeats or batches exist.
 
 ## Standard desktop MCP: honest fallback
 

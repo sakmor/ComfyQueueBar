@@ -550,9 +550,18 @@ class BatchRunner:
 
     def run(self, idle_exit_seconds=120):
         idle_since = None
+        watchdog = Watchdog(self.root)
         while True:
+            try:
+                watchdog.tick()
+            except Exception:
+                pass  # the watchdog must never stop batch processing
             batches = self.active_batches()
             if not batches:
+                if watchdog.active():
+                    idle_since = None
+                    self.sleep(min(1, watchdog.poll_seconds))
+                    continue
                 idle_since = idle_since or now()
                 if now() - idle_since >= idle_exit_seconds:
                     return
@@ -573,6 +582,157 @@ class BatchRunner:
                         pass
             self.sleep(min(b['settings']['poll_seconds'] for b in batches))
 
+# ---------------- agent watchdog ----------------
+# Files under <state>/watch/ (written by the MCP bridge, read by this runner):
+#   expectations.json  {id: {endpoint, until, label, idle_after_seconds, created_at}}
+#   heartbeats.json    {label: {ttl_seconds, last_at, message, endpoint}}
+# Written by the runner:
+#   endpoints.json     per-endpoint queue observations
+#   events.jsonl       watch events delivered to subscribed agents by the bridge
+#   alerts.json        which lapses were already alerted (one alert per lapse)
+
+def normalize(endpoint):
+    return (endpoint or '').rstrip('/')
+
+
+def read_json_file(path, default):
+    try:
+        return json.loads(path.read_text())
+    except (OSError, ValueError):
+        return default
+
+
+def append_watch_event(root, kind, endpoint, label, data):
+    event = {'id': 'watch-' + str(uuid.uuid4()), 'kind': kind, 'created_at': now(), 'endpoint': normalize(endpoint) or None,
+             'label': label, 'data': data}
+    path = Path(root) / 'watch' / 'events.jsonl'
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with open(path, 'a') as stream:
+        stream.write(json.dumps(event, ensure_ascii=False) + '\n')
+    return event
+
+
+class Watchdog:
+    """Detect a silent agent: expected work but an empty queue, missed script heartbeats, and drained queues."""
+
+    def __init__(self, root, poll_seconds=None):
+        self.root = Path(root)
+        self.dir = self.root / 'watch'
+        self.poll_seconds = poll_seconds if poll_seconds is not None else float(os.environ.get('COMFYQUEUEBAR_WATCH_POLL', 5))
+        self.last_tick = 0
+
+    def expectations(self):
+        values = read_json_file(self.dir / 'expectations.json', {})
+        return {key: value for key, value in values.items() if value.get('until', 0) > now()}
+
+    def batch_expectations(self):
+        """Running managed batches imply that more work is expected on their endpoint."""
+        result = {}
+        for path in (self.root / 'batches').glob('*.json'):
+            batch = read_json_file(path, {})
+            if batch.get('status') in ('running', 'waiting_for_queue') and not batch.get('halt') and \
+                    any(s.get('state') != 'completed' for s in batch.get('segments', [])):
+                result['batch:' + batch['batch_id']] = {'endpoint': batch['endpoint'], 'label': batch.get('label') or batch['batch_id'],
+                                                        'idle_after_seconds': 180, 'created_at': batch.get('created_at', 0)}
+        return result
+
+    def subscription_endpoints(self):
+        subscriptions = read_json_file(self.root / 'subscriptions.json', {})
+        return {normalize(s.get('endpoint')) for s in subscriptions.values() if not s.get('cancelled')}
+
+    def heartbeats(self):
+        return read_json_file(self.dir / 'heartbeats.json', {})
+
+    def unfinished_subscriptions(self):
+        subscriptions = read_json_file(self.root / 'subscriptions.json', {})
+        return [s for s in subscriptions.values() if not s.get('cancelled') and not all(
+            (s.get('results', {}).get(p) or {}).get('status') in ('completed', 'failed', 'interrupted') for p in s.get('prompt_ids', []))]
+
+    def active(self):
+        busy = any(v.get('busy') for v in read_json_file(self.dir / 'endpoints.json', {}).values())
+        return bool(self.expectations() or self.heartbeats() or self.batch_expectations() or self.unfinished_subscriptions() or busy)
+
+    def tick(self, force=False):
+        if not force and now() - self.last_tick < self.poll_seconds:
+            return
+        self.last_tick = now()
+        expectations = {**self.expectations(), **self.batch_expectations()}
+        heartbeats = self.heartbeats()
+        if not self.active():
+            return
+        alerts = read_json_file(self.dir / 'alerts.json', {})
+        states = read_json_file(self.dir / 'endpoints.json', {})
+        endpoints = {normalize(e['endpoint']) for e in expectations.values()} | self.subscription_endpoints() | \
+            {normalize(h.get('endpoint')) for h in heartbeats.values() if h.get('endpoint')}
+        for endpoint in sorted(e for e in endpoints if e):
+            self.observe(endpoint, states.setdefault(endpoint, {}), expectations, alerts)
+        for label, beat in heartbeats.items():
+            key = 'heartbeat:%s:%s' % (label, beat.get('last_at'))
+            overdue = now() - beat.get('last_at', 0)
+            if overdue > beat.get('ttl_seconds', 300) and key not in alerts:
+                alerts[key] = now()
+                message = beat.get('message') or ''
+                append_watch_event(self.root, 'heartbeat_missed', beat.get('endpoint'), label,
+                                   {'last_heartbeat_at': beat.get('last_at'), 'last_message': message,
+                                    'ttl_seconds': beat.get('ttl_seconds'), 'overdue_seconds': round(overdue, 1)})
+                notify('Batch script silent', '"%s" has not reported for %ds; it may be stuck or crashed. Last: %s'
+                       % (label, overdue, message[:120]))
+        atomic_json(self.dir / 'endpoints.json', states)
+        atomic_json(self.dir / 'alerts.json', {k: v for k, v in alerts.items() if now() - v < 7 * 86400})
+
+    def observe(self, endpoint, state, expectations, alerts):
+        http = Http(endpoint, {**DEFAULTS, 'retries': 1, 'http_timeout_seconds': 10}, time.sleep)
+        try:
+            queue = http.json('/queue')
+        except (Unreachable, ValueError):
+            state['reachable'] = False
+            return
+        state['reachable'] = True
+        running = queue.get('queue_running', []) or []
+        pending = queue.get('queue_pending', []) or []
+        state['checked_at'] = now()
+        if running or pending:
+            state['busy'] = True
+            state['last_busy_at'] = now()
+            state['empty_since'] = None
+            if running and len(running[0]) > 1:
+                state['last_prompt_id'] = running[0][1]
+            return
+        if state.get('busy') or state.get('empty_since') is None:
+            # Transition busy -> empty (or first observation of an empty queue).
+            was_busy = bool(state.get('busy'))
+            state['busy'] = False
+            state['empty_since'] = now()
+            last = state.get('last_prompt_id')
+            if was_busy and last:
+                self.drained(http, endpoint, last)
+        for key, expectation in ((k, v) for k, v in expectations.items() if normalize(v['endpoint']) == endpoint):
+            idle_from = max(state['empty_since'], expectation.get('created_at', 0))
+            idle = now() - idle_from
+            alert_key = 'idle:%s:%s' % (key, state['empty_since'])
+            if idle >= expectation.get('idle_after_seconds', 180) and alert_key not in alerts:
+                alerts[alert_key] = now()
+                append_watch_event(self.root, 'queue_idle_unexpected', endpoint, expectation.get('label'),
+                                   {'idle_seconds': round(idle, 1), 'empty_since': state['empty_since'],
+                                    'expected_until': expectation.get('until'), 'last_prompt_id': state.get('last_prompt_id')})
+                notify('GPU idle', 'Queue on %s has been empty for %d min although "%s" expects more work. The agent script may be stuck.'
+                       % (endpoint, idle // 60, expectation.get('label') or key))
+
+    def drained(self, http, endpoint, prompt_id):
+        try:
+            record = http.json('/history/' + urllib.parse.quote(prompt_id)).get(prompt_id) or {}
+        except (Unreachable, ValueError):
+            record = {}
+        status = record.get('status', {})
+        if not record or status.get('status_str') == 'error':
+            return  # failures are reported by the job subscription itself
+        outputs = []
+        for node_output in record.get('outputs', {}).values():
+            for kind in ('images', 'gifs', 'videos', 'audio'):
+                for item in node_output.get(kind, []) or []:
+                    if isinstance(item, dict) and 'filename' in item:
+                        outputs.append({key: item.get(key) for key in ('filename', 'subfolder', 'type')})
+        append_watch_event(self.root, 'queue_drained', endpoint, None, {'last_prompt_id': prompt_id, 'outputs': outputs})
 
 
 def main():

@@ -248,8 +248,12 @@ final class QueueViewModel: ObservableObject {
         guard lastBatchRunnerLaunch.map({ now.timeIntervalSince($0) >= 60 }) ?? true else { return }
         lastBatchRunnerLaunch = now
         let batches = root.appendingPathComponent("batches")
-        guard let files = try? FileManager.default.contentsOfDirectory(atPath: batches.path),
-              files.contains(where: { $0.hasSuffix(".json") && !$0.hasPrefix(".") }),
+        let files = (try? FileManager.default.contentsOfDirectory(atPath: batches.path)) ?? []
+        // Watchdog state (expect_work / heartbeat) also needs the runner after an app or Mac restart.
+        let watches = ["expectations.json", "heartbeats.json"].contains { name in
+            ((try? Data(contentsOf: root.appendingPathComponent("watch/" + name))).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] })?.isEmpty == false
+        }
+        guard files.contains(where: { $0.hasSuffix(".json") && !$0.hasPrefix(".") }) || watches,
               let runner = Bundle.main.url(forResource: "batch_runner", withExtension: "py", subdirectory: "AgentBridge"),
               let python = AgentSetup.python() else { return }
         let process = Process()
