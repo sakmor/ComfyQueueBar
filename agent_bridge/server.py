@@ -63,14 +63,18 @@ def schema(properties=None, required=None):
 
 
 BATCH_DEFAULTS = {'lost_after_seconds': 600, 'poll_seconds': 5, 'http_timeout_seconds': 30, 'upload_timeout_seconds': 300,
-                  'download_timeout_seconds': 1800, 'retries': 6, 'max_resubmits': 3, 'offline_notify_after_seconds': 60}
+                  'download_timeout_seconds': 1800, 'retries': 6, 'max_resubmits': 3, 'offline_notify_after_seconds': 60,
+                  'pipeline_depth': 1, 'stall_bytes_per_second': 51200, 'stall_seconds': 20}
 RUNNER = Path(__file__).resolve().with_name('batch_runner.py')
 SETTING_KEYS = ('lost_after_seconds', 'poll_seconds', 'http_timeout_seconds', 'upload_timeout_seconds',
-                'download_timeout_seconds', 'retries', 'max_resubmits', 'offline_notify_after_seconds')
+                'download_timeout_seconds', 'retries', 'max_resubmits', 'offline_notify_after_seconds',
+                'pipeline_depth', 'stall_bytes_per_second', 'stall_seconds')
 
 
 def ensure_runner(root):
     """Start the detached batch runner unless one already holds the lock."""
+    if os.environ.get('COMFYQUEUEBAR_NO_RUNNER'):
+        return
     if not RUNNER.exists():
         raise ValueError('batch_runner.py is missing next to server.py; reinstall the MCP adapter from the app')
     process = subprocess.Popen([sys.executable, str(RUNNER), '--state-dir', str(root)], stdin=subprocess.DEVNULL,
@@ -84,11 +88,50 @@ def batch_summary(batch):
     for segment in batch['segments']:
         counts[segment['state']] = counts.get(segment['state'], 0) + 1
     return {key: batch.get(key) for key in ('batch_id', 'label', 'status', 'endpoint', 'output_dir', 'server_hint',
-                                            'offline_since', 'last_error', 'created_at', 'updated_at')} | {
+                                            'offline_since', 'last_error', 'created_at', 'updated_at', 'gpu')} | {
         'segment_states': counts,
         'segments': [{key: segment.get(key) for key in ('name', 'state', 'client_id', 'prompt_id', 'prompt_ids', 'submit_attempts',
                                                           'resubmits', 'outputs', 'error')} for segment in batch['segments']],
         'recent_events': batch.get('events', [])[-15:]}
+
+
+WATCH_KINDS = ('queue_idle_unexpected', 'heartbeat_missed', 'queue_drained')
+
+
+def update_json(path, mutate):
+    """Read-modify-write a small JSON map under an exclusive lock (bridge and scripts may race)."""
+    import fcntl
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with open(path.with_name(path.name + '.lock'), 'w') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            value = json.loads(path.read_text())
+        except (OSError, ValueError):
+            value = {}
+        mutate(value)
+        atomic_json(path, value)
+        return value
+
+
+def watch_events(root, endpoint=None, since=0):
+    path = Path(root) / 'watch' / 'events.jsonl'
+    events = []
+    try:
+        lines = path.read_text().splitlines()
+    except OSError:
+        return events
+    for line in lines[-2000:]:
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if event.get('created_at', 0) < since:
+            continue
+        # Endpoint-less events (heartbeats without an endpoint) go to every subscription.
+        if endpoint is not None and event.get('endpoint') and event['endpoint'] != endpoint.rstrip('/'):
+            continue
+        events.append(event)
+    return events
 
 
 SID = {'type': 'string', 'description': 'UUID returned by subscribe_jobs; retain for reconnects.'}
@@ -117,12 +160,20 @@ TOOLS = [
             'name': {'type': 'string'}, 'graph': {'type': 'string', 'description': 'Absolute path of API-format graph JSON'},
             'uploads': {'type': 'array', 'items': {'type': 'object'}}, 'output_dir': {'type': 'string'}}, 'required': ['graph']}},
         'uploads': {'type': 'array', 'description': 'Reference images uploaded once before the first segment: {path, name?, subfolder?, type?}', 'items': {'type': 'object'}},
-        'settings': {'type': 'object', 'description': 'Optional overrides: lost_after_seconds, poll_seconds, http_timeout_seconds, upload_timeout_seconds, download_timeout_seconds, retries, max_resubmits, offline_notify_after_seconds'},
+        'settings': {'type': 'object', 'description': 'Optional overrides: lost_after_seconds, poll_seconds, http_timeout_seconds, upload_timeout_seconds, download_timeout_seconds, retries, max_resubmits, offline_notify_after_seconds, pipeline_depth (own segments queued behind the running one, default 1), stall_bytes_per_second, stall_seconds'},
         'wake': {'type': 'object', 'description': 'Optional Wake-on-LAN {macAddress, broadcastAddress, port}; defaults to the app profile for this endpoint'},
         'batch_id': {'type': 'string', 'description': 'Optional UUID; resubmitting the same batch_id is idempotent'}}, ['endpoint', 'output_dir', 'segments'])),
     ('batch_status', 'Read one managed batch (or list all when batch_id is omitted) once. Do not poll; the user gets macOS notifications.', schema({'batch_id': {'type': 'string'}})),
     ('wait_for_batch', 'Keep one request active while the managed batch waits, runs and downloads its outputs. Returns when completed, cancelled, attention is needed, or the deadline expires. Completion still requires output QC; this does not wake an idle conversation.', schema({'batch_id': SID, 'timeout_seconds': {'type': 'integer', 'minimum': 1, 'maximum': 3600}}, ['batch_id'])),
     ('cancel_batch', 'Stop submitting further segments of a managed batch. Does not interrupt a prompt already running on ComfyUI.', schema({'batch_id': {'type': 'string'}}, ['batch_id'])),
+    ('expect_work', 'Tell ComfyQueueBar that your script will keep the queue busy on endpoint until a time. If the queue stays empty longer than idle_after_seconds (default 180), the user gets a macOS notification and subscriptions on that endpoint get a queue_idle_unexpected event. Call again with until_seconds 0 to clear.', schema({
+        'endpoint': {'type': 'string'}, 'label': {'type': 'string', 'maxLength': 200},
+        'until_seconds': {'type': 'integer', 'minimum': 0, 'maximum': 7 * 86400, 'description': 'Seconds from now that work is expected'},
+        'idle_after_seconds': {'type': 'integer', 'minimum': 1, 'maximum': 86400}}, ['endpoint', 'label', 'until_seconds'])),
+    ('heartbeat', 'Called periodically by a long-running agent batch script (or by the agent). If no heartbeat with this label arrives within ttl_seconds, the user is notified that the script may be stuck or crashed, and a heartbeat_missed event with the last message is delivered. ttl_seconds 0 stops watching the label.', schema({
+        'label': {'type': 'string', 'minLength': 1, 'maxLength': 200}, 'ttl_seconds': {'type': 'integer', 'minimum': 0, 'maximum': 86400},
+        'message': {'type': 'string', 'maxLength': 1000}, 'endpoint': {'type': 'string'}}, ['label', 'ttl_seconds'])),
+    ('watch_status', 'Read expectations, heartbeats, per-endpoint queue observations and recent watchdog events once. Do not poll.', schema()),
 ]
 CHANNEL_TOOL = ('confirm_channel', 'Call only with the nonce received in the channel_probe event to verify inbound channel delivery in this session.', schema({'nonce': {'type': 'string'}}, ['nonce']))
 
@@ -173,7 +224,14 @@ class Bridge:
         try:
             subscriptions = read_json(self.root / 'subscriptions.json')
             if sid in subscriptions:
-                return subscriptions[sid]
+                subscription = subscriptions[sid]
+                # Merge watchdog events for this endpoint; their acknowledgments live in the bridge.
+                acked = read_json(self.root / 'watch' / 'acks.json').get(sid, []) if (self.root / 'watch' / 'acks.json').exists() else []
+                extra = [{'id': e['id'], 'kind': e['kind'], 'created_at': e['created_at'], 'endpoint': e.get('endpoint'),
+                          'label': e.get('label'), 'data': e.get('data')}
+                         for e in watch_events(self.root, subscription.get('endpoint'), subscription.get('created_at', 0))]
+                return {**subscription, 'events': subscription['events'] + extra,
+                        'acknowledged': subscription['acknowledged'] + acked}
         except (OSError, ValueError):
             pass
         raise ValueError('Subscription not found or app store unavailable')
@@ -301,6 +359,48 @@ class Bridge:
             # All other waiting reads local app state only; no queue mutation,
             # automatic submission, acknowledgment, or executable continuation callback.
             cancel.wait(min(0.25, max(0, deadline - time.monotonic())))
+
+    def watch_call(self, name, args):
+        directory = self.root / 'watch'
+        if name == 'watch_status':
+            read = lambda f: read_json(directory / f) if (directory / f).exists() else {}
+            return {'expectations': read('expectations.json'), 'heartbeats': read('heartbeats.json'),
+                    'endpoints': read('endpoints.json'), 'recent_events': watch_events(self.root)[-20:]}
+        if name == 'expect_work':
+            endpoint = args['endpoint']
+            if not isinstance(endpoint, str) or not endpoint.startswith(('http://', 'https://')):
+                raise ValueError('endpoint must be an http(s) URL')
+            until = args['until_seconds']
+            idle_after = args.get('idle_after_seconds', 180)
+            if type(until) is not int or not 0 <= until <= 7 * 86400 or type(idle_after) is not int or not 1 <= idle_after <= 86400:
+                raise ValueError('until_seconds must be 0..604800 and idle_after_seconds 1..86400')
+            key = endpoint.rstrip('/') + '|' + str(args['label'])
+
+            def mutate(values):
+                if until == 0:
+                    values.pop(key, None)
+                else:
+                    values[key] = {'endpoint': endpoint.rstrip('/'), 'label': args['label'], 'until': time.time() + until,
+                                   'idle_after_seconds': idle_after, 'created_at': values.get(key, {}).get('created_at', time.time())}
+            values = update_json(directory / 'expectations.json', mutate)
+            if until:
+                ensure_runner(self.root)
+            return {'expectation': values.get(key), 'cleared': until == 0,
+                    'note': 'Subscribe to jobs on this endpoint to receive queue_idle_unexpected events; the user is notified either way.'}
+        label, ttl = args['label'], args['ttl_seconds']
+        if type(ttl) is not int or not 0 <= ttl <= 86400:
+            raise ValueError('ttl_seconds must be 0..86400')
+
+        def beat(values):
+            if ttl == 0:
+                values.pop(label, None)
+            else:
+                values[label] = {'ttl_seconds': ttl, 'last_at': time.time(), 'message': args.get('message', '')[:1000],
+                                 'endpoint': (args.get('endpoint') or '').rstrip('/') or None}
+        values = update_json(directory / 'heartbeats.json', beat)
+        if ttl:
+            ensure_runner(self.root)
+        return {'heartbeat': values.get(label), 'stopped': ttl == 0}
 
     def batch_path(self, batch_id):
         return self.root / 'batches' / (identifier(batch_id) + '.json')
@@ -433,6 +533,8 @@ class Bridge:
             return self.wait_for_batch(args, cancel)
         if name in ('submit_batch', 'batch_status', 'cancel_batch'):
             return self.batch_call(name, args)
+        if name in ('expect_work', 'heartbeat', 'watch_status'):
+            return self.watch_call(name, args)
         if name == 'confirm_channel':
             if args['nonce'] != self.nonce:
                 raise ValueError('Invalid channel probe nonce')
@@ -446,6 +548,10 @@ class Bridge:
             if not isinstance(args['endpoint'], str) or not isinstance(args.get('label', ''), str) or len(args.get('label', '').encode()) > 500:
                 raise ValueError('Invalid endpoint or label')
             self.command('subscribe', sid, cancel, endpoint=args['endpoint'], prompt_ids=ids, label=args.get('label', ''))
+            try:
+                ensure_runner(self.root)  # watchdog emits queue_drained for this endpoint
+            except (OSError, ValueError):
+                pass
             with self.lock:
                 self.attached.add(sid)
             return {'subscription_id': sid, **self.results(sid),
@@ -466,7 +572,13 @@ class Bridge:
             ids = args['event_ids']
             if not isinstance(ids, list) or not 1 <= len(ids) <= 200 or not all(isinstance(x, str) for x in ids):
                 raise ValueError('Invalid event_ids')
-            self.command('acknowledge', sid, cancel, event_ids=ids)
+            watch_ids = [x for x in ids if x.startswith('watch-')]
+            app_ids = [x for x in ids if not x.startswith('watch-')]
+            if watch_ids:
+                self.subscription(sid)
+                update_json(self.root / 'watch' / 'acks.json', lambda acks: acks.__setitem__(sid, sorted(set(acks.get(sid, [])) | set(watch_ids))))
+            if app_ids:
+                self.command('acknowledge', sid, cancel, event_ids=app_ids)
             return {'subscription_id': sid, 'acknowledged': ids}
         if name == 'wait_for_completion':
             return self.wait_for_completion(sid, args, cancel)
@@ -634,6 +746,10 @@ def main():
     parser.add_argument('--wait-for-batch', metavar='BATCH_ID', help='One active read-only wait for a managed batch, including queue and download time')
     parser.add_argument('--timeout-seconds', type=int, default=1800)
     parser.add_argument('--recovery-grace-seconds', type=int, default=120)
+    parser.add_argument('--heartbeat', metavar='LABEL', help='Send one heartbeat for LABEL from a batch script and exit (no MCP session needed)')
+    parser.add_argument('--ttl', type=int, default=300, help='With --heartbeat: seconds until the user is alerted; 0 stops watching')
+    parser.add_argument('--message', default='', help='With --heartbeat: short progress note shown if the script goes silent')
+    parser.add_argument('--endpoint', default=None, help='With --heartbeat: ComfyUI endpoint the script renders on')
     args = parser.parse_args()
     if args.probe_codex_event:
         from codex_event_probe import probe
@@ -656,6 +772,12 @@ def main():
         except (ValueError, KeyboardInterrupt) as error:
             print(json.dumps({'error': str(error), 'subscription_preserved': True}), flush=True)
             raise SystemExit(1)
+        return
+    if args.heartbeat:
+        fields = {'label': args.heartbeat, 'ttl_seconds': args.ttl, 'message': args.message}
+        if args.endpoint:
+            fields['endpoint'] = args.endpoint
+        print(json.dumps(Bridge(args.state_dir).call('heartbeat', fields, threading.Event()), ensure_ascii=False))
         return
     Server(Bridge(args.state_dir, args.claude_channel)).run()
 

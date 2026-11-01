@@ -186,4 +186,3 @@ class ContinuationTests(unittest.TestCase):
                      {'recovery_grace_seconds': 301}]:
             with self.assertRaises(ValueError):
                 self.wait(**args)
-

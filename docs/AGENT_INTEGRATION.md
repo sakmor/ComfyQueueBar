@@ -94,6 +94,7 @@ Use `subscribe_jobs` once; keep its UUID `subscription_id` in the conversation/t
 | Tool | Purpose |
 | --- | --- |
 | `submit_batch` / `batch_status` / `cancel_batch` | Managed one-at-a-time batch submission, recovery, verified download and notifications (see Managed batches) |
+| `expect_work` / `heartbeat` / `watch_status` | Watchdog for idle queues and silent scripts; `queue_drained` events (see Watchdog) |
 | `get_status` | App heartbeat/version, server, queue IDs, user notification settings, delivery capability, and monitoring guidance |
 | `refresh_job` | Immediately cross-checks a tracked prompt against queue and its per-ID history endpoint; returns source, verification time, versions, and a concrete unknown reason |
 | `subscribe_jobs` | Persist a batch of 1–100 exact prompt IDs on the selected server |
@@ -135,11 +136,13 @@ What the runner guarantees:
 
 | Behavior | Detail |
 | --- | --- |
-| One at a time, no queue jumping | Submits the next segment only when no other client's job is running or pending |
+| Pipelined, no queue jumping | Keeps one own segment running plus `pipeline_depth` (default 1) own segments queued, so the GPU starts the next segment the moment one finishes. Output download/verification and the next segment's uploads run while the GPU works. A new segment is submitted only when no other client's job is running or pending; the depth counts only this batch's own jobs |
 | Retries everywhere | Upload, `/prompt`, `/queue`, `/history`, `/view` retry with exponential backoff (`retries`, timeouts configurable) |
 | Never duplicates | Each segment has a fixed `client_id` (`cqb-<batch>-<index>`). Before every submission, and whenever a `/prompt` response is lost, it searches `/queue` and `/history` for that `client_id` and adopts the existing prompt |
 | Lost-job recovery | A prompt absent from both queue and history for `lost_after_seconds` (default 600, e.g. after a ComfyUI restart) is resubmitted with the same graph, up to `max_resubmits` |
-| Verified download | Outputs are fetched with `curl` (retry, timeouts), checked against `Content-Length`, hashed with SHA256 and written atomically; paths/sizes/hashes are recorded |
+| Verified download | Outputs are fetched with `curl` into a `.part` file, checked against `Content-Length`, hashed with SHA256 and only then renamed; paths/sizes/hashes are recorded |
+| Stall detection | Uploads and downloads abort and retry when slower than `stall_bytes_per_second` (default 51200 = 50 KB/s) for `stall_seconds` (default 20), instead of waiting for the total timeout |
+| GPU idle measurement | `batch_status.gpu` lists each segment's GPU execution interval (ComfyUI `execution_start`/`execution_success` timestamps), the gaps between consecutive own segments and `idle_total_seconds`; segment and batch notifications include the running idle total. Gaps also include time when other users' jobs ran |
 | Durable state | `~/Library/Application Support/ComfyQueueBar/AgentBridge/batches/<batch_id>.json`, rewritten after every transition; the app restarts the runner after an app or Mac restart |
 | Server offline | Probes `/system_stats`; after `offline_notify_after_seconds` sends a macOS notification with the hint “target Mac may be asleep — start ComfyUI with `caffeinate`”, and sends Wake-on-LAN (manifest `wake`, or the app's saved Wake settings for the same endpoint) every 5 minutes |
 | Notifications | Each segment done, batch finished, and anything needing a person (`node_errors`, execution error, repeatedly lost segment) |
@@ -186,6 +189,24 @@ Every subscription result includes `observed_at` and `continuation`:
 `ready_for_review` is **not** QC approval. No next workflow is auto-submitted. Chained animation that needs a reviewed last frame must stay at this gate; managed batches are appropriate only for graphs whose dependencies are already satisfied. An empty queue while waiting for QC is possible and should be reported honestly. A past `running` result must not be reported as current after the conversation resumes: the adapter reconciles nonterminal statuses against the app's current selected-server queue and exposes stale/absent observations as unknown. Explicit terminal history remains durable.
 
 This fixes the avoidable short-wait handoff gap; it does not create idle-chat wakeup. If neither long MCP nor background-command waiting is supported, report that limitation before promising unattended continuation. `can_notify_completion` also checks the app's completion-notification mode and OS permission; permission alone does not mean completion notifications are enabled.
+
+## Watchdog: catch a stuck agent while the GPU sits idle
+
+The batch runner also runs a watchdog (no model inference) so a silently stuck agent script is noticed:
+
+| Tool | Use |
+| --- | --- |
+| `expect_work(endpoint, label, until_seconds, idle_after_seconds=180)` | Declare that work is expected on an endpoint. When the queue stays empty for `idle_after_seconds` (counted from the busy→empty transition or the declaration), the user gets a macOS notification and every subscription on that endpoint gets a `queue_idle_unexpected` event. `until_seconds: 0` clears it. Running managed batches imply this automatically (3 minutes). |
+| `heartbeat(label, ttl_seconds, message?, endpoint?)` | A long-running script reports progress. If no heartbeat arrives within `ttl_seconds`, the user is told the script may be stuck or crashed and subscriptions receive `heartbeat_missed` with the last message. `ttl_seconds: 0` stops watching. |
+| `watch_status()` | One read of expectations, heartbeats, per-endpoint queue observations and recent watchdog events. |
+
+Scripts that are not MCP clients can beat from the shell:
+
+```bash
+python3 "$HOME/Library/Application Support/ComfyQueueBar/MCP/server.py" --heartbeat "h3 batch.py" --ttl 300 --message "submitted C05" --endpoint http://192.168.1.140:8188
+```
+
+When a subscribed endpoint's queue goes from busy to empty and the last prompt succeeded, subscriptions on that endpoint receive `queue_drained` with `last_prompt_id` and the output list, so `wait_for_events` returns at once. Watchdog event IDs start with `watch-`; acknowledge them with `acknowledge_events` like any other event. Each idle period and each missed heartbeat alerts once. The watchdog polls every 5 seconds and runs inside the detached runner, which the MCP adapter starts on `subscribe_jobs`, `expect_work`, `heartbeat` or `submit_batch` and the app restarts after a reboot while expectations, heartbeats or batches exist.
 
 ## Standard desktop MCP: honest fallback
 
