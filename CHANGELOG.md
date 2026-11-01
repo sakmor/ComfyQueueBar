@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased — GPUtw connection and production continuation fixes
+## 1.7.1 — 2026-11-01
+
+- Reject invalid batch settings before launch, including fractional retry counts, non-finite numbers, zero timeouts, and relative segment output folders.
+- Preserve cancellation across concurrent runner saves and check it before submitting another segment. Serialize batch creation to keep repeated batch IDs idempotent across adapter processes; use the full batch UUID in new client IDs.
+- Bound retries after unknown submission outcomes and check exact prompt history before the recent 200-record window, reducing accidental duplicate generation after lost responses or busy-server history churn.
+- Require explicit successful completion before downloading or reporting a drained successful queue. Treat malformed queue responses as unknown.
+- Isolate downloaded outputs by batch and segment, distinguish identical names in different server folders, reject unsafe filenames, and use private temporary files and state files.
+- Include the previously developed batch pipeline and watchdog in the public release. Downloads run in the background while independent prepared graphs wait behind existing users' jobs.
+- Add release-review regressions for validation, cancellation, submission recovery, exact history, and output safety.
+- Package releases from a clean verified staging copy so synced-folder Finder metadata cannot invalidate the distributed app signature.
 
 - Default fresh installs to batch completion and problem alerts while preserving saved opt-outs; show macOS notification permission, system settings and a test button, and refresh permission when the app becomes active.
 - Add **Connect Port 8090**: use a transient scoped GPUtw key to preserve/merge HTTP ports, add a missing port privately, obtain its owner-session handoff, verify ComfyUI, and save/select it for monitoring. Preserve existing access modes/passwords and reject handoffs for other services.
@@ -8,7 +17,7 @@
 - Add MCP/CLI `wait_for_completion` for one active long wait through brief reconnects, with explicit review/attention states; keep the existing short status wait compatible.
 - Reconcile stale running/queued results against the current app snapshot and report completion-notification availability accurately.
 - Separate status-check and production skill workflows: retrieve and QC completed outputs, then continue authorized dependent work; never auto-approve QC or promise idle-chat wakeup.
-- Add regression coverage for terminal results, historical events, reconnects, cancellation, deadlines, stale states, notification settings and the read-only CLI. Adapter version 0.3.2.
+- Add regression coverage for terminal results, historical events, reconnects, cancellation, deadlines, stale states, notification settings and the read-only CLI. Adapter version 0.3.3.
 
 ## 1.7.0 — 2026-10-19
 

@@ -8,7 +8,14 @@ bash build-app.sh
 version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' build/ComfyQueueBar.app/Contents/Info.plist)
 release_dir="build/releases/$version"
 mkdir -p "$release_dir"
-ditto -c -k --sequesterRsrc --keepParent build/ComfyQueueBar.app "$release_dir/ComfyQueueBar-macOS-arm64.zip"
+# Synced workspaces can reattach Finder metadata after build-app.sh signs the
+# bundle. Archive a verified clean copy outside the provider directory.
+staging_dir="$(mktemp -d "${TMPDIR:-/tmp}/ComfyQueueBar-release.XXXXXX")"
+trap 'rm -rf "$staging_dir"' EXIT
+ditto build/ComfyQueueBar.app "$staging_dir/ComfyQueueBar.app"
+xattr -cr "$staging_dir/ComfyQueueBar.app"
+codesign --verify --deep --strict "$staging_dir/ComfyQueueBar.app"
+ditto -c -k --sequesterRsrc --keepParent "$staging_dir/ComfyQueueBar.app" "$release_dir/ComfyQueueBar-macOS-arm64.zip"
 (cd "$release_dir" && shasum -a 256 ComfyQueueBar-macOS-arm64.zip > SHA256SUMS.txt)
 .build/artifacts/sparkle/Sparkle/bin/generate_appcast \
   --account io.github.sakmor.comfyqueuebar \

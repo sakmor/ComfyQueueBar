@@ -161,6 +161,8 @@ Start ComfyUI on the target Mac with `caffeinate -dimsu python main.py --listen 
 
 Managed batches (`submit_batch` / `batch_status` / `cancel_batch`) do not need the heartbeat: they talk to the manifest endpoint directly, so they keep running even if the app is closed (the app only restarts the runner after a reboot).
 
+Downloaded batch outputs are stored under `<output_dir>/<batch_id>/<client_id>/`. Local filenames include a stable suffix derived from the remote reference, so matching basenames from different server folders remain distinct. Read each returned output `path` instead of reconstructing a local path from its `filename`. Filenames are validated before writing; explicit successful ComfyUI history is required before collection. SHA-256 records local transfer integrity and is not an independent server-provided checksum.
+
 ## Production continuation and QC gates
 
 Do not confuse a short status check with an authorized end-to-end render. The 45-second `wait_for_events` default is a status-check budget, not a requirement to end a production task. A normal single segment can take several minutes.

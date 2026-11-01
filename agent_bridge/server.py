@@ -3,6 +3,7 @@
 import argparse
 import concurrent.futures
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -197,7 +198,7 @@ class Bridge:
         queue_fresh = time.time() - (snapshot.get('last_queue_update') or 0) < 30
         permission = snapshot.get('macos_notification_authorization') in ('authorized', 'provisional', 'ephemeral')
         completion_enabled = snapshot.get('notification_mode') in ('batch', 'each')
-        return {**snapshot, 'bridge_version': '0.3.2', 'app_available': bool(snapshot.get('enabled') and fresh),
+        return {**snapshot, 'bridge_version': '0.3.3', 'app_available': bool(snapshot.get('enabled') and fresh),
                 'queue_fresh': bool(queue_fresh), 'delivery': self.delivery(),
                 'app_notifications': {
                     'completion_mode': snapshot.get('notification_mode', 'unknown'),
@@ -427,6 +428,19 @@ class Bridge:
             cancel.wait(min(0.5, max(0, deadline - time.monotonic())))
 
     def batch_call(self, name, args):
+        if name == 'batch_status':
+            return self._batch_call(name, args)
+        args = dict(args)
+        if name == 'submit_batch':
+            args.setdefault('batch_id', str(uuid.uuid4()))
+        path = self.batch_path(args['batch_id'])
+        import fcntl
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        with open(path.with_name(path.name + '.lock'), 'a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            return self._batch_call(name, args)
+
+    def _batch_call(self, name, args):
         directory = self.root / 'batches'
         if name == 'batch_status':
             if 'batch_id' not in args:
@@ -465,10 +479,12 @@ class Bridge:
             raise ValueError('output_dir must be absolute')
 
         def check_upload(item):
-            if not isinstance(item, dict) or not isinstance(item.get('path'), str) or not Path(item['path']).is_file():
+            if not isinstance(item, dict) or not isinstance(item.get('path'), str) or not Path(item['path']).is_absolute() or not Path(item['path']).is_file():
                 raise ValueError('upload entries need an existing absolute file path: %r' % (item,))
             return {key: item[key] for key in ('path', 'name', 'subfolder', 'type') if key in item}
         segments = []
+        if not isinstance(args['segments'], list) or not 1 <= len(args['segments']) <= 500:
+            raise ValueError('segments must contain 1..500 API graphs')
         for index, item in enumerate(args['segments']):
             if not isinstance(item, dict) or not isinstance(item.get('graph'), str):
                 raise ValueError('segment %d needs a graph path' % index)
@@ -481,14 +497,24 @@ class Bridge:
                 raise ValueError('segment %d graph is not valid JSON' % index) from None
             if not isinstance(parsed, dict) or 'nodes' in parsed:
                 raise ValueError('segment %d graph must be API format (Save (API)), not a UI workflow' % index)
+            if item.get('output_dir') is not None and (not isinstance(item['output_dir'], str) or not Path(item['output_dir']).is_absolute()):
+                raise ValueError('segment output_dir must be absolute')
             segments.append({'name': str(item.get('name') or graph.stem), 'graph': str(graph),
                              'uploads': [check_upload(u) for u in item.get('uploads', [])],
                              'output_dir': item.get('output_dir'), 'state': 'pending',
-                             'client_id': 'cqb-%s-%03d' % (batch_id[:8], index), 'prompt_ids': []})
+                             'client_id': 'cqb-%s-%03d' % (batch_id, index), 'prompt_ids': []})
         settings = dict(BATCH_DEFAULTS)
+        if not isinstance(args.get('settings', {}), dict):
+            raise ValueError('settings must be an object')
         for key, value in (args.get('settings') or {}).items():
-            if key not in SETTING_KEYS or type(value) not in (int, float) or value < 0:
+            if key not in SETTING_KEYS or type(value) not in (int, float) or not math.isfinite(value) or value < 0:
                 raise ValueError('invalid setting ' + str(key))
+            if key in ('retries', 'max_resubmits', 'pipeline_depth', 'stall_bytes_per_second') and type(value) is not int:
+                raise ValueError(key + ' must be an integer')
+            if key in ('poll_seconds', 'http_timeout_seconds', 'upload_timeout_seconds', 'download_timeout_seconds', 'stall_seconds') and value <= 0:
+                raise ValueError(key + ' must be positive')
+            if key in ('retries', 'max_resubmits', 'pipeline_depth') and value > 100:
+                raise ValueError(key + ' must be at most 100')
             settings[key] = value
         batch = {'batch_id': batch_id, 'label': args.get('label', ''), 'endpoint': endpoint.rstrip('/'),
                  'output_dir': str(output_dir), 'uploads': [check_upload(u) for u in args.get('uploads', [])],
@@ -699,7 +725,7 @@ class Server:
             requested = params.get('protocolVersion')
             version = requested if requested in ('2024-11-05', '2025-03-26', '2025-06-18') else '2025-06-18'
             result = {'protocolVersion': version, 'capabilities': capabilities,
-                      'serverInfo': {'name': 'comfyqueuebar', 'version': '0.3.2'}, 'instructions': INSTRUCTIONS}
+                      'serverInfo': {'name': 'comfyqueuebar', 'version': '0.3.3'}, 'instructions': INSTRUCTIONS}
         elif method == 'ping':
             result = {}
         elif method == 'tools/list':

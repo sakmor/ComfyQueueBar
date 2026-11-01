@@ -12,6 +12,7 @@ import threading
 import time
 import unittest
 import uuid
+from unittest.mock import patch
 
 PROJECT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('agent_server', PROJECT / 'agent_bridge/server.py')
@@ -34,6 +35,9 @@ class AgentBridgeTests(unittest.TestCase):
         cls.build_dir.cleanup()
 
     def setUp(self):
+        isolation = patch.dict(os.environ, {'COMFYQUEUEBAR_NO_RUNNER': '1'})
+        isolation.start()
+        self.addCleanup(isolation.stop)
         self.temp = tempfile.TemporaryDirectory(prefix='comfyqueuebar-agent-state-')
         self.root = Path(self.temp.name)
         self.app = subprocess.Popen([str(self.binary), '--serve', str(self.root)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)

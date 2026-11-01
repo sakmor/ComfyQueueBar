@@ -22,6 +22,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -51,9 +52,13 @@ def now():
 def atomic_json(path, value):
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     temporary = path.with_name('.' + str(uuid.uuid4()) + '.tmp')
-    with open(temporary, 'w') as stream:
-        json.dump(value, stream, ensure_ascii=False, indent=1)
-    os.replace(temporary, path)
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(fd, 'w') as stream:
+            json.dump(value, stream, ensure_ascii=False, indent=1, allow_nan=False)
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def notify(title, message):
@@ -108,7 +113,20 @@ class Http:
         status, data = self.request('GET', path, **kwargs)
         if status != 200:
             raise Unreachable('GET %s returned HTTP %d' % (path, status))
-        return json.loads(data or b'{}')
+        try:
+            value = json.loads(data or b'{}')
+        except ValueError as error:
+            raise Unreachable('Invalid JSON from ' + path) from error
+        if not isinstance(value, dict):
+            raise Unreachable('Expected an object from ' + path)
+        if path == '/queue' and not all(
+            isinstance(value.get(key), list) and all(
+                isinstance(item, list) and len(item) >= 4 and isinstance(item[1], str)
+                and isinstance(item[3], dict) for item in value[key])
+            for key in ('queue_running', 'queue_pending')
+        ):
+            raise Unreachable('Invalid queue response; queue state is unknown')
+        return value
 
 
 def multipart(fields, file_field, filename, content):
@@ -179,7 +197,15 @@ class BatchRunner:
 
     def save(self, batch):
         batch['updated_at'] = now()
-        atomic_json(self.dir / (batch['batch_id'] + '.json'), batch)
+        path = self.dir / (batch['batch_id'] + '.json')
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        with open(path.with_name(path.name + '.lock'), 'a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            # A cancellation can arrive while a network request is in flight.
+            # Preserve it when this older in-memory snapshot is saved.
+            if read_json_file(path, {}).get('cancel_requested'):
+                batch['cancel_requested'] = True
+            atomic_json(path, batch)
 
     def event(self, batch, kind, message, segment=None, notify_user=False):
         batch.setdefault('events', []).append({'at': now(), 'kind': kind, 'segment': segment, 'message': message})
@@ -232,7 +258,7 @@ class BatchRunner:
                     self.event(batch, 'wake_failed', 'Wake-on-LAN failed: %s' % error)
         return False
 
-    def find_client(self, http, client_id):
+    def find_client(self, http, client_id, prompt_id=None):
         """Return (prompt_id, where) for a prompt submitted with client_id, or (None, None)."""
         queue = http.json('/queue')
         for where in ('queue_running', 'queue_pending'):
@@ -240,6 +266,10 @@ class BatchRunner:
                 # item: [number, prompt_id, prompt, extra_data, outputs]
                 if len(item) > 3 and isinstance(item[3], dict) and item[3].get('client_id') == client_id:
                     return item[1], where
+        if prompt_id:
+            exact = http.json('/history/' + urllib.parse.quote(prompt_id, safe=''))
+            if exact.get(prompt_id):
+                return prompt_id, 'history'
         history = http.json('/history?max_items=200')
         for prompt_id, record in history.items():
             prompt = record.get('prompt') or []
@@ -290,11 +320,17 @@ class BatchRunner:
                 raise Unreachable('upload %s failed: %s' % (name, last))
 
     def submit(self, http, batch, segment):
+        path = self.dir / (batch['batch_id'] + '.json')
+        if read_json_file(path, {}).get('cancel_requested'):
+            batch['cancel_requested'] = True
+            return
         graph = json.loads(Path(segment['graph']).read_text())
         body = json.dumps({'prompt': graph, 'client_id': segment['client_id']}).encode()
         segment['submit_attempts'] = segment.get('submit_attempts', 0) + 1
         segment['state'] = 'submitting'
         self.save(batch)
+        if batch.get('cancel_requested'):
+            return
         try:
             status, data = http.request('POST', '/prompt', body=body, headers={'Content-Type': 'application/json'}, retries=0)
         except Unreachable as error:
@@ -313,7 +349,16 @@ class BatchRunner:
             batch['halt'] = True
             self.event(batch, 'node_errors', 'Segment %s rejected by ComfyUI (HTTP %d); needs attention.' % (segment['name'], status), segment['name'], notify_user=True)
             return
-        segment['prompt_id'] = json.loads(data)['prompt_id']
+        try:
+            prompt_id = json.loads(data)['prompt_id']
+            if not isinstance(prompt_id, str) or not prompt_id:
+                raise ValueError('missing prompt ID')
+        except (ValueError, KeyError, TypeError):
+            segment['state'] = 'submit_unknown'
+            segment['unknown_since'] = now()
+            self.event(batch, 'submit_unknown', 'Submit response had no valid prompt ID; reconciling before retry.', segment['name'])
+            return
+        segment['prompt_id'] = prompt_id
         segment['state'] = 'queued'
         segment['missing_since'] = None
         segment.setdefault('prompt_ids', []).append(segment['prompt_id'])
@@ -321,7 +366,7 @@ class BatchRunner:
 
     def reconcile(self, http, batch, segment):
         """Locate the segment's prompt by client_id; adopt it, or decide lost / resubmit."""
-        prompt_id, where = self.find_client(http, segment['client_id'])
+        prompt_id, where = self.find_client(http, segment['client_id'], segment.get('prompt_id'))
         if prompt_id:
             if segment.get('prompt_id') != prompt_id:
                 self.event(batch, 'adopted', 'Adopted existing prompt %s for %s (no duplicate submit)' % (prompt_id, segment['name']), segment['name'])
@@ -333,9 +378,11 @@ class BatchRunner:
         if segment['state'] == 'submit_unknown':
             # Give the server a short grace window to register it before resubmitting.
             if now() - segment.get('unknown_since', 0) >= min(30, batch['settings']['lost_after_seconds']):
-                segment['state'] = 'pending'
-            return
-        segment['missing_since'] = segment.get('missing_since') or now()
+                segment['missing_since'] = now() - batch['settings']['lost_after_seconds']
+            else:
+                return
+        else:
+            segment['missing_since'] = segment.get('missing_since') or now()
         if now() - segment['missing_since'] >= batch['settings']['lost_after_seconds']:
             if segment.get('resubmits', 0) >= batch['settings']['max_resubmits']:
                 segment['state'] = 'failed'
@@ -360,7 +407,7 @@ class BatchRunner:
             batch['halt'] = True
             self.event(batch, 'execution_error', 'Segment %s failed in ComfyUI; needs attention.' % segment['name'], segment['name'], notify_user=True)
             return
-        if not status.get('completed', True) and status:
+        if status.get('completed') is not True or status.get('status_str') != 'success':
             return
         # Prefer ComfyUI's own execution timestamps; fall back to what the runner observed.
         for message in status.get('messages', []) or []:
@@ -385,7 +432,7 @@ class BatchRunner:
         key = (batch['batch_id'], segment['client_id'])
         if key in self.downloads:
             return
-        out_dir = Path(segment.get('output_dir') or batch['output_dir'])
+        out_dir = Path(segment.get('output_dir') or batch['output_dir']) / batch['batch_id'] / segment['client_id']
         settings = dict(batch['settings'])
         files = list(segment.get('download_files') or [])
 
@@ -426,11 +473,18 @@ class BatchRunner:
 
     def download(self, endpoint, settings, item, out_dir):
         """curl with a low-speed stall abort; write to .part, verify size+SHA256, then rename."""
+        name = item.get('filename')
+        if not isinstance(name, str) or name in ('', '.', '..') or any(c in name for c in '/\\\x00\r\n') or Path(name).is_absolute():
+            raise ValueError('Unsafe output filename')
         query = urllib.parse.urlencode({'filename': item['filename'], 'subfolder': item.get('subfolder', ''), 'type': item.get('type', 'output')})
         url = endpoint + '/view?' + query
-        target = out_dir / item['filename']
-        partial = target.with_name(target.name + '.part')
-        headers_path = target.with_name(target.name + '.headers')
+        # Subfolders may contain identical basenames; keep every remote reference distinct.
+        tag = hashlib.sha256(url.encode()).hexdigest()[:16]
+        target = out_dir / (Path(name).stem[:100] + '-' + tag + Path(name).suffix[:16])
+        fd, temporary = tempfile.mkstemp(prefix='.cqb-', suffix='.part', dir=out_dir)
+        os.close(fd)
+        partial = Path(temporary)
+        headers_path = partial.with_suffix('.headers')
         last = None
         for attempt in range(settings['retries'] + 1):
             try:
@@ -471,6 +525,14 @@ class BatchRunner:
         raise Unreachable('download %s failed: %s' % (item['filename'], last))
 
     # ---------- main loop ----------
+    def complete(self, batch):
+        batch['gpu'] = gpu_metrics(batch)
+        batch['status'] = 'completed'
+        self.event(batch, 'batch_completed', 'Batch finished: %d segment(s) collected into %s. GPU idle between segments: %.0fs total.'
+                   % (len(batch['segments']), batch['output_dir'], batch['gpu']['idle_total_seconds']), notify_user=True)
+        self.save(batch)
+        return False
+
     def step(self, batch):
         """Advance one batch. Keeps 1 running + pipeline_depth queued own segments, never ahead of foreign jobs.
         Returns True while the batch is still active."""
@@ -487,6 +549,8 @@ class BatchRunner:
         for segment in segments:
             if segment['state'] == 'downloading':
                 self.finish_download(batch, segment)
+        if all(s['state'] == 'completed' for s in segments):
+            return self.complete(batch)
         if not self.server_ok(http, batch):
             batch['status'] = 'waiting_for_server'
             batch['gpu'] = gpu_metrics(batch)
@@ -536,9 +600,7 @@ class BatchRunner:
         batch['gpu'] = gpu_metrics(batch)
         busy = [s for s in segments if s['state'] in ('queued', 'submit_unknown', 'submitting', 'history', 'downloading')]
         if all(s['state'] == 'completed' for s in segments):
-            batch['status'] = 'completed'
-            self.event(batch, 'batch_completed', 'Batch finished: %d segment(s) collected into %s. GPU idle between segments: %.0fs total.'
-                       % (len(segments), batch['output_dir'], batch['gpu']['idle_total_seconds']), notify_user=True)
+            return self.complete(batch)
         elif batch.get('halt') and not busy:
             batch['status'] = 'needs_attention'
         elif batch.get('halt'):
@@ -724,7 +786,7 @@ class Watchdog:
         except (Unreachable, ValueError):
             record = {}
         status = record.get('status', {})
-        if not record or status.get('status_str') == 'error':
+        if not record or status.get('completed') is not True or status.get('status_str') != 'success':
             return  # failures are reported by the job subscription itself
         outputs = []
         for node_output in record.get('outputs', {}).values():
