@@ -157,6 +157,11 @@ struct NotificationTracker {
     }
 }
 
+enum NotificationDefaults {
+    static func completionMode(_ saved: String?) -> String { saved ?? "batch" }
+    static func notifyProblems(_ saved: Bool?) -> Bool { saved ?? true }
+}
+
 // PURE_FEATURE_MODELS_END
 
 @MainActor
@@ -183,6 +188,10 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     }
     func authorize() async {
         #if !DOCUMENTATION_SCREENSHOT
+        guard Bundle.main.bundleURL.pathExtension == "app" else {
+            authorizationStatus = "unavailable"
+            return
+        }
         do {
             let allowed = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
             permissionMessage = allowed ? nil : L10n.text("Allow notifications in macOS System Settings.")
@@ -191,8 +200,28 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         await refreshAuthorizationStatus()
         #endif
     }
+    func sendTest() async -> String? {
+        #if DOCUMENTATION_SCREENSHOT
+        return nil
+        #else
+        await refreshAuthorizationStatus()
+        guard ["authorized", "provisional", "ephemeral"].contains(authorizationStatus) else {
+            return L10n.text("Allow notifications in macOS System Settings.")
+        }
+        let content = UNMutableNotificationContent()
+        content.title = L10n.text("Test notification")
+        content.body = L10n.text("ComfyQueueBar notifications are working.")
+        content.sound = .default
+        UNUserNotificationCenter.current().delegate = self
+        do {
+            try await UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+            return nil
+        } catch { return error.localizedDescription }
+        #endif
+    }
     func send(id: String, title: String, body: String) {
         #if !DOCUMENTATION_SCREENSHOT
+        guard Bundle.main.bundleURL.pathExtension == "app" else { return }
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body

@@ -19,6 +19,16 @@ This guide covers GPUtw login, choosing the correct ComfyUI service, SSH connect
 
 GPUtw uses service addresses such as `https://<port>-<instance-id>.gputw.ai`. Private services require the dashboard's owner-session handoff; password-protected services present a password page. Keep the existing access mode. This login flow needs no platform API key or public port. See [GPUtw Web UI](https://docs.gputw.ai/zh-TW/docs/jupyter-web-ui) and [port access modes](https://docs.gputw.ai/zh-TW/docs/ports).
 
+### Enable and connect port 8090 (new source builds)
+
+Paste a GPUtw service address for the intended instance in Connections, then choose **Connect Port 8090…**. The same button is available after opening a service in the built-in GPUtw browser. Enter a GPUtw API key with `instances:read` and `ports:manage`, then choose **Enable and connect Port 8090**. The key is used for this operation only and is not saved.
+
+The app reads the instance's current HTTP ports and access modes. If 8090 is missing, it adds 8090 as private while preserving the other ports, access modes and existing passwords. It then requests a short-lived access-token URL for that exact service, opens it in the built-in browser, verifies `/queue`, and saves/selects the service for monitoring. An already enabled port is not patched again. Additional ports may incur GPUtw charges.
+
+The instance and ComfyUI process must already be running on 8090. This action does not restart or redeploy the container. Complete any password page in the built-in browser; a bounded retry accommodates newly enabled routes. Use **Retry connection** if needed. Browser login without a platform key remains available under **Connect manually without an API key**.
+
+See [GPUtw API scopes](https://docs.gputw.ai/zh-TW/docs/api-keys) and the [official port/handoff contract](https://github.com/GPUtw-ai/GPUtw-Skill/blob/master/guides/05-ports-and-exposures.md).
+
 ### GPU is busy, but the app shows 0
 
 Different ports on one GPU instance can run independent ComfyUI processes. For example, `8080` might open a default service while `8090` runs a custom video environment. These are examples, not universal port assignments. Check the address of the ComfyUI where you submitted the job.

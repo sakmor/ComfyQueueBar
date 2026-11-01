@@ -416,8 +416,33 @@ struct QueuePopover: View {
             }
             Toggle(L10n.text("Notify failures and disconnections"), isOn: $queue.notifyProblems).toggleStyle(.checkbox)
                 .onChange(of: queue.notifyProblems) { enabled in if enabled { Task { await queue.authorizeNotifications() } } }
+            Text(L10n.text("macOS notification permission: %@", L10n.text(notificationPermissionLabel)))
+                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Button(L10n.text("Test notification")) { Task { await queue.testNotification() } }
+                Button(L10n.text("Open notification settings")) {
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                Button(L10n.text("Refresh")) { Task { await queue.refreshNotificationStatus() } }
+            }.controlSize(.small)
             if let message = queue.permissionMessage { Text(message).font(.caption).foregroundStyle(.secondary) }
+            if let message = queue.notificationTestMessage { Text(message).font(.caption).foregroundStyle(.secondary) }
+            Text(L10n.text("Notifications alert you; they do not wake an idle AI conversation."))
+                .font(.caption).foregroundStyle(.secondary)
         }.font(.system(size: 11))
+        .task { await queue.refreshNotificationStatus() }
+    }
+
+    private var notificationPermissionLabel: String {
+        switch queue.notificationAuthorization {
+        case "authorized", "provisional", "ephemeral": return "Allowed"
+        case "denied": return "Denied"
+        case "not_determined": return "Not requested"
+        case "unavailable": return "Unavailable"
+        default: return "Unknown"
+        }
     }
 
     private func serverColor(_ server: MonitoredServer) -> Color {
@@ -455,10 +480,16 @@ struct QueuePopover: View {
             }
             HStack {
                 Button(L10n.text("Sign in to GPUtw…")) { queue.signInToGPUTW(address: panel.urlInput) }
+                if let source = URL(string: panel.urlInput), let target = GPUTWAddress.serviceOrigin(source, port: 8090) {
+                    Button(L10n.text("Connect Port 8090…")) {
+                        queue.signInToGPUTW(address: target.absoluteString, recoveryAddress: target.absoluteString)
+                    }
+                }
                 Button(L10n.text("Clear GPUtw sign-in")) { Task { await queue.clearGPUTWLogin() } }
             }.controlSize(.small).disabled(!queue.canChangeServer || queue.isClearingGPUTW)
             Text(L10n.text("For private or password-protected GPUtw ComfyUI instances."))
                 .font(.caption).foregroundStyle(.secondary)
+            GPUTWSSHSettings(queue: queue, tunnel: queue.gputwTunnel)
             if let message = queue.connectionMessage {
                 Text(message).font(.caption)
                     .foregroundStyle(queue.connectionMessageIsError ? Color.red : Color.secondary)
@@ -533,17 +564,17 @@ struct QueuePopover: View {
                 if let title {
                     Text(title).font(.caption).lineLimit(2).help(title)
                 }
-            case .issue(.portNotEnabled):
-                Text(L10n.text("GPUtw port %@ returned 404. Enable it as an HTTP port in Network Ports; private ports need one dashboard handoff from Other ports.", port))
+            case .issue(.notFound):
+                Text(L10n.text("GPUtw port %@ returned 404. The cause is not confirmed. Check the HTTP port settings, instance status, and ComfyUI service.", port))
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                Button(L10n.text("Open GPUtw dashboard")) {
-                    queue.signInToGPUTW(address: GPUTWAddress.dashboard.absoluteString)
+                Button(L10n.text("Connect Port %@", port)) {
+                    queue.signInToGPUTW(address: endpoint, recoveryAddress: endpoint)
                 }.buttonStyle(.link).font(.caption)
             case .issue(.signInRequired):
                 Text(L10n.text("GPUtw port %@ needs an owner session. Open it from the dashboard's Other ports menu.", port))
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                Button(L10n.text("Open GPUtw dashboard")) {
-                    queue.signInToGPUTW(address: GPUTWAddress.dashboard.absoluteString)
+                Button(L10n.text("Connect Port %@", port)) {
+                    queue.signInToGPUTW(address: endpoint, recoveryAddress: endpoint)
                 }.buttonStyle(.link).font(.caption)
             case .issue(.unavailable):
                 Text(L10n.text("Could not check paired GPUtw port %@. Check your connection and retry.", port))
@@ -695,6 +726,11 @@ struct QueuePopover: View {
                 Button(L10n.text("Sign in to GPUtw…")) { queue.signInToGPUTW(address: queue.endpoint) }
                     .controlSize(.small)
             }
+            if let url = URL(string: queue.endpoint), GPUTWAddress.serviceOrigin(url) != nil {
+                Button(L10n.text("Connect Port %@", ConnectionAddress.port(queue.endpoint))) {
+                    queue.signInToGPUTW(address: queue.endpoint, recoveryAddress: queue.endpoint)
+                }.controlSize(.small)
+            }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -811,5 +847,27 @@ struct QueuePopover: View {
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+private struct GPUTWSSHSettings: View {
+    @ObservedObject var queue: QueueViewModel
+    @ObservedObject var tunnel: GPUTWSSHTunnel
+
+    var body: some View {
+        DisclosureGroup(L10n.text("GPUtw 8090 via SSH")) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L10n.text("Enter the full instance ID. Uses this Mac's existing SSH key and known host; reconnects while the app is open."))
+                    .font(.caption).foregroundStyle(.secondary)
+                TextField(L10n.text("GPUtw instance ID"), text: $tunnel.instanceID)
+                    .textFieldStyle(.roundedBorder)
+                HStack {
+                    Button(L10n.text("Connect and remember")) { queue.connectGPUTWSSH() }
+                        .disabled(!queue.canChangeServer)
+                    Button(L10n.text("Disable SSH connection")) { tunnel.disconnect() }
+                }.controlSize(.small)
+                if !tunnel.status.isEmpty { Text(tunnel.status).font(.caption).foregroundStyle(.secondary) }
+            }.padding(.top, 4)
+        }
     }
 }

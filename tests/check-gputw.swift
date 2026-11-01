@@ -25,6 +25,12 @@ final class CloudFixture: URLProtocol {
 @main
 struct GPUTWChecks {
     @MainActor static func main() async throws {
+        let validID = "6cade7d4-03ec-46bc-8fef-7209df8628b1"
+        precondition(GPUTWSSHTunnel.normalizedID(" pod-" + validID.uppercased() + " ") == validID)
+        for invalid in ["", "6cade7d4", "-oProxyCommand=x", validID + "@evil.test"] {
+            precondition(GPUTWSSHTunnel.normalizedID(invalid) == nil)
+        }
+        print("PASS: validate GPUtw SSH instance IDs")
         let origin = URL(string: "https://8080-instance-a.gputw.ai")!
         let queueURL = origin.appendingPathComponent("queue")
         precondition(GPUTWAddress.serviceOrigin(URL(string: origin.absoluteString + "/handoff?token=secret#fragment")!) == origin)
@@ -108,6 +114,15 @@ struct GPUTWChecks {
         }
         print("PASS: expired sessions, HTML login and unrelated JSON cannot imply completion")
 
+        // Proxy error pages are often HTML. Preserve their HTTP status so a
+        // missing route or unavailable service is not mistaken for expired login.
+        for status in [404, 502, 503] {
+            CloudFixture.handler = { _ in (status, ["Content-Type": "text/html"], Data("proxy error".utf8)) }
+            let (_, response) = try await client.data(for: URLRequest(url: queueURL))
+            precondition((response as? HTTPURLResponse)?.statusCode == status)
+        }
+        print("PASS: HTML 404/502/503 responses preserve the diagnostic HTTP status")
+
         // Exercise the production delegate, including POST redirects to sibling instances.
         let policy = GPUTWRedirectPolicy()
         let session = URLSession(configuration: .ephemeral)
@@ -133,6 +148,104 @@ struct GPUTWChecks {
         catch GPUTWError.signInRequired {} catch { throw error }
         client.finishClearingAuthentication()
         print("PASS: clearing login invalidates pending authentication and suspends requests")
+
+        let platformConfiguration = URLSessionConfiguration.ephemeral
+        platformConfiguration.protocolClasses = [CloudFixture.self]
+        let connector = GPUTWPortConnector(configuration: platformConfiguration)
+        let target = URL(string: "https://8090-instance-a.gputw.ai")!
+        var platformInstance: [String: Any] = ["id": "instance-a", "status": "RUNNING", "allowedPorts": [8080, 18080],
+            "portAccess": ["8080": ["mode": "unlisted", "hasPassword": true], "18080": ["mode": "public"]]]
+        var platformCalls: [String] = []
+        var handoffAddress = target.absoluteString + "/?__t=fixture-short-lived"
+        func apiResponse(_ object: [String: Any]) -> (Int, [String: String], Data) {
+            (200, ["Content-Type": "application/json"], try! JSONSerialization.data(withJSONObject: ["success": true, "data": object, "error": NSNull()]))
+        }
+        CloudFixture.handler = { request in
+            precondition(request.url?.host == "api.gputw.ai" && request.url?.scheme == "https")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "Bearer gputw_live_fixture-only")
+            precondition(request.value(forHTTPHeaderField: "User-Agent")?.hasPrefix("ComfyQueueBar/") == true)
+            precondition(request.value(forHTTPHeaderField: "Cookie") == nil && !request.httpShouldHandleCookies)
+            let method = request.httpMethod!
+            let route = request.url!.path
+            platformCalls.append(method + " " + route)
+            if method == "GET" {
+                precondition(route == "/api/instances/instance-a")
+                return apiResponse(platformInstance)
+            }
+            var bytes = request.httpBody ?? Data()
+            if let stream = request.httpBodyStream {
+                stream.open(); defer { stream.close() }
+                var buffer = [UInt8](repeating: 0, count: 4096)
+                while stream.hasBytesAvailable {
+                    let count = stream.read(&buffer, maxLength: buffer.count)
+                    if count <= 0 { break }
+                    bytes.append(contentsOf: buffer.prefix(count))
+                }
+            }
+            let body = try! JSONSerialization.jsonObject(with: bytes) as! [String: Any]
+            if method == "PATCH" {
+                precondition(route == "/api/instances/instance-a/ports")
+                precondition(body["ports"] as? [Int] == [8080, 18080, 8090])
+                let access = body["portAccess"] as! [String: [String: String]]
+                precondition(access == ["8080": ["mode": "unlisted"], "18080": ["mode": "public"], "8090": ["mode": "private"]],
+                             "Retain other ports and access modes; never overwrite existing passwords")
+                platformInstance["allowedPorts"] = body["ports"]
+                platformInstance["portAccess"] = access
+                return apiResponse(platformInstance)
+            }
+            precondition(method == "POST" && route == "/api/instances/instance-a/access-token")
+            precondition(body["port"] as? Int == 8090 && body["path"] as? String == "")
+            return apiResponse(["url": handoffAddress, "port": 8090, "expiresIn": 90])
+        }
+        let handoff = try await connector.prepareAccess(to: target, apiKey: "gputw_live_fixture-only")
+        precondition(handoff.absoluteString == handoffAddress)
+        precondition(platformCalls.map { $0.components(separatedBy: " ")[0] } == ["GET", "PATCH", "POST"])
+        platformCalls = []
+        var existingAccess = platformInstance["portAccess"] as! [String: [String: String]]
+        existingAccess["8090"] = ["mode": "unlisted"]
+        platformInstance["portAccess"] = existingAccess
+        _ = try await connector.prepareAccess(to: target, apiKey: "gputw_live_fixture-only")
+        precondition(platformCalls.map { $0.components(separatedBy: " ")[0] } == ["GET", "POST"], "An enabled port must not be patched again")
+        print("PASS: enable exact 8090 privately, preserve all other HTTP ports/modes/passwords, mint its handoff; skip updates when already enabled")
+
+        handoffAddress = "https://8090-instance-b.gputw.ai/?__t=fixture"
+        do { _ = try await connector.prepareAccess(to: target, apiKey: "gputw_live_fixture-only"); preconditionFailure("Wrong service handoff accepted") }
+        catch GPUTWSetupError.unsafeHandoff {} catch { throw error }
+        platformCalls = []
+        platformInstance["status"] = "STOPPED"
+        do { _ = try await connector.prepareAccess(to: target, apiKey: "gputw_live_fixture-only"); preconditionFailure("Stopped instance accepted") }
+        catch GPUTWSetupError.notRunning {} catch { throw error }
+        precondition(platformCalls.count == 1)
+        platformCalls = []
+        for key in ["", "wrong", "gputw_live_bad\r\nInjected: value"] {
+            do { _ = try await connector.prepareAccess(to: target, apiKey: key); preconditionFailure("Invalid API key accepted") }
+            catch GPUTWSetupError.invalidKey {} catch { throw error }
+        }
+        precondition(platformCalls.isEmpty)
+        platformInstance["status"] = "RUNNING"
+        platformInstance["id"] = "different-instance"
+        do { _ = try await connector.prepareAccess(to: target, apiKey: "gputw_live_fixture-only"); preconditionFailure("Mismatched instance configuration accepted") }
+        catch GPUTWSetupError.invalidResponse {} catch { throw error }
+        precondition(platformCalls.count == 1)
+        platformInstance["id"] = "instance-a"
+        platformCalls = []
+        platformInstance["allowedPorts"] = Array(11000..<11020)
+        do { _ = try await connector.prepareAccess(to: target, apiKey: "gputw_live_fixture-only"); preconditionFailure("Port limit ignored") }
+        catch GPUTWSetupError.portLimit {} catch { throw error }
+        precondition(platformCalls.count == 1)
+        print("PASS: wrong-instance handoffs, stopped instances, invalid keys and port limits fail without unintended writes")
+
+        for status in [401, 403, 404, 429, 503] {
+            CloudFixture.handler = { _ in (status, ["Content-Type": "text/html"], Data("error".utf8)) }
+            do { _ = try await connector.prepareAccess(to: target, apiKey: "gputw_live_fixture-only"); preconditionFailure("API error ignored") }
+            catch GPUTWSetupError.apiStatus(let code) { precondition(code == status) } catch { throw error }
+        }
+        CloudFixture.handler = { _ in preconditionFailure("Cancelled setup must not issue a request") }
+        let cancelledSetup = Task { try await connector.prepareAccess(to: target, apiKey: "gputw_live_fixture-only") }
+        cancelledSetup.cancel()
+        do { _ = try await cancelledSetup.value; preconditionFailure("Cancelled setup succeeded") }
+        catch is CancellationError {} catch { throw error }
+        print("PASS: platform errors and cancellation stop setup; API credentials stay on the API host")
         print("GPUtw regression checks passed (fixture cookies only; no account or live generation).")
     }
 }

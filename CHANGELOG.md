@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased — GPUtw connection and production continuation fixes
+
+- Default fresh installs to batch completion and problem alerts while preserving saved opt-outs; show macOS notification permission, system settings and a test button, and refresh permission when the app becomes active.
+- Add **Connect Port 8090**: use a transient scoped GPUtw key to preserve/merge HTTP ports, add a missing port privately, obtain its owner-session handoff, verify ComfyUI, and save/select it for monitoring. Preserve existing access modes/passwords and reject handoffs for other services.
+- Keep HTTP 404/502/503 proxy errors distinct from expired login; describe 404 as an observed response rather than proof of a disabled port.
+- Add MCP/CLI `wait_for_completion` for one active long wait through brief reconnects, with explicit review/attention states; keep the existing short status wait compatible.
+- Reconcile stale running/queued results against the current app snapshot and report completion-notification availability accurately.
+- Separate status-check and production skill workflows: retrieve and QC completed outputs, then continue authorized dependent work; never auto-approve QC or promise idle-chat wakeup.
+- Add regression coverage for terminal results, historical events, reconnects, cancellation, deadlines, stale states, notification settings and the read-only CLI. Adapter version 0.3.2.
+
+## 1.7.0 — 2026-10-19
+
+- Add managed agent batches: MCP tools `submit_batch`, `batch_status` and `cancel_batch` hand a manifest of ComfyUI API graphs to a detached runner (`batch_runner.py`) that outlives the agent. It submits one segment at a time behind other users' jobs, retries every HTTP call with backoff, uses a fixed `client_id` per segment and reconciles `/queue` and `/history` before any (re)submission so a lost `/prompt` response never duplicates work, resubmits prompts missing after a ComfyUI restart, downloads outputs with curl plus size and SHA256 verification, and persists state in `AgentBridge/batches/` so the app resumes it after a restart.
+- Notify on server loss with a sleep/`caffeinate` hint and send Wake-on-LAN from the manifest or the app's saved Wake settings; notify on each finished segment, the finished batch, and anything that needs a person (`node_errors`, execution errors, repeatedly lost segments).
+- Document the batch workflow and how to resolve the “AI agent integration heartbeat is missing or stale” error; bump the MCP adapter to 0.3.0.
+
 ## 1.6.7 — 2026-10-16
 
 - Resolve menu-bar icon and label colors from AppKit's semantic label color at draw time, so they follow the status item's effective appearance instead of the app-wide light/dark mode.

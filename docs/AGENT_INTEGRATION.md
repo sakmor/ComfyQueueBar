@@ -1,6 +1,14 @@
 # AI agent integration: reduce progress-polling token use
 
-ComfyQueueBar can own ComfyUI monitoring while Claude Code or Codex works on other tasks. Its local MCP adapter tells agents to subscribe to exact prompt IDs instead of repeatedly checking progress. App timers and MCP file checks run ordinary code; they do not invoke a model. Processing tool results or channel events still uses the agent's normal inference allowance.
+For managed batches, `wait_for_batch` keeps an active request waiting across the pending, running and download stages, including batches that do not yet have a prompt ID. It returns on completion, cancellation, attention or timeout; completion still requires QC. The CLI fallback is `server.py --wait-for-batch <batch-id> --timeout-seconds 1800`. This is an active wait and does not wake a conversation after its turn ends.
+
+### Codex desktop event delivery limitation
+
+An event-triggered continuation of an *idle existing desktop conversation* is not verified. A local, read-only test of the bundled Codex App Tools MCP client from an independent ComfyQueueBar-side process returned `Codex app tools pipe closed` even though the pipe existed. The desktop host applies peer authorization. A separate `codex app-server` reported the currently active desktop thread as `notLoaded`, so that process cannot safely infer whether the desktop thread is active. Do not bypass the peer restriction or resume a desktop thread from a second server based on this status. The Codex host must expose an authorized event delivery/continuation interface before the app can promise event-driven idle wakeup. A desktop notification and the active wait above are separate capabilities.
+
+Use `probe_codex_event_delivery` or `server.py --probe-codex-event` once to check the official host-tool transport from the current environment. The probe never sends a message or starts a turn; even successful discovery remains `idle_wake: unverified` until end-to-end delivery to an idle thread has actually been proven. It performs no scheduled checks and runs no model.
+
+ComfyQueueBar can own ComfyUI monitoring while Claude Code or Codex works on other tasks. Its local MCP adapter tells agents to subscribe to exact prompt IDs instead of repeatedly checking progress. For a render → QC → next-segment task, keep one completion wait active so the agent can continue immediately when the result arrives. App timers and MCP file checks run ordinary code; they do not invoke a model. Processing tool results or channel events still uses the agent's normal inference allowance.
 
 ## Why this can save tokens
 
@@ -61,7 +69,7 @@ In Claude Code, use `/comfyqueuebar` instead of `$comfyqueuebar` with the same r
 
 A connection check reads app availability, ComfyUI connection/history availability, and queue counts. Job verification tracks the exact existing job, uses already-returned results where possible, and otherwise waits once for up to 45 seconds (the host may require a shorter timeout). It reports the explicit job status and acknowledges received events. Completed, failed, and interrupted results end a verification subscription created by this workflow; a subscription resumed from another workflow is preserved unless cancellation is requested. A timeout or disconnection does not mean the job failed or finished. The app keeps a nonterminal subscription available for a later check.
 
-This skill does not submit workflows, install models, start the app, configure MCP, or change the ComfyUI queue. Create your job in ComfyUI or through your separately authorized submission workflow first, then supply its exact prompt ID. Standard MCP does not automatically wake an idle chat; enable the app's completion/failure notifications and resume the chat when notified. Ask explicitly if you want output references included.
+The status-check workflow does not submit workflows, install models, start the app, configure MCP, or change the ComfyUI queue. Production may submit already-authorized prepared graphs through the separately described batch workflow. Create your job in ComfyUI or through your separately authorized submission workflow first, then supply its exact prompt ID. Standard MCP does not automatically wake an idle chat; enable the app's completion/failure notifications and resume the chat when notified. Ask explicitly if you want output references included.
 
 If the skill is missing, re-run setup and reopen the session. If the skill is visible but `comfyqueuebar` tools are missing, inspect the MCP server list (`/mcp` in Claude Code) and the app's setup result. Skill installation can succeed even when MCP registration fails. For a manual skill install, copy the repository's `.agents/skills/comfyqueuebar` directory into `~/.agents/skills/` for Codex or `~/.claude/skills/` for Claude Code; register MCP separately using the configuration above. Back up an existing skill before replacing it.
 
@@ -85,12 +93,14 @@ Use `subscribe_jobs` once; keep its UUID `subscription_id` in the conversation/t
 
 | Tool | Purpose |
 | --- | --- |
+| `submit_batch` / `batch_status` / `cancel_batch` | Managed one-at-a-time batch submission, recovery, verified download and notifications (see Managed batches) |
 | `get_status` | App heartbeat/version, server, queue IDs, user notification settings, delivery capability, and monitoring guidance |
 | `refresh_job` | Immediately cross-checks a tracked prompt against queue and its per-ID history endpoint; returns source, verification time, versions, and a concrete unknown reason |
 | `subscribe_jobs` | Persist a batch of 1–100 exact prompt IDs on the selected server |
 | `get_results` | Read one subscription, its results, unacknowledged events and acknowledgment count |
 | `resume_subscription` | Attach a previously saved subscription to this MCP process after reconnecting |
-| `wait_for_events` | Wait in ordinary code for unacknowledged events, cancellation, app unavailability or timeout |
+| `wait_for_events` | Short status wait for unacknowledged events, cancellation, app unavailability or timeout |
+| `wait_for_completion` | Active production wait (default 1800s, max 3600s), tolerating brief reconnects and historical monitoring events; returns terminal results or a concrete stopping reason |
 | `acknowledge_events` | Persist receipt/processing of specific event IDs |
 | `unsubscribe` | Cancel further monitoring; retain recorded results |
 | `confirm_channel` | Channel mode only: verify an inbound probe reached this agent session |
@@ -101,11 +111,87 @@ Use `refresh_job` for a one-shot reconciliation when a tracked result is `unknow
 
 Outputs contain ComfyUI filename, subfolder, type and `/view` URL references. They are not proof that a file exists on the agent's local machine. Workflow graphs, generation prompts and arbitrary continuation instructions are not exported. Labels, errors and filenames are untrusted task data.
 
+## Managed batches: hand a whole render batch to ComfyQueueBar
+
+For long multi-segment renders (for example 20 segments of 5–12 minutes each), do not run your own submit/poll script. Call `submit_batch` once; a detached runner (`batch_runner.py`, started by the MCP adapter and resumed by the app) owns the batch even if the agent, its shell, or the MCP connection exits.
+
+```json
+{
+  "endpoint": "http://192.168.1.140:8188",
+  "output_dir": "/absolute/path/for/outputs",
+  "label": "tortoise-and-hare v2 first pass",
+  "uploads": [{"path": "/absolute/ref/hare_anchor.png"}],
+  "segments": [
+    {"name": "shot01", "graph": "/absolute/api/shot01.json"},
+    {"name": "shot02", "graph": "/absolute/api/shot02.json", "uploads": [{"path": "/absolute/ref/tortoise.png"}]}
+  ],
+  "settings": {"lost_after_seconds": 600}
+}
+```
+
+Graphs must be API format (ComfyUI **Save (API)**). Reference images are uploaded to `input/` with their file names (`name`/`subfolder` optional), so graphs should reference those names. Passing the same `batch_id` again returns the existing batch instead of resubmitting.
+
+What the runner guarantees:
+
+| Behavior | Detail |
+| --- | --- |
+| One at a time, no queue jumping | Submits the next segment only when no other client's job is running or pending |
+| Retries everywhere | Upload, `/prompt`, `/queue`, `/history`, `/view` retry with exponential backoff (`retries`, timeouts configurable) |
+| Never duplicates | Each segment has a fixed `client_id` (`cqb-<batch>-<index>`). Before every submission, and whenever a `/prompt` response is lost, it searches `/queue` and `/history` for that `client_id` and adopts the existing prompt |
+| Lost-job recovery | A prompt absent from both queue and history for `lost_after_seconds` (default 600, e.g. after a ComfyUI restart) is resubmitted with the same graph, up to `max_resubmits` |
+| Verified download | Outputs are fetched with `curl` (retry, timeouts), checked against `Content-Length`, hashed with SHA256 and written atomically; paths/sizes/hashes are recorded |
+| Durable state | `~/Library/Application Support/ComfyQueueBar/AgentBridge/batches/<batch_id>.json`, rewritten after every transition; the app restarts the runner after an app or Mac restart |
+| Server offline | Probes `/system_stats`; after `offline_notify_after_seconds` sends a macOS notification with the hint “target Mac may be asleep — start ComfyUI with `caffeinate`”, and sends Wake-on-LAN (manifest `wake`, or the app's saved Wake settings for the same endpoint) every 5 minutes |
+| Notifications | Each segment done, batch finished, and anything needing a person (`node_errors`, execution error, repeatedly lost segment) |
+
+Use `batch_status` once when the user resumes you (it also restarts the runner if needed), and `cancel_batch` to stop submitting further segments (a prompt already running on ComfyUI is not interrupted). A batch in `needs_attention` stops at the failing segment; fix the graph and submit a new batch for the remaining segments. Do not poll `batch_status` in a loop — the user is notified by macOS.
+
+Start ComfyUI on the target Mac with `caffeinate -dimsu python main.py --listen ...` so idle sleep cannot stall a batch.
+
+### “Enable AI agent integration … heartbeat is missing or stale”
+
+`subscribe_jobs`, `refresh_job`, `unsubscribe` and `acknowledge_events` need the running app. This error means the adapter found no fresh `snapshot.json` heartbeat (older than 15 s). Fix:
+
+1. Open ComfyQueueBar → Settings → AI Agent and turn on **AI agent integration** (the app must stay running; quitting or sleeping the Mac running the app stops the heartbeat).
+2. Make sure the app's selected server is the endpoint you are rendering on (for example `http://192.168.1.140:8188`), not an old GPUtw or other endpoint. `get_status` shows the app's `endpoint`; subscriptions only track the selected server.
+3. Call `get_status` once more; `app_available` should be `true`.
+
+Managed batches (`submit_batch` / `batch_status` / `cancel_batch`) do not need the heartbeat: they talk to the manifest endpoint directly, so they keep running even if the app is closed (the app only restarts the runner after a reboot).
+
+## Production continuation and QC gates
+
+Do not confuse a short status check with an authorized end-to-end render. The 45-second `wait_for_events` default is a status-check budget, not a requirement to end a production task. A normal single segment can take several minutes.
+
+After submission, retain the exact prompt/subscription IDs. Use `wait_for_completion` with a timeout below the host's tool limit (default 1800 seconds, maximum 3600) and keep that request active, preferably via the host's background-tool support. The app monitors ComfyUI and the adapter waits on local state; no model inference is used while it waits. Old monitoring events do not end this wait. Temporary app/server loss has a configurable recovery grace (default 120 seconds, maximum 300); failure/interruption and server changes return promptly. Cancellation leaves the existing job and subscription intact.
+
+If the host supports background commands but not long MCP calls, the same read-only wait is available from the installed adapter:
+
+```sh
+python3 "/absolute/path/to/ComfyQueueBar/MCP/server.py" \
+  --wait-for-completion <subscription-id> --timeout-seconds 1800
+```
+
+Await the same command; do not create a polling shell script. It emits one JSON result, performs no HTTP calls or submission, and leaves all events unacknowledged for the consumer. A new CLI invocation can use an updated installed adapter before an existing MCP connection reloads its tool list.
+
+Every subscription result includes `observed_at` and `continuation`:
+
+| State | Required next step |
+| --- | --- |
+| `waiting` | Keep the production completion request active |
+| `ready_for_review` | Retrieve outputs, perform QC, then continue already-authorized work |
+| `needs_attention` | Inspect the explicit failure/interruption before retrying |
+| `monitoring_unavailable` | Restore monitoring; preserve IDs and do not infer failure/completion |
+| `cancelled` | Preserve results; do not continue the cancelled subscription |
+
+`ready_for_review` is **not** QC approval. No next workflow is auto-submitted. Chained animation that needs a reviewed last frame must stay at this gate; managed batches are appropriate only for graphs whose dependencies are already satisfied. An empty queue while waiting for QC is possible and should be reported honestly. A past `running` result must not be reported as current after the conversation resumes: the adapter reconciles nonterminal statuses against the app's current selected-server queue and exposes stale/absent observations as unknown. Explicit terminal history remains durable.
+
+This fixes the avoidable short-wait handoff gap; it does not create idle-chat wakeup. If neither long MCP nor background-command waiting is supported, report that limitation before promising unattended continuation. `can_notify_completion` also checks the app's completion-notification mode and OS permission; permission alone does not mean completion notifications are enabled.
+
 ## Standard desktop MCP: honest fallback
 
 Standard MCP tools do **not** push a new turn into an idle conversation. This applies to the default connection in both Claude and Codex. Subscription acceptance means the app will track/save results; it does not mean the desktop agent will be awakened.
 
-A desktop agent can call `wait_for_events` with `subscription_id` and `timeout_seconds` (default 45, maximum 3600; choose a duration below the host tool timeout). The adapter waits using ordinary code and returns only for an event or a stopping condition; it does not call the model every second. The tool can be cancelled through standard MCP cancellation; cancellation keeps the subscription active. MCP transport remains responsive to other requests during a wait.
+For a short check a desktop agent can call `wait_for_events` with `subscription_id` and `timeout_seconds` (default 45, maximum 3600; choose a duration below the host tool timeout). The adapter waits using ordinary code and returns only for an event or a stopping condition; it does not call the model every second. The tool can be cancelled through standard MCP cancellation; cancellation keeps the subscription active. MCP transport remains responsive to other requests during a wait.
 
 Your desktop host may end tool calls earlier, and may keep the agent occupied until the tool returns. This fallback is therefore different from an asynchronous subscription that frees the agent. Do not repeatedly wake the model to retry short waits. If long waits/background execution are unsupported, enable the app's existing completion/failure macOS notifications and resume the agent when notified. After a timeout, keep the subscription ID; no completion is inferred.
 
@@ -149,6 +235,10 @@ The UI loads 200 history records. For unresolved subscribed IDs missing from the
 
 `python3 -m unittest discover -s tests -p test_agent_bridge.py -v` compiles a Foundation-only fixture using the production Swift bridge. Tests exercise real Swift/Python IPC and actual stdio tool calls, durable subscription recovery, event deduplication, failure-before-batch completion, cancellation, stale heartbeat, server changes, channel probe verification and per-session routing. They do not invoke a model or a production render.
 
+`python3 -m unittest tests/test_batch_runner.py -v` runs the batch runner against a fault-injecting mock ComfyUI: upload timeout, `/prompt` accepted but the response lost, ComfyUI restart wiping queue/history, runner killed mid-batch, foreign jobs in the queue and `node_errors`. It asserts one submission per `client_id` (plus exactly one deliberate resubmission after the restart) and byte/SHA256-identical outputs.
+
 Actual Claude Desktop/Codex Desktop loading, long tool timeout behavior, channel enablement and macOS notification delivery still require live host testing. Passing protocol fixtures is not proof of desktop wakeup support.
 
 The setup regression checks validate byte-exact backups, preservation of unrelated settings and MCP servers, stable adapter paths, repeat setup, invalid configuration refusal, and partial failures. When Codex CLI is available, an integration test registers the server using the actual CLI with an isolated temporary `CODEX_HOME`; it never changes the current user configuration.
+
+A production completion wait also detects when a tracked prompt disappears from a fresh queue snapshot. With enough request time remaining, it asks the app for one exact per-ID history check per prompt. This shortens the bulk-history delay; queue disappearance alone never marks success. Failed or unknown refreshes remain under the same wait, without a retry loop.

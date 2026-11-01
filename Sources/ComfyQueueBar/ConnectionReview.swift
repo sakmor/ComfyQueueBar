@@ -41,13 +41,13 @@ enum MonitoringState: Equatable {
 }
 
 enum PairedPortIssue: Equatable {
-    case portNotEnabled
+    case notFound
     case signInRequired
     case unavailable
 
     static func classify(_ error: Error) -> Self {
         if case QueueError.serverStatus(let status, _) = error, status == 404 {
-            return .portNotEnabled
+            return .notFound
         }
         if MonitoringState.requiresSignIn(error) {
             return .signInRequired
@@ -283,7 +283,7 @@ struct ConnectionReviewView: View {
                         }
                         if let endpoint = model.selectedEndpoint, let url = URL(string: endpoint),
                            GPUTWAddress.serviceOrigin(url) != nil {
-                            Button(L10n.text("Open GPUtw dashboard")) { openPaired(GPUTWAddress.dashboard.absoluteString) }
+                            Button(L10n.text("Connect Port %@", ConnectionAddress.port(endpoint))) { openPaired(endpoint) }
                                 .controlSize(.small)
                         }
                     } else if let inspection = model.inspection {
@@ -333,8 +333,8 @@ struct ConnectionReviewView: View {
                 Label(pairedIssueMessage(issue, port: port), systemImage: "arrow.left.arrow.right")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 switch issue {
-                case .portNotEnabled, .signInRequired:
-                    Button(L10n.text("Open GPUtw dashboard")) { openPaired(GPUTWAddress.dashboard.absoluteString) }
+                case .notFound, .signInRequired:
+                    Button(L10n.text("Connect Port %@", ConnectionAddress.port(endpoint))) { openPaired(endpoint) }
                         .controlSize(.small)
                 case .unavailable:
                     Button(L10n.text("Review Port %@", port)) { reviewPaired(endpoint) }
@@ -354,7 +354,7 @@ struct ConnectionReviewView: View {
 
     private func pairedIssueMessage(_ issue: PairedPortIssue, port: String) -> String {
         switch issue {
-        case .portNotEnabled: return L10n.text("GPUtw returned 404 on port %@. Enable it as an HTTP port in Network Ports, then open it from the dashboard's Other ports menu.", port)
+        case .notFound: return L10n.text("GPUtw port %@ returned 404. The cause is not confirmed. Check the HTTP port settings, instance status, and ComfyUI service.", port)
         case .signInRequired: return L10n.text("Port %@ needs an owner session. Open it from the GPUtw dashboard's Other ports menu.", port)
         case .unavailable: return L10n.text("Could not check GPUtw port %@. Check your connection and retry.", port)
         }

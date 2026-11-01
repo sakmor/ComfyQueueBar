@@ -94,6 +94,9 @@ final class StatusBarController: NSObject, NSApplicationDelegate, NSPopoverDeleg
         observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.restoreItem() }
         })
+        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in await self?.queue.refreshNotificationStatus() }
+        })
     }
 
     private func installEditingMenu() {

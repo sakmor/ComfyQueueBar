@@ -201,6 +201,7 @@ class AgentBridgeTests(unittest.TestCase):
             tool_names = [x['name'] for x in receive()['result']['tools']]
             self.assertIn('subscribe_jobs', tool_names)
             self.assertIn('refresh_job', tool_names)
+            self.assertIn('wait_for_completion', tool_names)
             send({'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call', 'params': {'name': 'subscribe_jobs', 'arguments': {'endpoint': 'http://127.0.0.1:8188', 'prompt_ids': ['wire']}}})
             result = receive()['result']
             self.assertFalse(result['isError'])
@@ -212,11 +213,12 @@ class AgentBridgeTests(unittest.TestCase):
             time.sleep(0.1)
             send({'jsonrpc': '2.0', 'id': 6, 'method': 'tools/call', 'params': {'name': 'get_results', 'arguments': {'subscription_id': sid}}})
             self.assertEqual(receive()['id'], 6)
-            send({'jsonrpc': '2.0', 'id': 7, 'method': 'tools/call', 'params': {'name': 'wait_for_events', 'arguments': {'subscription_id': sid, 'timeout_seconds': 5}}})
+            send({'jsonrpc': '2.0', 'id': 7, 'method': 'tools/call', 'params': {'name': 'wait_for_completion', 'arguments': {'subscription_id': sid, 'timeout_seconds': 5}}})
             self.fixture(results={'wire': {'status': 'completed', 'outputs': [{'filename': 'wire.mp4'}]}})
             completion = receive()
             self.assertEqual(completion['id'], 7)
             self.assertEqual(json.loads(completion['result']['content'][0]['text'])['events'][0]['kind'], 'batch_finished')
+            self.assertEqual(json.loads(completion['result']['content'][0]['text'])['continuation']['state'], 'ready_for_review')
         finally:
             process.stdin.close()
             process.wait(timeout=5)

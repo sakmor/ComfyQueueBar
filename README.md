@@ -107,6 +107,14 @@ Enable **Settings → AI agent integration** to let Claude Code or Codex delegat
 
 Standard MCP cannot wake an idle desktop conversation. It provides a bounded programmatic wait; experimental Claude Channels support verifies inbound delivery before claiming push capability. Claude Desktop Code-tab channel activation and Codex Desktop push are not established. See [setup, delivery modes, and limitations](docs/AGENT_INTEGRATION.md).
 
+### Keep render → QC → next segment active
+
+For an authorized production task, use `wait_for_completion` in one active long/background request (default 1800 seconds), then retrieve and QC the outputs before submitting dependent work. The 45-second status-check wait is not the production continuation workflow. Hosts with background-command support can use the installed adapter's `--wait-for-completion <subscription-id>` fallback. Results explicitly distinguish waiting, ready for review, failure and monitoring loss. This preserves QC gates and does not promise that standard MCP can wake an idle chat. See [production continuation](docs/AGENT_INTEGRATION.md#production-continuation-and-qc-gates).
+
+### Hand a whole batch to the app
+
+Agents can call `submit_batch` with a manifest of API graphs, reference images and an output folder. A detached runner submits one segment at a time without jumping other users' jobs, retries every request, never resubmits a `client_id` it can find in the queue or history, resubmits prompts lost to a ComfyUI restart, downloads outputs with SHA256 verification, survives agent/app restarts, and sends macOS notifications (including a sleep/`caffeinate` hint and Wake-on-LAN when the server goes offline). See [Managed batches](docs/AGENT_INTEGRATION.md#managed-batches-hand-a-whole-render-batch-to-comfyqueuebar).
+
 ### Use the included skill
 
 Detailed token-saving tutorial: [English](docs/AGENT_TOKEN_GUIDE.md) · [简体中文](docs/i18n/AGENT_TOKEN_GUIDE.zh-CN.md) · [繁體中文](docs/i18n/AGENT_TOKEN_GUIDE.zh-TW.md) · [日本語](docs/i18n/AGENT_TOKEN_GUIDE.ja.md). Covers installation, exact job IDs, subscriptions, resuming checks, outputs, and troubleshooting.
@@ -122,7 +130,7 @@ Replace the placeholders with real IDs. The skill checks existing jobs and waits
 
 Click **Preview & download…** on a completed job to open its output. Images use a native preview; MP4, MOV, and M4V use macOS playback controls when their codec is supported. Choose an output if the job produced several files, then use **Download…** to save it. Other formats remain downloadable.
 
-Open the **gear** to save a named server address and choose completion notifications: **Off**, **Every job**, or **Whole batch**. Enable failure/disconnection alerts separately. Notifications start disabled and require macOS permission. All saved servers remain monitored. Select a row in the server overview to inspect its queue in the workspace, and enable **Notify when any server becomes available** to get an alert when an observed busy queue becomes empty.
+Open the **gear** to save a named server address and choose completion notifications: **Off**, **Every job**, or **Whole batch**. New installs default to whole-batch and failure/disconnection alerts and request macOS permission; saved preferences are preserved. The Notifications settings show system permission and offer a test and a link to system settings. All saved servers remain monitored. Select a row in the server overview to inspect its queue in the workspace, and enable **Notify when any server becomes available** to get an alert when an observed busy queue becomes empty. Notifications alert the user but do not wake an idle AI conversation.
 
 <details>
 <summary>See server and notification settings</summary>

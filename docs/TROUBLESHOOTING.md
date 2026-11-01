@@ -116,6 +116,10 @@ Include macOS version, processor architecture, Swift version (for build problems
 - **Missing older jobs:** Loaded history contains at most the newest 200 server records. Select Loaded history to include unknown timestamps; clear the search field and inspect ComfyUI for older records.
 - **Cannot switch servers:** Wait for the active prioritize/stop action to finish. Switching while a mutation is in flight is disabled.
 
+## Agent error: “heartbeat is missing or stale”
+
+Turn on AI agent integration in the app's Settings and keep the app running, then confirm the app's selected server is the endpoint the agent renders on (not an old GPUtw endpoint). See [AGENT_INTEGRATION.md](AGENT_INTEGRATION.md#enable-ai-agent-integration--heartbeat-is-missing-or-stale). Managed batches do not depend on the heartbeat.
+
 ## Menu bar icon disappears / camera notch
 
 First reopen ComfyQueueBar from Applications or Spotlight. Starting with v1.4.1, reopening a running app restores its status item and opens a normal queue window; quitting/restarting is not required. Closing that window keeps monitoring running.
@@ -123,3 +127,7 @@ First reopen ComfyQueueBar from Applications or Spotlight. Starting with v1.4.1,
 macOS controls menu-bar item placement and may hide items when the menu bar is crowded, including on displays with a camera notch. The app uses a bounded 52-point item and shows 99+ for larger queues, with the full count in its tooltip. It retains its native status item and restores visibility after wake/display changes, but cannot guarantee space in a crowded menu bar. Command-drag the icon toward the right when visible, or reduce other menu-bar items. The app does not change system menu-bar preferences or disable third-party menu-bar managers.
 
 If reopening launches a new process rather than opening the fallback window, the previous app may have exited. Include app/macOS version, whether the process was still running, display changes, sleep/wake, and any ComfyQueueBar crash report when filing an issue.
+
+## The machine is idle but the agent says it is rendering
+
+Check the exact saved subscription once. A recorded running status can be older than the current queue; the 0.3.1 adapter reconciles it against fresh app observations. Completed output is `ready_for_review`, and dependent rendering may be waiting for the agent to perform QC. For an authorized multi-step production task, use one active `wait_for_completion` (or the bundled background-command fallback), not a sequence of 45-second status checks that ends the agent turn. Standard MCP cannot resume an idle conversation. Reconnect MCP after installing the updated adapter to expose its new tool; the CLI fallback can use the updated file immediately.

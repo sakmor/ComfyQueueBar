@@ -15,6 +15,16 @@ enum ComfyQueuePayload {
 enum GPUTWAddress {
     static let dashboard = URL(string: "https://gputw.ai/dashboard")!
 
+    static func instanceID(_ url: URL) -> String? {
+        guard let host = serviceOrigin(url)?.host else { return nil }
+        return String(host.dropLast(".gputw.ai".count).split(separator: "-", maxSplits: 1)[1])
+    }
+
+    static func serviceOrigin(_ url: URL, port: Int) -> URL? {
+        guard (1024...65535).contains(port), let id = instanceID(url) else { return nil }
+        return URL(string: "https://\(port)-\(id).gputw.ai")
+    }
+
     static func serviceOrigin(_ url: URL) -> URL? {
         guard let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
               parts.scheme?.lowercased() == "https", parts.user == nil, parts.password == nil,
@@ -62,6 +72,112 @@ enum GPUTWAddress {
                 && (cookiePath.hasSuffix("/") || path.dropFirst(cookiePath.count).hasPrefix("/")))
             return domainMatches && pathMatches && (cookie.expiresDate.map { $0 > now } ?? true)
         }.sorted { $0.path.count > $1.path.count }
+    }
+}
+
+enum GPUTWSetupError: LocalizedError {
+    case invalidKey, invalidResponse, notRunning, portLimit, unsafeHandoff, apiStatus(Int)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidKey: return L10n.text("Enter a GPUtw API key with instances:read and ports:manage permissions.")
+        case .invalidResponse: return L10n.text("GPUtw returned an unexpected configuration. No further changes were made. Retry or use the dashboard.")
+        case .notRunning: return L10n.text("This GPUtw instance is not running. Start it in the dashboard, then connect again.")
+        case .portLimit: return L10n.text("This instance already has 20 HTTP ports. Manage its ports in the GPUtw dashboard.")
+        case .unsafeHandoff: return L10n.text("GPUtw returned a sign-in link for a different service. Please retry.")
+        case .apiStatus(let code):
+            if code == 401 || code == 403 { return L10n.text("GPUtw rejected the API request. Check the key and its instances:read and ports:manage permissions.") }
+            return L10n.text("GPUtw setup returned HTTP %@. Retry or check the dashboard.", String(code))
+        }
+    }
+}
+
+/// Official GPUtw API: GET the current instance, merge the HTTP port list,
+/// PATCH only if missing, then mint the target service's short-lived handoff.
+/// API keys are sent only to this fixed API host, never to the browser/service.
+@MainActor
+final class GPUTWPortConnector {
+    private let session: URLSession
+
+    init(configuration: URLSessionConfiguration = .ephemeral) {
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
+        configuration.urlCache = nil
+        configuration.urlCredentialStorage = nil
+        session = URLSession(configuration: configuration, delegate: GPUTWRedirectPolicy(), delegateQueue: nil)
+    }
+
+    deinit { session.invalidateAndCancel() }
+
+    func prepareAccess(to origin: URL, apiKey: String) async throws -> URL {
+        guard GPUTWAddress.serviceOrigin(origin) == origin,
+              let id = GPUTWAddress.instanceID(origin),
+              let port = origin.host?.split(separator: "-").first.flatMap({ Int($0) }) else { throw GPUTWError.notComfyUI }
+        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard key.hasPrefix("gputw_live_"), key.count > "gputw_live_".count,
+              !key.contains(where: { $0.isWhitespace || $0.isNewline }),
+              !key.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else { throw GPUTWSetupError.invalidKey }
+
+        func request(_ suffix: String = "", method: String = "GET", body: [String: Any]? = nil) async throws -> [String: Any] {
+            try Task.checkCancellation()
+            var request = URLRequest(url: URL(string: "https://api.gputw.ai/api/instances/" + id + suffix)!)
+            request.httpMethod = method; request.timeoutInterval = 15
+            request.httpShouldHandleCookies = false
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            request.setValue("Bearer " + key, forHTTPHeaderField: "Authorization")
+            request.setValue("ComfyQueueBar/1.7 GPUtw-Connect", forHTTPHeaderField: "User-Agent")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            if let body {
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            }
+            let (data, response) = try await session.data(for: request)
+            try Task.checkCancellation()
+            guard let response = response as? HTTPURLResponse else { throw GPUTWSetupError.invalidResponse }
+            guard (200..<300).contains(response.statusCode) else { throw GPUTWSetupError.apiStatus(response.statusCode) }
+            guard let envelope = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  envelope["success"] as? Bool == true,
+                  let object = envelope["data"] as? [String: Any] else { throw GPUTWSetupError.invalidResponse }
+            return object
+        }
+
+        func configuration(_ object: [String: Any]) throws -> (ports: [Int], access: [String: [String: String]]) {
+            guard object["id"] as? String == id,
+                  let status = object["status"] as? String else { throw GPUTWSetupError.invalidResponse }
+            guard status == "RUNNING" else { throw GPUTWSetupError.notRunning }
+            guard let ports = object["allowedPorts"] as? [Int], ports.count <= 20,
+                  Set(ports).count == ports.count,
+                  ports.allSatisfy({ (1024...65535).contains($0) }),
+                  let rawAccess = object["portAccess"] as? [String: Any] else { throw GPUTWSetupError.invalidResponse }
+            var access: [String: [String: String]] = [:]
+            for number in ports {
+                let entry = rawAccess[String(number)]
+                let mode: String
+                if let entry {
+                    guard let entry = entry as? [String: Any], let value = entry["mode"] as? String,
+                          ["private", "public", "unlisted"].contains(value) else { throw GPUTWSetupError.invalidResponse }
+                    mode = value
+                } else { mode = "private" }
+                // Omit password: GPUtw retains existing unlisted passwords.
+                access[String(number)] = ["mode": mode]
+            }
+            return (ports, access)
+        }
+
+        let current = try configuration(await request())
+        if !current.ports.contains(port) {
+            guard current.ports.count < 20 else { throw GPUTWSetupError.portLimit }
+            var access = current.access
+            access[String(port)] = ["mode": "private"]
+            let ports = current.ports + [port]
+            let updated = try configuration(await request("/ports", method: "PATCH", body: ["ports": ports, "portAccess": access]))
+            guard Set(updated.ports) == Set(ports), updated.access == access else { throw GPUTWSetupError.invalidResponse }
+        }
+        let handoff = try await request("/access-token", method: "POST", body: ["port": port, "path": ""])
+        guard handoff["port"] as? Int == port,
+              let value = handoff["url"] as? String, let url = URL(string: value),
+              GPUTWAddress.serviceOrigin(url) == origin else { throw GPUTWSetupError.unsafeHandoff }
+        return url
     }
 }
 
@@ -141,7 +257,9 @@ final class ComfyHTTPClient {
         guard let response = response as? HTTPURLResponse, let url = response.url,
               GPUTWAddress.serviceOrigin(url) != nil else { throw URLError(.badServerResponse) }
         if (300..<400).contains(response.statusCode) || [401, 403].contains(response.statusCode)
-            || response.mimeType?.lowercased() == "text/html" { throw GPUTWError.signInRequired }
+            || ((200..<300).contains(response.statusCode) && response.mimeType?.lowercased() == "text/html") {
+            throw GPUTWError.signInRequired
+        }
         let headers = response.allHeaderFields.reduce(into: [String: String]()) { result, entry in
             if let name = entry.key as? String, let value = entry.value as? String { result[name] = value }
         }
@@ -155,6 +273,7 @@ final class ComfyHTTPClient {
     }
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        if let url = request.url { try GPUTWSSHTunnel.checkOwnedEndpoint(url) }
         guard let url = request.url, GPUTWAddress.serviceOrigin(url) != nil else {
             return try await URLSession.shared.data(for: request)
         }
@@ -167,6 +286,7 @@ final class ComfyHTTPClient {
     }
 
     func download(for request: URLRequest) async throws -> (URL, URLResponse) {
+        if let url = request.url { try GPUTWSSHTunnel.checkOwnedEndpoint(url) }
         guard let url = request.url, GPUTWAddress.serviceOrigin(url) != nil else {
             return try await URLSession.shared.download(for: request)
         }

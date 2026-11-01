@@ -13,6 +13,7 @@ enum PairedQueueStatus: Equatable {
 @MainActor
 final class QueueViewModel: ObservableObject {
     static let connectionRetryInterval: TimeInterval = 4
+    let gputwTunnel = GPUTWSSHTunnel.shared
 
     @Published var endpoint: String
     @Published private(set) var running: [QueueJob] = []
@@ -47,6 +48,8 @@ final class QueueViewModel: ObservableObject {
     @Published private(set) var isClearingGPUTW = false
     @Published private(set) var observedStarts: [String: Date] = [:]
     @Published private(set) var permissionMessage: String?
+    @Published private(set) var notificationAuthorization = "unknown"
+    @Published private(set) var notificationTestMessage: String?
     @Published private(set) var progressExtensionMessage: String?
     @Published private(set) var progressExtensionError: String?
     @Published var notificationMode = "off" {
@@ -155,8 +158,9 @@ final class QueueViewModel: ObservableObject {
         #else
         endpoint = UserDefaults.standard.string(forKey: "comfyEndpoint") ?? "http://127.0.0.1:8188"
         if let data = UserDefaults.standard.data(forKey: "serverProfiles"), let saved = try? JSONDecoder().decode([ServerProfile].self, from: data) { profiles = saved }
-        notificationMode = UserDefaults.standard.string(forKey: "notificationMode") ?? "off"
-        notifyProblems = UserDefaults.standard.bool(forKey: "notifyProblems")
+        let savedNotificationMode = UserDefaults.standard.string(forKey: "notificationMode")
+        notificationMode = NotificationDefaults.completionMode(savedNotificationMode)
+        notifyProblems = NotificationDefaults.notifyProblems(UserDefaults.standard.object(forKey: "notifyProblems") as? Bool)
         notifyAvailability = UserDefaults.standard.bool(forKey: "notifyAvailability")
         serverMonitor.onUpdate = { [weak self] in self?.monitoredServers = $0 }
         serverMonitor.onAvailable = { [weak self] server in
@@ -181,7 +185,10 @@ final class QueueViewModel: ObservableObject {
         RunLoop.main.add(progressTimer, forMode: .common)
         self.progressTimer = progressTimer
         agentIntegrationEnabled = UserDefaults.standard.bool(forKey: "agentIntegrationEnabled")
-        Task { await NotificationService.shared.refreshAuthorizationStatus() }
+        Task {
+            if savedNotificationMode == nil { await authorizeNotifications() }
+            else { await refreshNotificationStatus() }
+        }
         configureAgentBridge()
         let agentTimer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.updateMonitoringState(); self?.serverMonitor.publish(); self?.tickAgentBridge() }
@@ -237,7 +244,28 @@ final class QueueViewModel: ObservableObject {
             agentBridgeError = nil
             let requests = bridge.takeRefreshRequests()
             for request in requests { Task { await performRefreshJob(request) } }
+            resumeBatchRunnerIfNeeded(root: bridge.root)
         } catch { agentBridgeError = error.localizedDescription }
+    }
+
+    private var lastBatchRunnerLaunch: Date?
+    /// Restart the detached agent batch runner after an app/Mac restart. The runner holds a
+    /// lock, so extra launches exit immediately; it idles out on its own when nothing is active.
+    private func resumeBatchRunnerIfNeeded(root: URL, now: Date = Date()) {
+        guard lastBatchRunnerLaunch.map({ now.timeIntervalSince($0) >= 60 }) ?? true else { return }
+        lastBatchRunnerLaunch = now
+        let batches = root.appendingPathComponent("batches")
+        guard let files = try? FileManager.default.contentsOfDirectory(atPath: batches.path),
+              files.contains(where: { $0.hasSuffix(".json") && !$0.hasPrefix(".") }),
+              let runner = Bundle.main.url(forResource: "batch_runner", withExtension: "py", subdirectory: "AgentBridge"),
+              let python = AgentSetup.python() else { return }
+        let process = Process()
+        process.executableURL = python
+        process.arguments = [runner.path, "--state-dir", root.path]
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
     }
 
     private func ingestAgentHistory(_ history: [String: Any], endpoint source: String) {
@@ -328,14 +356,24 @@ final class QueueViewModel: ObservableObject {
     var serverName: String { profiles.first { $0.endpoint == endpoint }?.name ?? (URLComponents(string: endpoint)?.host ?? endpoint) }
     var canChangeServer: Bool { movingJobID == nil && stoppingJobID == nil }
 
-    func signInToGPUTW(address: String) {
+    func signInToGPUTW(address: String, recoveryAddress: String? = nil) {
         guard canChangeServer, !isClearingGPUTW else { return }
-        GPUTWLoginWindow.shared.open(address: address) { [weak self] address in
+        GPUTWLoginWindow.shared.open(address: address, recoveryAddress: recoveryAddress,
+                                    onConnected: { [weak self] in self?.connectVerifiedGPUTW($0) }) { [weak self] address in
             guard let self, self.canChangeServer else { return }
             let port = URL(string: address)?.host?.split(separator: "-").first.map(String.init) ?? ""
             let name = self.profiles.first(where: { $0.endpoint == address })?.name ?? "GPUtw · " + port
             self.reviewConnection(to: address, profileName: name, fromGPUTW: true)
         }
+    }
+
+    private func connectVerifiedGPUTW(_ address: String) {
+        guard canChangeServer, !isClearingGPUTW else { return }
+        let name = profiles.first(where: { $0.endpoint == address })?.name ?? "GPUtw · " + ConnectionAddress.port(address)
+        guard saveProfile(name: name, address: address) else { return }
+        ConnectionReviewWindow.shared.close()
+        GPUTWLoginWindow.shared.close()
+        Task { await self.connect(to: address) }
     }
 
     func reviewConnection(to address: String, profileName: String? = nil, fromGPUTW: Bool = false) {
@@ -358,7 +396,8 @@ final class QueueViewModel: ObservableObject {
                 Task { await self.connect(to: selected) }
             } onOpenAlternative: { [weak self] alternative in
                 guard let self, self.canChangeServer, !self.isClearingGPUTW else { return }
-                GPUTWLoginWindow.shared.open(address: alternative) { [weak self] service in
+                GPUTWLoginWindow.shared.open(address: alternative, recoveryAddress: alternative,
+                                            onConnected: { [weak self] in self?.connectVerifiedGPUTW($0) }) { [weak self] service in
                     guard let self, self.canChangeServer, !self.isClearingGPUTW else { return }
                     self.reviewConnection(to: service, fromGPUTW: true)
                 }
@@ -414,6 +453,11 @@ final class QueueViewModel: ObservableObject {
         connectionMessage = L10n.text("Address saved")
         connectionMessageIsError = false
         return true
+    }
+    func connectGPUTWSSH() {
+        guard canChangeServer, gputwTunnel.connect() else { return }
+        _ = saveProfile(name: "GPUtw · 8090 (SSH)", address: GPUTWSSHTunnel.endpoint)
+        Task { await connect(to: GPUTWSSHTunnel.endpoint) }
     }
     /// Selection is independent of membership. Only this explicit action removes a monitor.
     func deleteProfile(_ id: UUID) {
@@ -501,6 +545,18 @@ final class QueueViewModel: ObservableObject {
     func authorizeNotifications() async {
         await NotificationService.shared.authorize()
         permissionMessage = NotificationService.shared.permissionMessage
+        notificationAuthorization = NotificationService.shared.authorizationStatus
+        notificationTestMessage = nil
+    }
+    func refreshNotificationStatus() async {
+        await NotificationService.shared.refreshAuthorizationStatus()
+        notificationAuthorization = NotificationService.shared.authorizationStatus
+        if ["authorized", "provisional", "ephemeral"].contains(notificationAuthorization) { permissionMessage = nil }
+    }
+    func testNotification() async {
+        let error = await NotificationService.shared.sendTest()
+        notificationAuthorization = NotificationService.shared.authorizationStatus
+        notificationTestMessage = error ?? L10n.text("Test sent to macOS. Check Notification Center and Focus settings.")
     }
     private func processHistoryNotifications(ids: Set<String>) {
         let delta = notificationTracker.ingest(ids: ids, successes: Set(completed.map(\.id)), failures: Set(failures.filter { !$0.interrupted }.map(\.id)), queueCount: totalJobs)

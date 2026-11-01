@@ -116,11 +116,11 @@ Open the gear and choose **Completion notifications** for history-based alerts o
 
 | Mode | Behavior |
 | --- | --- |
-| Off | No completion notifications (default) |
+| Off | No completion notifications |
 | Every job | One notification for each newly discovered successful job |
 | Whole batch | A summary of new successes/failures when the monitored queue is empty |
 
-**Notify failures and disconnections** reports failures in the selected history and disconnections for all monitored servers. It is a separate switch, also off by default. Enabling either option requests macOS notification permission. Manage permission, banners, and sounds under System Settings → Notifications → ComfyQueueBar. Focus modes can suppress presentation. Notification contents may include workflow and server names; failure alerts also include server error text.
+New installations default to whole-batch completion and failure/disconnection alerts, and request macOS notification permission. Existing explicitly saved preferences, including Off, are preserved. **Notify failures and disconnections** reports failures in the selected history and disconnections for all monitored servers. The settings show the current macOS permission, provide a test notification, and link to system settings; refresh the status after changing system permission. Sending a test to macOS does not prove the banner was displayed: Focus modes or system settings can suppress it. Notification contents may include workflow and server names; failure alerts also include server error text. Notifications alert the person and do not wake an idle AI conversation.
 
 The first history snapshot after connecting establishes a baseline and produces no old-job alerts. New prompt IDs are deduplicated during the connection. Notifications rely on polling and bounded server history; jobs removed from history before discovery cannot be reported. A connection-loss alert is sent only after a previously working queue connection fails, avoiding repeated alerts during an outage. The app must be running; these are local macOS notifications, not remote push messages.
 

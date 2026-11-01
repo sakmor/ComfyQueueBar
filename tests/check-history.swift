@@ -75,6 +75,12 @@ let drained = tracker.ingest(ids: ["old", "new", "error"], successes: ["old", "n
 precondition(drained.failures == ["error"] && drained.batch?.completed == 1 && drained.batch?.failed == 1)
 precondition(tracker.ingest(ids: ["old", "new", "error"], successes: ["old", "new"], failures: ["error"], queueCount: 0).batch == nil)
 print("Notification state passed: baseline suppression, deduplication, and batch completion")
+precondition(NotificationDefaults.completionMode(nil) == "batch")
+precondition(NotificationDefaults.completionMode("off") == "off")
+precondition(NotificationDefaults.completionMode("each") == "each")
+precondition(NotificationDefaults.notifyProblems(nil))
+precondition(!NotificationDefaults.notifyProblems(false))
+print("Notification defaults passed: new installs enabled, explicit opt-outs preserved")
 
 let fast = tracker.ingest(ids: ["old", "new", "error", "fast"], successes: ["old", "new", "fast"], failures: ["error"], queueCount: 0)
 precondition(fast.batch?.completed == 1 && fast.successes == ["fast"])

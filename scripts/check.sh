@@ -21,6 +21,7 @@ test -s build/ComfyQueueBar.app/Contents/Resources/AppIconPreview.png
 test -s build/ComfyQueueBar.app/Contents/Frameworks/Sparkle.framework/Sparkle
 test -s build/ComfyQueueBar.app/Contents/Resources/Sparkle-LICENSE.txt
 test -s build/ComfyQueueBar.app/Contents/Resources/AgentBridge/server.py
+test -s build/ComfyQueueBar.app/Contents/Resources/AgentBridge/batch_runner.py
 test -s build/ComfyQueueBar.app/Contents/Resources/AgentBridge/README.md
 cmp .agents/skills/comfyqueuebar/SKILL.md build/ComfyQueueBar.app/Contents/Resources/AgentBridge/skills/comfyqueuebar/SKILL.md
 cmp comfyui_extension/ComfyQueueBarProgress/__init__.py build/ComfyQueueBar.app/Contents/Resources/ComfyQueueBarProgress/__init__.py

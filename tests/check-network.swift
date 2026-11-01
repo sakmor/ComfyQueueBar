@@ -127,10 +127,52 @@ struct NetworkChecks {
         precondition(GPUTWAddress.pairedServiceOrigin(URL(string: "https://8080-test-instance.gputw.ai/path")!)?.absoluteString == "https://8090-test-instance.gputw.ai")
         precondition(GPUTWAddress.pairedServiceOrigin(URL(string: "https://8090-test-instance.gputw.ai")!)?.absoluteString == "https://8080-test-instance.gputw.ai")
         precondition(GPUTWAddress.pairedServiceOrigin(URL(string: "https://8188-test-instance.gputw.ai")!) == nil)
-        precondition(PairedPortIssue.classify(QueueError.serverStatus(404, nil)) == .portNotEnabled)
+        precondition(PairedPortIssue.classify(QueueError.serverStatus(404, nil)) == .notFound)
         precondition(PairedPortIssue.classify(QueueError.serverStatus(401, nil)) == .signInRequired)
         precondition(PairedPortIssue.classify(URLError(.cannotConnectToHost)) == .unavailable)
         print("PASS: four-second connection retries; checking, fresh, stale and sign-in states; service-port labels and safe review addresses")
+
+        var recoveryCalls: [String] = []
+        var recoveryError: Error?
+        let recovery = GPUTWPortRecovery { address in
+            recoveryCalls.append(address)
+            if let recoveryError { throw recoveryError }
+        }
+        let recoveryEndpoint = "https://8090-recovery-fixture.gputw.ai"
+        recovery.prepare(recoveryEndpoint + "/handoff?token=secret#fragment")
+        precondition(recovery.endpoint == recoveryEndpoint)
+        recoveryError = QueueError.serverStatus(404, nil)
+        let notFound = await recovery.recheck()
+        precondition(notFound == nil && recovery.issue == .notFound && !recovery.checking)
+        recoveryError = GPUTWError.signInRequired
+        let needsLogin = await recovery.recheck()
+        precondition(needsLogin == nil && recovery.issue == .signInRequired)
+        recoveryError = nil
+        let verified = await recovery.recheck()
+        precondition(verified == recoveryEndpoint && recovery.issue == nil && recovery.error == nil)
+        precondition(recoveryCalls == Array(repeating: recoveryEndpoint, count: 3), "Rechecks must preserve the exact target and remove handoff secrets")
+        recovery.prepare("https://unrelated.invalid")
+        let invalid = await recovery.recheck()
+        precondition(invalid == nil && recoveryCalls.count == 3)
+
+        var finishRecovery: CheckedContinuation<Void, Never>?
+        let delayedRecovery = GPUTWPortRecovery { _ in
+            await withCheckedContinuation { finishRecovery = $0 }
+        }
+        delayedRecovery.prepare(recoveryEndpoint)
+        let oldCheck = Task { await delayedRecovery.recheck() }
+        while finishRecovery == nil { await Task.yield() }
+        delayedRecovery.prepare("https://8080-other-fixture.gputw.ai")
+        finishRecovery?.resume()
+        let oldResult = await oldCheck.value
+        precondition(oldResult == nil && !delayedRecovery.checking && delayedRecovery.issue == nil,
+                     "An old check must not connect or overwrite a newly selected recovery target")
+        let cancelledRecovery = Task { await delayedRecovery.recheck() }
+        cancelledRecovery.cancel()
+        let cancelledRecoveryResult = await cancelledRecovery.value
+        precondition(cancelledRecoveryResult == nil)
+        print("PASS: exact-port recovery, HTTP/auth errors, retry, invalid targets and stale/cancelled results")
+
         validationDefaults.set("http://fixture.invalid/base", forKey: "comfyEndpoint")
         validationDefaults.set(true, forKey: "agentIntegrationEnabled")
         defer { validationDefaults.removePersistentDomain(forName: validationSuite) }
