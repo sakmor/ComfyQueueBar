@@ -140,15 +140,15 @@ enum QueueError: LocalizedError {
 enum ConnectionDiagnosis {
     static func message(for error: Error, endpoint: String) -> String {
         guard let url = URL(string: endpoint), let host = url.host?.lowercased() else { return error.localizedDescription }
-        if case QueueError.serverStatus(404, let detail) = error, host.hasSuffix(".gputw.ai"),
+        if case QueueError.serverStatus(404, let detail) = error, GPUTWAddress.serviceOrigin(url) != nil,
            detail?.lowercased().contains("404 page not found") == true,
            let port = host.split(separator: "-").first {
-            return L10n.text("GPUtw has no service on port %@ for this instance. The instance may be stopped or deleted, or this port is not enabled. Check the GPUtw dashboard, or connect 8090 via SSH.", String(port))
+            return L10n.text("GPUtw port %@ returned 404 (page not found). The instance may be stopped or deleted, or this HTTP port may be unavailable. Check the GPUtw dashboard, or connect 8090 via SSH.", String(port))
         }
         if let urlError = error as? URLError, urlError.code == .cannotConnectToHost,
-           ["127.0.0.1", "localhost", "::1"].contains(host) {
+           ["127.0.0.1", "localhost", "::1", "[::1]"].contains(host) {
             let port = url.port.map(String.init) ?? (url.scheme == "https" ? "443" : "80")
-            return L10n.text("Nothing is listening on local port %@. If this is an SSH tunnel, it is not running; restart it or use GPUtw 8090 via SSH in Settings.", port)
+            return L10n.text("Could not connect to local port %@. If this is an SSH tunnel, check that it is running; restart it or use GPUtw 8090 via SSH in Settings.", port)
         }
         return error.localizedDescription
     }

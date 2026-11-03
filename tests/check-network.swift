@@ -127,10 +127,21 @@ struct NetworkChecks {
         precondition(GPUTWAddress.pairedServiceOrigin(URL(string: "https://8080-test-instance.gputw.ai/path")!)?.absoluteString == "https://8090-test-instance.gputw.ai")
         precondition(GPUTWAddress.pairedServiceOrigin(URL(string: "https://8090-test-instance.gputw.ai")!)?.absoluteString == "https://8080-test-instance.gputw.ai")
         precondition(GPUTWAddress.pairedServiceOrigin(URL(string: "https://8188-test-instance.gputw.ai")!) == nil)
-        precondition(ConnectionDiagnosis.message(for: QueueError.serverStatus(404, "404 page not found\n"), endpoint: "https://8090-test-instance.gputw.ai").contains("8090 ") || L10n.language != "en")
+        let missingRoute = QueueError.serverStatus(404, "404 page not found\n")
+        let routeDiagnosis = ConnectionDiagnosis.message(for: missingRoute, endpoint: "https://8090-test-instance.gputw.ai")
+        precondition(routeDiagnosis.contains("8090") && routeDiagnosis != missingRoute.localizedDescription)
+        for endpoint in ["https://api.gputw.ai", "https://gputw.ai/dashboard", "https://8090-test-instance.gputw.ai.example.com", "http://fixture.invalid:8188"] {
+            precondition(ConnectionDiagnosis.message(for: missingRoute, endpoint: endpoint) == missingRoute.localizedDescription)
+        }
         precondition(ConnectionDiagnosis.message(for: QueueError.serverStatus(404, "{}"), endpoint: "https://8090-test-instance.gputw.ai") == QueueError.serverStatus(404, "{}").localizedDescription)
         precondition(ConnectionDiagnosis.message(for: URLError(.cannotConnectToHost), endpoint: "http://127.0.0.1:18191").contains("18191"))
+        for endpoint in ["http://localhost:18191", "http://[::1]:18191", "http://LOCALHOST:18191"] {
+            precondition(ConnectionDiagnosis.message(for: URLError(.cannotConnectToHost), endpoint: endpoint).contains("18191"))
+        }
+        precondition(ConnectionDiagnosis.message(for: URLError(.cannotConnectToHost), endpoint: "https://localhost").contains("443"))
+        precondition(ConnectionDiagnosis.message(for: URLError(.timedOut), endpoint: "http://127.0.0.1:18191") == URLError(.timedOut).localizedDescription)
         precondition(ConnectionDiagnosis.message(for: URLError(.cannotConnectToHost), endpoint: "http://192.168.1.140:8188") == URLError(.cannotConnectToHost).localizedDescription)
+        print("PASS: scoped GPUtw missing-route advice; IPv4/IPv6 localhost port and SSH hints; unrelated failures retain original diagnostics")
         precondition(PairedPortIssue.classify(QueueError.serverStatus(404, nil)) == .notFound)
         precondition(PairedPortIssue.classify(QueueError.serverStatus(401, nil)) == .signInRequired)
         precondition(PairedPortIssue.classify(URLError(.cannotConnectToHost)) == .unavailable)

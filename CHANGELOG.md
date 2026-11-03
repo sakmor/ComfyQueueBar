@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.3 — 2026-11-03
+
+- Explain GPUtw service responses containing `404 page not found` with dashboard and SSH recovery suggestions, while keeping stopped/deleted instances and unavailable HTTP ports as possible causes.
+- Add local-port connection failure guidance for IPv4/IPv6 loopback and localhost addresses, including restarting an SSH tunnel or using GPUtw 8090 via SSH in Settings.
+- Restrict GPUtw diagnosis to valid service addresses; preserve original errors for unrelated hosts, other HTTP responses and timeouts. Add four-language strings and network regressions for diagnosis boundaries and loopback ports.
+
 ## 1.7.2 — 2026-11-03
 
 - Start ordinary GPUtw sign-in at the dashboard so a stopped or replaced instance does not trap users at a saved service address. Return failed exact-port recovery to instance selection with distinct missing-port and sign-in guidance.
