@@ -357,6 +357,8 @@ enum L10n {
         "ComfyUI queue: %@ jobs": ["ComfyUI 佇列：%@ 個工作", "ComfyUI 队列：%@ 个任务", "ComfyUI キュー：%@ 件"],
         "%@ nodes": ["%@ 個節點", "%@ 个节点", "%@ ノード"],
         "Node %@": ["節點 %@", "节点 %@", "ノード %@"],
+        "GPUtw has no service on port %@ for this instance. The instance may be stopped or deleted, or this port is not enabled. Check the GPUtw dashboard, or connect 8090 via SSH.": ["GPUtw 此執行個體的 %@ 連接埠沒有服務。執行個體可能已停止或刪除，或此連接埠未啟用。請檢查 GPUtw 控制台，或改用 SSH 連接 8090。", "GPUtw 此实例的 %@ 端口没有服务。实例可能已停止或删除，或此端口未启用。请检查 GPUtw 控制台，或改用 SSH 连接 8090。", "この GPUtw インスタンスのポート %@ にサービスがありません。インスタンスが停止・削除されたか、ポートが有効になっていません。GPUtw ダッシュボードを確認するか、SSH で 8090 に接続してください。"],
+        "Nothing is listening on local port %@. If this is an SSH tunnel, it is not running; restart it or use GPUtw 8090 via SSH in Settings.": ["本機連接埠 %@ 沒有服務在監聽。若這是 SSH 通道，表示通道未執行；請重新啟動，或在設定中使用「GPUtw 8090 via SSH」。", "本机端口 %@ 没有服务在监听。若这是 SSH 隧道，表示隧道未运行；请重新启动，或在设置中使用“GPUtw 8090 via SSH”。", "ローカルポート %@ で待ち受けているサービスがありません。SSH トンネルの場合は停止しています。再起動するか、設定の「GPUtw 8090 via SSH」を使用してください。"],
         "ComfyUI returned HTTP %@.": ["ComfyUI 回傳 HTTP %@。", "ComfyUI 返回 HTTP %@。", "ComfyUI から HTTP %@ が返されました。"],
         "Moved to the front of the waiting queue. New job ID: %@": ["已移至等待佇列前端。新工作 ID：%@", "已移至等待队列前端。新任务 ID：%@", "待機キューの先頭に移動しました。新しいジョブ ID：%@"],
         "Could not confirm the result. Refresh and check original ID %@ and new ID %@.": ["無法確認結果。請更新並檢查原 ID %@ 與新 ID %@。", "无法确认结果。请刷新并检查原 ID %@ 与新 ID %@。", "結果を確認できません。更新して元の ID %@ と新しい ID %@ を確認してください。"],

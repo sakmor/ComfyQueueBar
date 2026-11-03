@@ -133,3 +133,23 @@ enum QueueError: LocalizedError {
         }
     }
 }
+
+/// Turns raw connection failures into actionable advice for the two common
+/// dead ends: a GPUtw service address with no route, and a local tunnel port
+/// with nothing listening.
+enum ConnectionDiagnosis {
+    static func message(for error: Error, endpoint: String) -> String {
+        guard let url = URL(string: endpoint), let host = url.host?.lowercased() else { return error.localizedDescription }
+        if case QueueError.serverStatus(404, let detail) = error, host.hasSuffix(".gputw.ai"),
+           detail?.lowercased().contains("404 page not found") == true,
+           let port = host.split(separator: "-").first {
+            return L10n.text("GPUtw has no service on port %@ for this instance. The instance may be stopped or deleted, or this port is not enabled. Check the GPUtw dashboard, or connect 8090 via SSH.", String(port))
+        }
+        if let urlError = error as? URLError, urlError.code == .cannotConnectToHost,
+           ["127.0.0.1", "localhost", "::1"].contains(host) {
+            let port = url.port.map(String.init) ?? (url.scheme == "https" ? "443" : "80")
+            return L10n.text("Nothing is listening on local port %@. If this is an SSH tunnel, it is not running; restart it or use GPUtw 8090 via SSH in Settings.", port)
+        }
+        return error.localizedDescription
+    }
+}

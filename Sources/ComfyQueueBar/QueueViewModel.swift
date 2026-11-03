@@ -670,7 +670,7 @@ final class QueueViewModel: ObservableObject {
         } catch {
             guard generation == connectionGeneration else { return }
             clearPairedPortCheck(resetThrottle: true)
-            setDisconnected(error.localizedDescription, requiresSignIn: MonitoringState.requiresSignIn(error))
+            setDisconnected(ConnectionDiagnosis.message(for: error, endpoint: endpoint), requiresSignIn: MonitoringState.requiresSignIn(error))
             serverMonitor.recordFailure(endpoint, error)
             if WakeOnLAN.isOfflineError(error),
                let profile = profiles.first(where: { $0.endpoint == endpoint }) {
