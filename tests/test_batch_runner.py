@@ -38,6 +38,7 @@ class MockComfy:
         self.faults = {'upload_hang': 0, 'prompt_drop': set(), 'restart_after_submit': set(), 'reject': set(),
                        'view_stall': 0, 'view_delay': 0.0, 'upload_delay': 0.0}
         self.view_requests = 0
+        self.range_requests = []
         self.live_duplicates = []
         self.execution_order = []
         self.run_seconds = 0.6
@@ -102,6 +103,20 @@ class MockComfy:
                     time.sleep(30)
                     return
                 time.sleep(delay)
+                ranged = self.headers.get('Range', '')
+                if ranged.startswith('bytes=') and self.command == 'GET':
+                    start = int(ranged[6:].split('-')[0])
+                    with mock.lock:
+                        mock.range_requests.append(start)
+                    if start >= len(data):
+                        return self.reply(416, b'', 'application/octet-stream')
+                    self.send_response(206)
+                    self.send_header('Content-Type', 'application/octet-stream')
+                    self.send_header('Content-Range', 'bytes %d-%d/%d' % (start, len(data) - 1, len(data)))
+                    self.send_header('Content-Length', str(len(data) - start))
+                    self.end_headers()
+                    self.wfile.write(data[start:])
+                    return
                 return self.reply(200, data, 'application/octet-stream')
 
             do_HEAD = do_GET
@@ -325,6 +340,9 @@ class BatchRunnerTests(unittest.TestCase):
         self.assertEqual(len(self.mock.accepted), 3, 'a download retry never resubmits')
         attempts = [s['outputs'][0]['attempts'] for s in status['segments']]
         self.assertIn(2, attempts)
+        # The retry resumes from the bytes already received (HTTP Range), not from zero.
+        self.assertTrue(self.mock.range_requests and all(start > 0 for start in self.mock.range_requests), self.mock.range_requests)
+        self.assertTrue(any(s['outputs'][0].get('resumed') for s in status['segments']))
         for segment in status['segments']:
             output = segment['outputs'][0]
             self.assertEqual(Path(output['path']).read_bytes(), self.mock.outputs[output['filename']])

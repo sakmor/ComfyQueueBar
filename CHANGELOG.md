@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.2 — 2026-11-03
+
+- Start ordinary GPUtw sign-in at the dashboard so a stopped or replaced instance does not trap users at a saved service address. Return failed exact-port recovery to instance selection with distinct missing-port and sign-in guidance.
+- Cancel stale recovery checks and clear saved port/key state when selecting a different service. Keep optional API-key port setup under an advanced disclosure, with dashboard-based connection first.
+- Resume interrupted batch output downloads with HTTP Range requests. Use If-Range when a strong ETag or Last-Modified validator is available; restart safely if the server refuses a range, changes the file, or returns an inconsistent range/size. Record successful resume status with the existing size and local SHA256 checks.
+- Add real HTTP/curl regressions for partial downloads, range refusal, invalid ranges, changed validators and temporary-file cleanup; extend GPUtw recovery and cancellation regressions.
+- Document separate user-scope MCP registration for the Claude Code CLI.
+
 ## 1.7.1 — 2026-11-01
 
 - Reject invalid batch settings before launch, including fractional retry counts, non-finite numbers, zero timeouts, and relative segment output folders.

@@ -173,6 +173,53 @@ struct NetworkChecks {
         precondition(cancelledRecoveryResult == nil)
         print("PASS: exact-port recovery, HTTP/auth errors, retry, invalid targets and stale/cancelled results")
 
+        // Exercise the login controller without opening windows or using an account.
+        // A missing/expired saved service must return to instance selection, and
+        // abandoning a retry must prevent its late result from changing that choice.
+        precondition(recovery.browserURL == GPUTWAddress.dashboard)
+        for error in [QueueError.serverStatus(404, nil) as Error, GPUTWError.signInRequired as Error] {
+            let failedPort = GPUTWPortRecovery { _ in throw error }
+            failedPort.prepare(recoveryEndpoint + "/?__t=fixture-only")
+            precondition(failedPort.browserURL.absoluteString == recoveryEndpoint)
+            failedPort.apiKey = "fixture-only"
+            let login = GPUTWLoginWindow(recovery: failedPort)
+            await login.connectPreparedPort()?.value
+            precondition(login.dashboardNotice != nil && login.service == nil)
+            precondition(login.displayedHost == "gputw.ai" && failedPort.endpoint == recoveryEndpoint,
+                         "The dashboard must open while retaining the exact port for optional advanced setup")
+            precondition(failedPort.apiKey.isEmpty && !login.connectingPort)
+            login.finishedNavigation(to: GPUTWAddress.dashboard)
+            precondition(login.dashboardNotice != nil, "The dashboard must retain the explanation after loading")
+            login.finishedNavigation(to: URL(string: "https://8080-new-instance.gputw.ai")!)
+            precondition(login.dashboardNotice == nil && login.service?.host == "8080-new-instance.gputw.ai")
+            precondition(failedPort.endpoint == nil && failedPort.issue == nil)
+        }
+
+        for chooseDashboard in [true, false] {
+            var finishLoginCheck: CheckedContinuation<Void, Never>?
+            let pendingPort = GPUTWPortRecovery { _ in
+                await withCheckedContinuation { finishLoginCheck = $0 }
+                throw QueueError.serverStatus(404, nil)
+            }
+            let login = GPUTWLoginWindow(recovery: pendingPort)
+            pendingPort.prepare(recoveryEndpoint)
+            pendingPort.apiKey = "fixture-only"
+            let pendingCheck = login.connectPreparedPort()
+            while finishLoginCheck == nil { await Task.yield() }
+            if chooseDashboard { login.openDashboard() }
+            else { login.prepareNavigation(to: URL(string: "https://8080-new-instance.gputw.ai")!) }
+            precondition(pendingPort.endpoint == nil && pendingPort.apiKey.isEmpty)
+            finishLoginCheck?.resume()
+            await pendingCheck?.value
+            precondition(login.dashboardNotice == nil && !login.connectingPort)
+            precondition(login.service == nil, "A late old-port response must not connect while a new page is loading")
+            if !chooseDashboard {
+                login.finishedNavigation(to: URL(string: "https://8080-new-instance.gputw.ai")!)
+                precondition(login.service?.host == "8080-new-instance.gputw.ai")
+            }
+        }
+        print("PASS: GPUtw dashboard fallback for missing/auth-expired services; new-instance selection cancels old retries and clears stale port/key state")
+
         validationDefaults.set("http://fixture.invalid/base", forKey: "comfyEndpoint")
         validationDefaults.set(true, forKey: "agentIntegrationEnabled")
         defer { validationDefaults.removePersistentDomain(forName: validationSuite) }

@@ -26,6 +26,14 @@ This reduces tokens spent on progress polling compared with an agent that repeat
 
 The setup button updates `~/Library/Application Support/Claude/claude_desktop_config.json` (also loaded by the local Desktop Code tab) and `~/.codex/config.toml`, or `CODEX_HOME/config.toml` when configured. Codex discovers user Skills under `~/.agents/skills`; Claude Code discovers them under `~/.claude/skills`. Backups have a `comfyqueuebar-backup-<UUID>` suffix. Invalid Claude configuration is left unchanged. No agent conversation is submitted and no inference is run during setup. Python 3.9+ is required to register MCP; the app does not install it. Skill installation is attempted independently so it can succeed even if MCP setup prerequisites are missing. Clicking setup is the action that changes agent configuration; merely enabling monitoring does not register MCP.
 
+For the standalone **Claude Code CLI**, register the stable adapter separately in user scope after running the app's setup:
+
+```sh
+claude mcp add --scope user comfyqueuebar -- python3 "$HOME/Library/Application Support/ComfyQueueBar/MCP/server.py"
+```
+
+Claude Code CLI user-scope servers are stored in `~/.claude.json`, separately from Claude Desktop's configuration ([Claude Code MCP scopes](https://code.claude.com/docs/en/mcp#user-scope)). Check registration with `claude mcp list`, then start a new session.
+
 For manual/custom setups, register `agent_bridge/server.py` in this checkout or the copy inside the app bundle using these examples:
 
 Example Claude Code `.mcp.json` entry (merge into existing configuration; replace both paths):
@@ -140,8 +148,8 @@ What the runner guarantees:
 | Retries everywhere | Upload, `/prompt`, `/queue`, `/history`, `/view` retry with exponential backoff (`retries`, timeouts configurable) |
 | Never duplicates | Each segment has a fixed `client_id` (`cqb-<batch>-<index>`). Before every submission, and whenever a `/prompt` response is lost, it searches `/queue` and `/history` for that `client_id` and adopts the existing prompt |
 | Lost-job recovery | A prompt absent from both queue and history for `lost_after_seconds` (default 600, e.g. after a ComfyUI restart) is resubmitted with the same graph, up to `max_resubmits` |
-| Verified download | Outputs are fetched with `curl` into a `.part` file, checked against `Content-Length`, hashed with SHA256 and only then renamed; paths/sizes/hashes are recorded |
-| Stall detection | Uploads and downloads abort and retry when slower than `stall_bytes_per_second` (default 51200 = 50 KB/s) for `stall_seconds` (default 20), instead of waiting for the total timeout |
+| Verified download | Outputs are fetched with `curl` into a private `.part` file, checked against the server's full size when supplied (`Content-Length` or `Content-Range`), hashed with SHA256 and only then renamed; paths/sizes/hashes are recorded. SHA256 verifies the local file after rename, not a server-provided digest |
+| Stall detection and resume | Uploads and downloads abort and retry when slower than `stall_bytes_per_second` (default 51200 = 50 KB/s) for `stall_seconds` (default 20). Download retries within the active transfer use HTTP Range and, when available, an If-Range validator; refused or inconsistent ranges restart from zero. The output's `resumed` flag records successful continuation. Partial transfer bytes are not preserved across runner restarts |
 | GPU idle measurement | `batch_status.gpu` lists each segment's GPU execution interval (ComfyUI `execution_start`/`execution_success` timestamps), the gaps between consecutive own segments and `idle_total_seconds`; segment and batch notifications include the running idle total. Gaps also include time when other users' jobs ran |
 | Durable state | `~/Library/Application Support/ComfyQueueBar/AgentBridge/batches/<batch_id>.json`, rewritten after every transition; the app restarts the runner after an app or Mac restart |
 | Server offline | Probes `/system_stats`; after `offline_notify_after_seconds` sends a macOS notification with the hint “target Mac may be asleep — start ComfyUI with `caffeinate`”, and sends Wake-on-LAN (manifest `wake`, or the app's saved Wake settings for the same endpoint) every 5 minutes |

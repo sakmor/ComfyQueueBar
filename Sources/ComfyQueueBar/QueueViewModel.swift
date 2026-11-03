@@ -360,9 +360,9 @@ final class QueueViewModel: ObservableObject {
     var serverName: String { profiles.first { $0.endpoint == endpoint }?.name ?? (URLComponents(string: endpoint)?.host ?? endpoint) }
     var canChangeServer: Bool { movingJobID == nil && stoppingJobID == nil }
 
-    func signInToGPUTW(address: String, recoveryAddress: String? = nil) {
+    func signInToGPUTW(recoveryAddress: String? = nil) {
         guard canChangeServer, !isClearingGPUTW else { return }
-        GPUTWLoginWindow.shared.open(address: address, recoveryAddress: recoveryAddress,
+        GPUTWLoginWindow.shared.open(recoveryAddress: recoveryAddress,
                                     onConnected: { [weak self] in self?.connectVerifiedGPUTW($0) }) { [weak self] address in
             guard let self, self.canChangeServer else { return }
             let port = URL(string: address)?.host?.split(separator: "-").first.map(String.init) ?? ""
@@ -384,7 +384,7 @@ final class QueueViewModel: ObservableObject {
         guard canChangeServer, !isClearingGPUTW else { return }
         clearConnectionFeedback()
         let value = address.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let url = URL(string: value), GPUTWAddress.isDashboard(url) { signInToGPUTW(address: value); return }
+        if let url = URL(string: value), GPUTWAddress.isDashboard(url) { signInToGPUTW(); return }
         do {
             let address = try ConnectionAddress.normalize(value)
             ConnectionReviewWindow.shared.open(address: address) { [weak self] selected in
@@ -400,7 +400,7 @@ final class QueueViewModel: ObservableObject {
                 Task { await self.connect(to: selected) }
             } onOpenAlternative: { [weak self] alternative in
                 guard let self, self.canChangeServer, !self.isClearingGPUTW else { return }
-                GPUTWLoginWindow.shared.open(address: alternative, recoveryAddress: alternative,
+                GPUTWLoginWindow.shared.open(recoveryAddress: alternative,
                                             onConnected: { [weak self] in self?.connectVerifiedGPUTW($0) }) { [weak self] service in
                     guard let self, self.canChangeServer, !self.isClearingGPUTW else { return }
                     self.reviewConnection(to: service, fromGPUTW: true)
@@ -436,7 +436,7 @@ final class QueueViewModel: ObservableObject {
     func saveProfile(name: String, address: String) -> Bool {
         let value = address.trimmingCharacters(in: .whitespacesAndNewlines)
         if let url = URL(string: value), GPUTWAddress.isDashboard(url) {
-            signInToGPUTW(address: value)
+            signInToGPUTW()
             return false
         }
         let address: String
@@ -601,7 +601,7 @@ final class QueueViewModel: ObservableObject {
         actionIsError = false
         var cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         if let url = URL(string: cleaned) {
-            if GPUTWAddress.isDashboard(url) { signInToGPUTW(address: cleaned); return }
+            if GPUTWAddress.isDashboard(url) { signInToGPUTW(); return }
             if let origin = GPUTWAddress.serviceOrigin(url) { cleaned = origin.absoluteString }
         }
         cleaned = (try? ConnectionAddress.normalize(cleaned)) ?? cleaned

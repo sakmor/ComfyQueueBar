@@ -1,5 +1,7 @@
 """Release review regressions: durable cancellation, validation and safe downloads."""
 import copy
+import hashlib
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
 import json
 from pathlib import Path
@@ -140,6 +142,84 @@ class ReleaseRegressions(unittest.TestCase):
         self.assertEqual((self.root / 'same.png').read_bytes(), b'keep existing output')
         self.assertTrue(all(Path(o['path']).read_bytes() == b'downloaded' for o in outputs))
         self.assertEqual(list(self.root.glob('*.part')), [])
+
+    def download_responses(self, responses):
+        """Exercise real curl with truncated bodies and scripted Range responses."""
+        requests = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def do_GET(self):
+                index = len(requests)
+                requests.append(dict(self.headers))
+                status, headers, body = responses[min(index, len(responses) - 1)]
+                self.send_response(status)
+                for key, value in headers.items():
+                    self.send_header(key, value)
+                self.send_header('Connection', 'close')
+                self.end_headers()
+                self.wfile.write(body)
+                self.close_connection = True
+
+        httpd = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch.object(self.worker, 'sleep'):
+                output = self.worker.download('http://127.0.0.1:%d' % httpd.server_port,
+                    {**runner.DEFAULTS, 'retries': len(responses) - 1}, {'filename': 'result.bin'}, self.root)
+            return output, requests
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+            thread.join()
+
+    def test_download_resumes_partial_body_with_validator_and_full_size(self):
+        output, requests = self.download_responses([
+            (200, {'Content-Length': '10', 'ETag': '"version-1"'}, b'012'),
+            (206, {'Content-Length': '7', 'Content-Range': 'bytes 3-9/10', 'ETag': '"version-1"'}, b'3456789'),
+        ])
+        self.assertEqual(requests[1]['Range'], 'bytes=3-')
+        self.assertEqual(requests[1]['If-Range'], '"version-1"')
+        self.assertEqual(Path(output['path']).read_bytes(), b'0123456789')
+        self.assertEqual(output['sha256'], hashlib.sha256(b'0123456789').hexdigest())
+        self.assertTrue(output['resumed'] and output['size_verified_against_server'])
+        self.assertEqual(output['attempts'], 2)
+
+    def test_download_restarts_when_resume_refused_or_inconsistent(self):
+        bad_responses = [
+            (200, {'Content-Length': '10'}, b'0123456789'),  # Range ignored
+            (416, {'Content-Length': '0'}, b''),
+            (206, {'Content-Length': '7'}, b'3456789'),  # Missing Content-Range
+            (206, {'Content-Length': '7', 'Content-Range': 'bytes 2-8/10'}, b'2345678'),
+            (206, {'Content-Length': '7', 'Content-Range': 'bytes 3-9/10', 'ETag': '"changed"'}, b'abcdefg'),
+        ]
+        for bad in bad_responses:
+            with self.subTest(response=bad):
+                output, requests = self.download_responses([
+                    (200, {'Content-Length': '10', 'ETag': '"original"'}, b'012'),
+                    bad,
+                    (200, {'Content-Length': '10'}, b'0123456789'),
+                ])
+                self.assertIn('Range', requests[1])
+                self.assertNotIn('Range', requests[2])
+                self.assertNotIn('If-Range', requests[2])
+                self.assertEqual(Path(output['path']).read_bytes(), b'0123456789')
+                self.assertEqual(output['attempts'], 3)
+                self.assertFalse(output['resumed'])
+
+    def test_download_failure_cleans_partial_and_header_files(self):
+        with self.assertRaises(runner.Unreachable):
+            self.download_responses([(200, {'Content-Length': '10'}, b'012')])
+        self.assertEqual(list(self.root.glob('.cqb-*')), [])
+
+    def test_download_uses_only_final_response_headers(self):
+        headers = self.root / 'headers'
+        headers.write_text('HTTP/1.1 200 Connection established\r\nContent-Range: bytes 0-9/10\r\n\r\n'
+                           'HTTP/1.1 206 Partial Content\r\nContent-Length: 7\r\nETag: "CaseSensitive"\r\n\r\n')
+        self.assertEqual(runner.download_headers(headers), (206, {'content-length': '7', 'etag': '"CaseSensitive"'}))
 
 
 if __name__ == '__main__':

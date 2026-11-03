@@ -13,6 +13,8 @@ final class GPUTWPortRecovery: ObservableObject {
     private var revision = UUID()
     private let inspect: (String) async throws -> Void
 
+    var browserURL: URL { endpoint.flatMap(URL.init(string:)) ?? GPUTWAddress.dashboard }
+
     init(inspect: @escaping (String) async throws -> Void = { address in
         _ = try await ConnectionInspector.inspectQueue(address, timeout: 8)
     }) {
@@ -69,33 +71,41 @@ final class GPUTWLoginWindow: NSObject, ObservableObject, NSWindowDelegate, WKNa
     @Published private(set) var service: URL?
     @Published private(set) var displayedHost = "gputw.ai"
     @Published private(set) var message: String?
+    @Published private(set) var dashboardNotice: String?
     @Published private(set) var connectingPort = false
     private var window: NSWindow?
     private var webView: WKWebView?
     private var onConnect: ((String) -> Void)?
     private var onConnected: ((String) -> Void)?
-    let recovery = GPUTWPortRecovery()
+    let recovery: GPUTWPortRecovery
     private var recoveryTask: Task<Void, Never>?
     private let connector = GPUTWPortConnector()
     private var automaticEndpoint: String?
     private var awaitingHandoff = false
 
-    func open(address: String, recoveryAddress: String? = nil, onConnected: ((String) -> Void)? = nil,
+    init(recovery: GPUTWPortRecovery? = nil) {
+        self.recovery = recovery ?? GPUTWPortRecovery()
+        super.init()
+    }
+
+    func open(recoveryAddress: String? = nil, onConnected: ((String) -> Void)? = nil,
               onConnect: @escaping (String) -> Void) {
-        recoveryTask?.cancel(); recoveryTask = nil
-        automaticEndpoint = nil; awaitingHandoff = false; connectingPort = false
+        resetRecovery()
         recovery.prepare(recoveryAddress)
         self.onConnect = onConnect
         self.onConnected = onConnected
-        service = nil; message = nil
-        let origin = URL(string: address).flatMap { GPUTWAddress.serviceOrigin($0) }
+        service = nil; message = nil; dashboardNotice = nil
+        // Sign-in always starts at the dashboard. Only an explicit port recovery
+        // may open a saved service; it must never replay a one-time handoff URL.
+        let destination = recovery.browserURL
+        displayedHost = destination.host ?? "gputw.ai"
         // Reuse the sign-in window when checking a paired port; the address the
         // user asked to inspect must replace whichever service was open before.
         if let window {
-            webView?.load(URLRequest(url: origin ?? GPUTWAddress.dashboard))
+            webView?.load(URLRequest(url: destination))
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
-            connectIfAlreadyAccessible()
+            connectPreparedPort()
             return
         }
         let configuration = WKWebViewConfiguration()
@@ -114,21 +124,37 @@ final class GPUTWLoginWindow: NSObject, ObservableObject, NSWindowDelegate, WKNa
         window.contentViewController = NSHostingController(rootView: GPUTWLoginView(controller: self, browser: browser))
         self.window = window
         // Do not replay a pasted one-time handoff token; the dashboard issues a new one.
-        browser.load(URLRequest(url: origin ?? GPUTWAddress.dashboard))
+        browser.load(URLRequest(url: destination))
         window.center()
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
-        connectIfAlreadyAccessible()
+        connectPreparedPort()
     }
 
-    func openDashboard() { webView?.load(URLRequest(url: GPUTWAddress.dashboard)) }
+    private func resetRecovery(keepingTarget: Bool = false) {
+        recoveryTask?.cancel(); recoveryTask = nil
+        automaticEndpoint = nil; awaitingHandoff = false; connectingPort = false
+        if keepingTarget { recovery.apiKey = "" }
+        else { recovery.prepare(nil) }
+    }
+
+    func openDashboard() { showDashboard(notice: nil) }
+
+    private func showDashboard(notice: String?, keepingTarget: Bool = false) {
+        resetRecovery(keepingTarget: keepingTarget)
+        service = nil; message = nil; dashboardNotice = notice
+        displayedHost = GPUTWAddress.dashboard.host ?? "gputw.ai"
+        webView?.load(URLRequest(url: GPUTWAddress.dashboard))
+    }
     func goBack() { webView?.goBack() }
 
-    private func connectIfAlreadyAccessible() {
-        guard let target = recovery.endpoint else { return }
+    @discardableResult
+    func connectPreparedPort() -> Task<Void, Never>? {
+        guard let target = recovery.endpoint else { return nil }
         automaticEndpoint = target
         // An existing HTTP route/session needs no management key or settings change.
         recheckPort()
+        return recoveryTask
     }
 
     func recheckPort() {
@@ -141,6 +167,11 @@ final class GPUTWLoginWindow: NSObject, ObservableObject, NSWindowDelegate, WKNa
             if let verified {
                 if automaticEndpoint == verified { finishConnecting(verified) }
                 else { onConnect?(verified) }
+            } else if automaticEndpoint != nil, recovery.issue == .notFound {
+                let port = ConnectionAddress.port(recovery.endpoint ?? "")
+                showDashboard(notice: L10n.text("GPUtw port %@ returned 404. This instance may have stopped or changed, or its HTTP port may be unavailable. Select a running instance in the dashboard and open its ComfyUI.", port), keepingTarget: true)
+            } else if automaticEndpoint != nil, recovery.issue == .signInRequired {
+                showDashboard(notice: L10n.text("Sign in to GPUtw again, then open your ComfyUI Web UI."), keepingTarget: true)
             }
         }
     }
@@ -150,8 +181,9 @@ final class GPUTWLoginWindow: NSObject, ObservableObject, NSWindowDelegate, WKNa
               let target = GPUTWAddress.serviceOrigin(service, port: 8090) else { return }
         recoveryTask?.cancel(); recoveryTask = nil
         automaticEndpoint = nil; awaitingHandoff = false
+        dashboardNotice = nil
         recovery.prepare(target.absoluteString)
-        connectIfAlreadyAccessible()
+        connectPreparedPort()
     }
 
     func setupAndConnect() {
@@ -209,8 +241,8 @@ final class GPUTWLoginWindow: NSObject, ObservableObject, NSWindowDelegate, WKNa
     }
 
     func windowWillClose(_ notification: Notification) {
-        recoveryTask?.cancel(); recoveryTask = nil; recovery.prepare(nil)
-        automaticEndpoint = nil; awaitingHandoff = false; connectingPort = false; onConnected = nil
+        resetRecovery()
+        dashboardNotice = nil; onConnected = nil
         webView?.stopLoading()
         webView?.navigationDelegate = nil; webView?.uiDelegate = nil
         window?.contentViewController = nil
@@ -223,8 +255,23 @@ final class GPUTWLoginWindow: NSObject, ObservableObject, NSWindowDelegate, WKNa
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        displayedHost = webView.url?.host ?? ""
-        service = webView.url.flatMap { GPUTWAddress.serviceOrigin($0) }
+        finishedNavigation(to: webView.url)
+    }
+
+    func prepareNavigation(to url: URL?) {
+        guard let destination = url.flatMap(GPUTWAddress.serviceOrigin),
+              let endpoint = recovery.endpoint, destination.absoluteString != endpoint else { return }
+        // Cancel before the new page loads, so the old request cannot close the
+        // browser and connect its instance while the user is choosing a new one.
+        resetRecovery()
+        service = nil; message = nil; dashboardNotice = nil
+    }
+
+    func finishedNavigation(to url: URL?) {
+        prepareNavigation(to: url)
+        displayedHost = url?.host ?? ""
+        service = url.flatMap { GPUTWAddress.serviceOrigin($0) }
+        if service != nil { dashboardNotice = nil }
         if awaitingHandoff, let target = automaticEndpoint {
             if service?.absoluteString == target { verifyAutomaticConnection() }
             else {
@@ -237,6 +284,7 @@ final class GPUTWLoginWindow: NSObject, ObservableObject, NSWindowDelegate, WKNa
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
         let url = navigationAction.request.url
+        if navigationAction.targetFrame?.isMainFrame == true { prepareNavigation(to: url) }
         // HTTPS identity-provider redirects are allowed in the visible login browser.
         // Native monitoring requests use a separate session that refuses redirects.
         // Embedded login widgets need both about:blank and about:srcdoc frames.
@@ -295,10 +343,15 @@ private struct GPUTWLoginView: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(controller.service == nil || controller.connectingPort)
             }
-            Text(L10n.text("Open your ComfyUI, then review its port and recent jobs before monitoring."))
+            Text(L10n.text("Sign in, select a running GPUtw instance, and open its ComfyUI. Review the port and recent jobs before monitoring."))
                 .font(.callout)
+            if let notice = controller.dashboardNotice {
+                Text(notice).font(.callout).foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             GPUTWPortRecoveryView(recovery: controller.recovery, connecting: controller.connectingPort,
-                                 setup: controller.setupAndConnect, recheck: controller.recheckPort)
+                                 setup: controller.setupAndConnect, recheck: controller.recheckPort,
+                                 dashboard: controller.openDashboard, showIssue: controller.dashboardNotice == nil)
             if let message = controller.message { Text(message).font(.callout).foregroundStyle(.red) }
             GPUTWBrowser(browser: browser)
         }.padding(12)
@@ -310,6 +363,8 @@ private struct GPUTWPortRecoveryView: View {
     let connecting: Bool
     let setup: () -> Void
     let recheck: () -> Void
+    let dashboard: () -> Void
+    let showIssue: Bool
 
     var body: some View {
         if let endpoint = recovery.endpoint {
@@ -326,20 +381,28 @@ private struct GPUTWPortRecoveryView: View {
                 }
                 Text(endpoint).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(L10n.text("The app enables this HTTP port if needed, signs in, and starts monitoring when ComfyUI responds."))
                 HStack {
-                    SecureField(L10n.text("GPUtw API key"), text: $recovery.apiKey)
-                        .textFieldStyle(.roundedBorder).disabled(connecting || recovery.settingUp)
-                    Button(L10n.text("Enable and connect Port %@", port), action: setup)
+                    Button(L10n.text("Choose a running GPUtw instance"), action: dashboard)
                         .buttonStyle(.borderedProminent)
-                        .disabled(connecting || recovery.settingUp || recovery.checking || recovery.apiKey.isEmpty)
                     Button(L10n.text("Retry connection"), action: recheck)
                         .disabled(connecting || recovery.settingUp || recovery.checking)
                 }
-                Text(L10n.text("Requires instances:read and ports:manage. The key is used once and is not saved. Additional ports may incur GPUtw fees."))
-                    .font(.caption).foregroundStyle(.secondary)
-                Link(L10n.text("API key setup"), destination: URL(string: "https://docs.gputw.ai/zh-TW/docs/api-keys")!)
-                    .font(.caption)
+                Text(L10n.text("Open ComfyUI from the dashboard to connect without an API key. If you changed instances, select the new one."))
+                    .fixedSize(horizontal: false, vertical: true)
+                DisclosureGroup(L10n.text("Advanced: enable an HTTP port with an API key")) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(L10n.text("The app enables this HTTP port if needed, signs in, and starts monitoring when ComfyUI responds."))
+                        SecureField(L10n.text("GPUtw API key"), text: $recovery.apiKey)
+                            .textFieldStyle(.roundedBorder).disabled(connecting || recovery.settingUp)
+                        Button(L10n.text("Enable and connect Port %@", port), action: setup)
+                            .buttonStyle(.borderedProminent)
+                            .disabled(connecting || recovery.settingUp || recovery.checking || recovery.apiKey.isEmpty)
+                        Text(L10n.text("Requires instances:read and ports:manage. The key is used once and is not saved. Additional ports may incur GPUtw fees."))
+                            .font(.caption).foregroundStyle(.secondary)
+                        Link(L10n.text("API key setup"), destination: URL(string: "https://docs.gputw.ai/zh-TW/docs/api-keys")!)
+                            .font(.caption)
+                    }
+                }
                 DisclosureGroup(L10n.text("Connect manually without an API key")) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(L10n.text("1. Select the instance matching this address and confirm it is running with ComfyUI started."))
@@ -347,7 +410,7 @@ private struct GPUTWPortRecoveryView: View {
                         Text(L10n.text("3. Open port %@ from Other ports in this window, complete any sign-in, then recheck.", port))
                     }
                 }
-                if let issue = recovery.issue {
+                if showIssue, let issue = recovery.issue {
                     Text(recoveryMessage(issue, port: port)).foregroundStyle(.orange)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -364,7 +427,7 @@ private struct GPUTWPortRecoveryView: View {
     private func recoveryMessage(_ issue: PairedPortIssue, port: String) -> String {
         switch issue {
         case .notFound:
-            return L10n.text("GPUtw port %@ returned 404. The cause is not confirmed. Check the HTTP port settings, instance status, and ComfyUI service.", port)
+            return L10n.text("GPUtw port %@ returned 404. This instance may have stopped or changed, or its HTTP port may be unavailable. Select a running instance in the dashboard and open its ComfyUI.", port)
         case .signInRequired:
             return L10n.text("Port %@ needs an owner session. Open it from the GPUtw dashboard's Other ports menu.", port)
         case .unavailable:

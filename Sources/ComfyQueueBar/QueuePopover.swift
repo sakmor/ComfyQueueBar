@@ -479,10 +479,10 @@ struct QueuePopover: View {
                 }.controlSize(.small)
             }
             HStack {
-                Button(L10n.text("Sign in to GPUtw…")) { queue.signInToGPUTW(address: panel.urlInput) }
+                Button(L10n.text("Sign in to GPUtw…")) { queue.signInToGPUTW() }
                 if let source = URL(string: panel.urlInput), let target = GPUTWAddress.serviceOrigin(source, port: 8090) {
                     Button(L10n.text("Connect Port 8090…")) {
-                        queue.signInToGPUTW(address: target.absoluteString, recoveryAddress: target.absoluteString)
+                        queue.signInToGPUTW(recoveryAddress: target.absoluteString)
                     }
                 }
                 Button(L10n.text("Clear GPUtw sign-in")) { Task { await queue.clearGPUTWLogin() } }
@@ -565,16 +565,16 @@ struct QueuePopover: View {
                     Text(title).font(.caption).lineLimit(2).help(title)
                 }
             case .issue(.notFound):
-                Text(L10n.text("GPUtw port %@ returned 404. The cause is not confirmed. Check the HTTP port settings, instance status, and ComfyUI service.", port))
+                Text(L10n.text("Port %@ is unavailable (HTTP 404). If your jobs use this port, check its HTTP port settings and ComfyUI service.", port))
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Button(L10n.text("Connect Port %@", port)) {
-                    queue.signInToGPUTW(address: endpoint, recoveryAddress: endpoint)
+                    queue.signInToGPUTW(recoveryAddress: endpoint)
                 }.buttonStyle(.link).font(.caption)
             case .issue(.signInRequired):
                 Text(L10n.text("GPUtw port %@ needs an owner session. Open it from the dashboard's Other ports menu.", port))
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Button(L10n.text("Connect Port %@", port)) {
-                    queue.signInToGPUTW(address: endpoint, recoveryAddress: endpoint)
+                    queue.signInToGPUTW(recoveryAddress: endpoint)
                 }.buttonStyle(.link).font(.caption)
             case .issue(.unavailable):
                 Text(L10n.text("Could not check paired GPUtw port %@. Check your connection and retry.", port))
@@ -722,13 +722,14 @@ struct QueuePopover: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            if queue.monitoringState == .signInRequired, let url = URL(string: queue.endpoint), GPUTWAddress.serviceOrigin(url) != nil {
-                Button(L10n.text("Sign in to GPUtw…")) { queue.signInToGPUTW(address: queue.endpoint) }
-                    .controlSize(.small)
-            }
             if let url = URL(string: queue.endpoint), GPUTWAddress.serviceOrigin(url) != nil {
+                Text(L10n.text("If this instance stopped or was replaced, choose a running instance from the GPUtw dashboard."))
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button(L10n.text("Choose a running GPUtw instance")) { queue.signInToGPUTW() }
+                    .controlSize(.small)
                 Button(L10n.text("Connect Port %@", ConnectionAddress.port(queue.endpoint))) {
-                    queue.signInToGPUTW(address: queue.endpoint, recoveryAddress: queue.endpoint)
+                    queue.signInToGPUTW(recoveryAddress: queue.endpoint)
                 }.controlSize(.small)
             }
         }

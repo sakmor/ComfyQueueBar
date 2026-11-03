@@ -330,7 +330,7 @@ struct ConnectionReviewView: View {
                 Button(L10n.text("Review Port %@", port)) { reviewPaired(endpoint) }
                     .controlSize(.small)
             } else if let issue = model.pairedIssue {
-                Label(pairedIssueMessage(issue, port: port), systemImage: "arrow.left.arrow.right")
+                Label(pairedIssueMessage(issue, port: port, paired: true), systemImage: "arrow.left.arrow.right")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 switch issue {
                 case .notFound, .signInRequired:
@@ -352,9 +352,13 @@ struct ConnectionReviewView: View {
         .background(Color.orange.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
     }
 
-    private func pairedIssueMessage(_ issue: PairedPortIssue, port: String) -> String {
+    private func pairedIssueMessage(_ issue: PairedPortIssue, port: String, paired: Bool = false) -> String {
         switch issue {
-        case .notFound: return L10n.text("GPUtw port %@ returned 404. The cause is not confirmed. Check the HTTP port settings, instance status, and ComfyUI service.", port)
+        case .notFound:
+            if paired {
+                return L10n.text("Port %@ is unavailable (HTTP 404). If your jobs use this port, check its HTTP port settings and ComfyUI service.", port)
+            }
+            return L10n.text("GPUtw port %@ returned 404. This instance may have stopped or changed, or its HTTP port may be unavailable. Select a running instance in the dashboard and open its ComfyUI.", port)
         case .signInRequired: return L10n.text("Port %@ needs an owner session. Open it from the GPUtw dashboard's Other ports menu.", port)
         case .unavailable: return L10n.text("Could not check GPUtw port %@. Check your connection and retry.", port)
         }

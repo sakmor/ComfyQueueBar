@@ -18,6 +18,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import re
 import shutil
 import socket
 import subprocess
@@ -146,6 +147,21 @@ def sha256(path):
         for chunk in iter(lambda: stream.read(1 << 20), b''):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def download_headers(path):
+    """Read only the final HTTP response, excluding proxy/interim headers."""
+    status, headers = None, {}
+    if path.exists():
+        for line in path.read_text('latin-1').splitlines():
+            if line.lower().startswith('http/'):
+                parts = line.split()
+                status = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else None
+                headers = {}
+            elif ':' in line:
+                key, value = line.split(':', 1)
+                headers[key.lower()] = value.strip()
+    return status, headers
 
 
 def wake_settings_for(endpoint):
@@ -472,7 +488,7 @@ class BatchRunner:
                    segment['name'], notify_user=True)
 
     def download(self, endpoint, settings, item, out_dir):
-        """curl with a low-speed stall abort; write to .part, verify size+SHA256, then rename."""
+        """curl with a low-speed stall abort and HTTP Range resume; write to .part, verify size+SHA256, then rename."""
         name = item.get('filename')
         if not isinstance(name, str) or name in ('', '.', '..') or any(c in name for c in '/\\\x00\r\n') or Path(name).is_absolute():
             raise ValueError('Unsafe output filename')
@@ -485,28 +501,59 @@ class BatchRunner:
         os.close(fd)
         partial = Path(temporary)
         headers_path = partial.with_suffix('.headers')
+        validator = None
         last = None
         for attempt in range(settings['retries'] + 1):
             try:
-                partial.unlink(missing_ok=True)
+                # Resume a partial body with an HTTP Range request instead of restarting the file.
+                resume_from = partial.stat().st_size if partial.exists() else 0
+                headers_path.write_text('')
                 command = ['curl', '-fsS', '--connect-timeout', '15',
                            '--speed-limit', str(int(settings['stall_bytes_per_second'])),
                            '--speed-time', str(max(1, int(settings['stall_seconds']))),
                            '--max-time', str(settings['download_timeout_seconds']),
-                           '-D', str(headers_path), '-o', str(partial), url]
-                result = subprocess.run(command, capture_output=True, timeout=settings['download_timeout_seconds'] + 60)
+                           '-D', str(headers_path), '-o', str(partial)]
+                if resume_from:
+                    command += ['-C', str(resume_from)]
+                    if validator:
+                        command += ['-H', 'If-Range: ' + validator]
+                result = subprocess.run(command + [url], capture_output=True, timeout=settings['download_timeout_seconds'] + 60)
+                status_code, headers = download_headers(headers_path)
+                etag = headers.get('etag', '')
+                response_validator = etag if etag and not etag.startswith('W/') else headers.get('last-modified')
+                if resume_from and (result.returncode in (33, 36) or status_code in (200, 416)
+                                    or (validator and response_validator and validator != response_validator)):
+                    # Server refused the range: discard the partial and restart from byte 0.
+                    partial.write_bytes(b'')
+                    validator = None
+                    raise OSError('range resume refused (curl exit %d); restarting file' % result.returncode)
+                if not resume_from:
+                    validator = response_validator
+                try:
+                    expected = int(headers['content-length']) if 'content-length' in headers else None
+                    if status_code == 206:
+                        match = re.fullmatch(r'bytes (\d+)-(\d+)/(\d+)', headers.get('content-range', ''), re.IGNORECASE)
+                        if not match:
+                            raise ValueError('missing or invalid Content-Range')
+                        start, end, total = map(int, match.groups())
+                        if start != resume_from or not start <= end < total or (expected is not None and expected != end - start + 1):
+                            raise ValueError('inconsistent Content-Range')
+                        expected = total
+                    elif result.returncode == 0 and (status_code != 200 or resume_from):
+                        raise ValueError('unexpected HTTP download status %s' % status_code)
+                except ValueError:
+                    partial.write_bytes(b'')
+                    validator = None
+                    raise
                 if result.returncode != 0:
-                    reason = 'stalled below %d B/s for %ds' % (settings['stall_bytes_per_second'], settings['stall_seconds']) if result.returncode == 28 else 'curl exit %d' % result.returncode
-                    raise OSError('%s: %s' % (reason, result.stderr.decode('utf-8', 'replace')[:200]))
-                expected = None
-                for line in headers_path.read_text('latin-1').lower().splitlines():
-                    if line.startswith('http/'):
-                        expected = None  # keep only the final response block
-                    elif line.startswith('content-length:'):
-                        expected = int(line.split(':', 1)[1].strip())
+                    reason = 'transfer timed out or stalled' if result.returncode == 28 else 'curl exit %d' % result.returncode
+                    raise OSError('%s (kept %d bytes for resume): %s' % (reason, partial.stat().st_size if partial.exists() else 0,
+                                                                         result.stderr.decode('utf-8', 'replace')[:200]))
                 size = partial.stat().st_size
                 if expected is not None and size != expected:
-                    raise OSError('size mismatch %d != %d' % (size, expected))
+                    partial.write_bytes(b'')
+                    validator = None
+                    raise OSError('size mismatch %d != %d; restarting file' % (size, expected))
                 if size == 0:
                     raise OSError('empty download')
                 digest = sha256(partial)
@@ -515,7 +562,8 @@ class BatchRunner:
                     raise OSError('sha256 changed after rename')
                 headers_path.unlink(missing_ok=True)
                 return {'filename': item['filename'], 'path': str(target), 'bytes': size, 'sha256': digest,
-                        'size_verified_against_server': expected is not None, 'attempts': attempt + 1}
+                        'size_verified_against_server': expected is not None, 'attempts': attempt + 1,
+                        'resumed': bool(resume_from)}
             except (OSError, subprocess.SubprocessError, ValueError) as error:
                 last = error
                 if attempt < settings['retries']:

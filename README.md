@@ -105,6 +105,14 @@ The benefit is greatest when replacing frequent agent polling during long render
 
 Enable **Settings → AI agent integration** to let Claude Code or Codex delegate ComfyUI monitoring to this app through a local MCP adapter. Agents receive instructions to subscribe to exact jobs instead of repeatedly querying progress. Subscriptions, results, and acknowledged completion/failure events survive app restarts. The packaged app includes **Set up Claude and Codex** to register MCP and install the shared ComfyQueueBar Skill for both clients, backing up replaced files; reopen agent sessions afterward. A manual configuration copy button is also available; Python 3.9+ is required for MCP, with no pip dependencies.
 
+**Claude Code CLI registration.** The app's setup writes Claude Desktop's `claude_desktop_config.json`; Claude Code reads `~/.claude.json` instead. To make the tools available in every Claude Code session, run once:
+
+```sh
+claude mcp add --scope user comfyqueuebar -- python3 "$HOME/Library/Application Support/ComfyQueueBar/MCP/server.py"
+```
+
+This registers the server in `~/.claude.json`. Check with `claude mcp list`, then start a new session. See the [setup guide](docs/AGENT_INTEGRATION.md#enable-and-connect).
+
 Standard MCP cannot wake an idle desktop conversation. It provides a bounded programmatic wait; experimental Claude Channels support verifies inbound delivery before claiming push capability. Claude Desktop Code-tab channel activation and Codex Desktop push are not established. See [setup, delivery modes, and limitations](docs/AGENT_INTEGRATION.md).
 
 ### Keep render → QC → next segment active
@@ -113,7 +121,7 @@ For an authorized production task, use `wait_for_completion` in one active long/
 
 ### Hand a whole batch to the app
 
-Agents can call `submit_batch` with a manifest of API graphs, reference images and an output folder. A detached runner keeps one segment running and the next one queued (without jumping other users' jobs), downloads outputs in the background with stall detection, reports GPU idle time between segments, retries every request, never resubmits a `client_id` it can find in the queue or history, resubmits prompts lost to a ComfyUI restart, downloads outputs with SHA256 verification, survives agent/app restarts, and sends macOS notifications (including a sleep/`caffeinate` hint and Wake-on-LAN when the server goes offline). See [Managed batches](docs/AGENT_INTEGRATION.md#managed-batches-hand-a-whole-render-batch-to-comfyqueuebar).
+Agents can call `submit_batch` with a manifest of API graphs, reference images and an output folder. A detached runner keeps one segment running and the next one queued (without jumping other users' jobs), downloads outputs in the background with stall detection (`stall_bytes_per_second`/`stall_seconds`) and HTTP Range resume during download retries, reports GPU idle time between segments, retries every request, never resubmits a `client_id` it can find in the queue or history, resubmits prompts lost to a ComfyUI restart, downloads outputs with local SHA256 verification, survives agent/app restarts, and sends macOS notifications (including a sleep/`caffeinate` hint and Wake-on-LAN when the server goes offline). See [Managed batches](docs/AGENT_INTEGRATION.md#managed-batches-hand-a-whole-render-batch-to-comfyqueuebar).
 
 ### Use the included skill
 

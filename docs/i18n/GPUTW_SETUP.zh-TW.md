@@ -35,9 +35,11 @@ open build/ComfyQueueBar.app
 
 1. 確認 GPUtw 執行個體正在運行，且 ComfyUI 已啟動。
 2. 點 macOS 選單列的 **ComfyQueueBar 圖示**，再點面板左下角的 **齒輪**。
-3. 按 **登入 GPUtw…**。也可在 **ComfyUI 位址** 填入 `https://gputw.ai/dashboard`，再按 **連線**。
+3. 按 **登入 GPUtw…**，App 會直接開啟 GPUtw 控制台，不會沿用已儲存的舊服務位址。也可在 **ComfyUI 位址** 填入 `https://gputw.ai/dashboard`，再按 **連線**。
 4. 在 App 開啟的瀏覽器完成 GPUtw 登入。Chrome 或 Safari 的登入狀態不會自動共用到 App。
 5. 從 GPUtw 控制台開啟這次生成影片所用的 **ComfyUI Web UI**。若使用自訂 HTTP 連接埠，請開啟對應連接埠的 Web UI；有密碼保護時，在 GPUtw 頁面輸入既有密碼。
+
+若舊連線回傳 404，執行個體可能已停止或更換，也可能是 HTTP 連接埠無法使用；404 本身不能確定是登入失敗。可按 **選擇運行中的 GPUtw** 回到控制台。針對舊連接埠的恢復檢查若回傳 404 或要求登入，App 也會帶你回到控制台，提示重新選擇。更換執行個體後，請選擇目前運行中的機器，再開啟它的 ComfyUI；舊位址不會自動對應到新機器。一般登入不需要 API 金鑰，金鑰設定收在 **進階：使用 API 金鑰啟用 HTTP 連接埠**。
 
 只停留在控制台或 Jupyter 頁面還不算選定 ComfyUI。必須先進入實際的 ComfyUI 服務，下一步的 **確認此 ComfyUI** 才能使用。
 
